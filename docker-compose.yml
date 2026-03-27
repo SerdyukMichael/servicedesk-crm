@@ -1,4 +1,4 @@
-version: "3.9"
+# version: "3.9"
 
 services:
 
@@ -26,7 +26,7 @@ services:
     build: ./backend
     container_name: servicedesk_api
     restart: unless-stopped
-    env_file: ./backend/.env
+ #   env_file: ./backend/.env
     ports:
       - "8000:8000"
     depends_on:
