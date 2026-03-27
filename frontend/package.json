@@ -1,0 +1,14 @@
+{
+  "name": "servicedesk-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "mkdir -p dist && cp index.html dist/",
+    "dev": "echo 'Dev server'"
+  },
+  "description": "",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

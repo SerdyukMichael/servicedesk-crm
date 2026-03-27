@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ServiceDesk CRM | Акт приема-передачи оборудования</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',-apple-system,sans-serif;background:#f1f5f9}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const {useState}=React;
+
+const DOC_RU="Акт приема-передачи оборудования";
+const DOC_EN="Equipment Handover";
+const CFG_STATUSES=[{"code": "S1", "label": "Черновик", "color": "#3b82f6"}, {"code": "S2", "label": "Подписан", "color": "#10b981"}, {"code": "S3", "label": "Отменен", "color": "#ef4444"}];
+const CFG_COLS=["Клиент", "Адрес", "Кол-во"];
+const CFG_FIELDS=[["Клиент", true, "select", ["PKO Bank", "mBank"], "", "PKO Bank"], ["Дата", true, "input", [], "", "2026-03-16"], ["Адрес", true, "textarea", [], "", "Marszalkowska 100"], ["Представитель", true, "input", [], "ФИО", ""]];
+const CFG_TBL=["Оборудование", "S/N", "Модель", "Комплектация", "Состояние"];
+const CFG_TRANSITIONS=[{"from": "S1", "to": "S2", "label": "Подписан", "variant": "success"}, {"from": "S1", "to": "S3", "label": "Отменить", "variant": "danger"}];
+const CFG_CHECKS=["Мин. 1 оборудование", "Представитель указан", "Скан прикреплен"];
+const CFG_ROLES=[["Менеджер", "Создание"], ["Рук. сервиса", "Создание"], ["Инженер", "Создание (установка)"]];
+const CFG_MOCK=[{"id": "HA/2026/03/001", "cols": ["PKO Bank", "Marszalkowska 100", "2"], "status": "S2", "date": "2026-03-16"}];
+const Badge=({color,children})=>(<span style={{background:color+"18",color,padding:"2px 10px",borderRadius:12,fontSize:12,fontWeight:600,whiteSpace:"nowrap",border:`1px solid ${color}30`}}>{children}</span>);
+const Btn=({children,variant="default",onClick,size="md"})=>{const st={primary:{background:"#2563eb",color:"#fff",border:"none"},success:{background:"#16a34a",color:"#fff",border:"none"},danger:{background:"#dc2626",color:"#fff",border:"none"},warning:{background:"#f59e0b",color:"#fff",border:"none"},default:{background:"#fff",color:"#334155",border:"1px solid #e2e8f0"},ghost:{background:"transparent",color:"#64748b",border:"none"}};const sz={sm:{padding:"4px 10px",fontSize:12},md:{padding:"8px 16px",fontSize:13}};return<button onClick={onClick} style={{...st[variant],...sz[size],borderRadius:6,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}>{children}</button>};
+const Card=({children,style})=>(<div style={{background:"#fff",borderRadius:10,border:"1px solid #e2e8f0",padding:20,...style}}>{children}</div>);
+const Input=({placeholder,value,readonly,type="text"})=>(<input type={type} placeholder={placeholder} defaultValue={value} readOnly={readonly} style={{width:"100%",padding:"8px 12px",border:"1px solid #e2e8f0",borderRadius:6,fontSize:14,background:readonly?"#f8fafc":"#fff",outline:"none",boxSizing:"border-box"}}/>);
+const Sel=({options,value,placeholder,readonly})=>(<select defaultValue={value||""} disabled={readonly} style={{width:"100%",padding:"8px 12px",border:"1px solid #e2e8f0",borderRadius:6,fontSize:14,background:readonly?"#f8fafc":"#fff"}}>{placeholder&&<option value="">{placeholder}</option>}{(options||[]).map(o=><option key={o}>{o}</option>)}</select>);
+const Txa=({placeholder,value,readonly,rows=3})=>(<textarea placeholder={placeholder} defaultValue={value} readOnly={readonly} rows={rows} style={{width:"100%",padding:"8px 12px",border:"1px solid #e2e8f0",borderRadius:6,fontSize:14,resize:"vertical",fontFamily:"inherit",boxSizing:"border-box"}}/>);
+const Fld=({label,req,children,hint})=>(<div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,fontWeight:600,color:"#475569",marginBottom:3,textTransform:"uppercase"}}>{label} {req&&<span style={{color:"#ef4444"}}>*</span>}</label>{children}{hint&&<div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{hint}</div>}</div>);
+
+const Timeline=({current,statuses})=>{const idx=statuses.findIndex(s=>s.code===current);return(<div style={{display:"flex",alignItems:"center",gap:0,marginBottom:20,overflowX:"auto",paddingBottom:4}}>{statuses.map((s,i)=>(<div key={s.code} style={{display:"flex",alignItems:"center"}}><div style={{width:26,height:26,borderRadius:"50%",background:i<=idx?s.color:"#e2e8f0",color:i<=idx?"#fff":"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,flexShrink:0}}>{i+1}</div><div style={{fontSize:9,color:i===idx?s.color:"#94a3b8",fontWeight:i===idx?700:400,marginLeft:3,marginRight:6,whiteSpace:"nowrap"}}>{s.label}</div>{i<statuses.length-1&&<div style={{width:16,height:2,background:i<idx?statuses[i+1].color:"#e2e8f0",flexShrink:0}}/>}</div>))}</div>)};
+
+const renderField=(f,ro)=>{const[nm,req,tp,opts,hint,def]=f;if(tp==="select")return<Fld label={nm} req={req} hint={hint}><Sel options={opts} value={def} placeholder="-- Выберите --" readonly={ro}/></Fld>;if(tp==="textarea")return<Fld label={nm} req={req} hint={hint}><Txa value={ro?def:""} placeholder={hint} readonly={ro}/></Fld>;return<Fld label={nm} req={req} hint={hint}><Input value={def} readonly={ro} placeholder={hint}/></Fld>};
+
+function WireframeApp({DOC_RU,DOC_EN,STATUSES,COLS,FIELDS,TBL,TRANSITIONS,CHECKS,ROLES,MOCK}){
+const[screen,setScreen]=useState("list");const[rec,setRec]=useState(null);const[curSt,setCurSt]=useState(STATUSES[0].code);
+
+const ListScreen=()=>{const[showF,setShowF]=useState(false);const[search,setSearch]=useState("");
+const filtered=MOCK.filter(r=>!search||JSON.stringify(r).toLowerCase().includes(search.toLowerCase()));
+return(<div>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
+<div><h2 style={{margin:0,fontSize:20,color:"#0f172a"}}>{DOC_RU}</h2><div style={{fontSize:13,color:"#64748b"}}>{DOC_EN} | {filtered.length} записей</div></div>
+<div style={{display:"flex",gap:8}}><Btn variant="ghost" onClick={()=>setShowF(!showF)}>{showF?"Скрыть":"Фильтры"}</Btn><Btn variant="primary" onClick={()=>setScreen("create")}>+ Создать</Btn></div></div>
+{showF&&<Card style={{marginBottom:16,background:"#f8fafc"}}><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12}}>
+<Fld label="Поиск"><Input placeholder="Поиск..." onChange={e=>setSearch(e.target.value)}/></Fld>
+<Fld label="Статус"><Sel options={STATUSES.map(s=>s.label)} placeholder="Все"/></Fld>
+{COLS.slice(0,2).map((c,i)=><Fld key={i} label={c}><Sel options={[c+" 1",c+" 2"]} placeholder="Все"/></Fld>)}
+</div><div style={{display:"flex",gap:8,marginTop:8}}><Btn variant="primary" size="sm">Применить</Btn><Btn size="sm" onClick={()=>setSearch("")}>Сбросить</Btn></div></Card>}
+<Card style={{padding:0,overflow:"hidden"}}><div style={{overflowX:"auto"}}>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr style={{background:"#f8fafc"}}>
+{["Номер",...COLS,"Статус","Дата"].map(h=><th key={h} style={{padding:"10px 12px",textAlign:"left",color:"#64748b",fontWeight:600,fontSize:11,textTransform:"uppercase",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap"}}>{h}</th>)}
+</tr></thead><tbody>
+{filtered.map((r,i)=>{const st=STATUSES.find(s=>s.code===r.status)||STATUSES[0];return(
+<tr key={i} onClick={()=>{setRec(r);setCurSt(r.status);setScreen("view")}} style={{cursor:"pointer",borderBottom:"1px solid #f1f5f9"}} onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+<td style={{padding:"10px 12px",fontWeight:600,color:"#2563eb",whiteSpace:"nowrap"}}>{r.id}</td>
+{r.cols.map((c,ci)=><td key={ci} style={{padding:"10px 12px"}}>{c}</td>)}
+<td style={{padding:"10px 12px"}}><Badge color={st.color}>{st.label}</Badge></td>
+<td style={{padding:"10px 12px",fontSize:12,color:"#64748b"}}>{r.date}</td></tr>)})}
+</tbody></table></div>
+<div style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0",display:"flex",justifyContent:"space-between",fontSize:12,color:"#64748b"}}><span>{filtered.length} записей</span><div style={{display:"flex",gap:4}}><Btn size="sm" variant="primary">1</Btn><Btn size="sm" variant="ghost">2</Btn></div></div>
+</Card></div>)};
+
+const CreateScreen=()=>(<div>
+<div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}><Btn variant="ghost" onClick={()=>setScreen("list")}>← Назад</Btn><div><h2 style={{margin:0,fontSize:20}}>Новый: {DOC_RU}</h2><div style={{fontSize:13,color:"#64748b"}}>Create {DOC_EN}</div></div></div>
+<div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:20}}>
+<Card><h3 style={{margin:"0 0 16px",fontSize:15,borderBottom:"1px solid #f1f5f9",paddingBottom:8}}>Основная информация</h3>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>{FIELDS.map((f,i)=><div key={i}>{renderField(f,false)}</div>)}</div>
+{TBL.length>0&&<><h3 style={{margin:"16px 0 8px",fontSize:14,color:"#475569"}}>Позиции</h3>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:13,marginBottom:8}}><thead><tr style={{background:"#f8fafc"}}>
+{TBL.map((t,i)=><th key={i} style={{padding:8,textAlign:"left",fontSize:11,color:"#64748b"}}>{t}</th>)}<th style={{padding:8}}></th></tr></thead>
+<tbody><tr style={{borderBottom:"1px solid #f1f5f9"}}>{TBL.map((t,i)=><td key={i} style={{padding:8}}><Input placeholder={t}/></td>)}<td style={{padding:8}}><Btn variant="danger" size="sm">x</Btn></td></tr></tbody></table>
+<Btn size="sm">+ Добавить</Btn></>}</Card>
+<Card style={{background:"#fffbeb",borderColor:"#fde68a"}}><div style={{fontSize:13,color:"#92400e",fontWeight:600,marginBottom:6}}>Проверки при сохранении:</div>
+<ul style={{margin:0,paddingLeft:18,fontSize:12,color:"#92400e",lineHeight:1.8}}>{CHECKS.map((c,i)=><li key={i}>{c}</li>)}</ul></Card>
+</div>
+<div style={{display:"flex",gap:8,marginTop:20,justifyContent:"flex-end"}}><Btn onClick={()=>setScreen("list")}>Отмена</Btn><Btn variant="primary">Сохранить</Btn></div>
+</div>);
+
+const ViewScreen=()=>{const st=STATUSES.find(s=>s.code===curSt)||STATUSES[0];const avail=TRANSITIONS.filter(t=>t.from===curSt);
+return(<div>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:8}}>
+<div style={{display:"flex",alignItems:"center",gap:12}}><Btn variant="ghost" onClick={()=>setScreen("list")}>← Назад</Btn><div><h2 style={{margin:0,fontSize:20}}>{rec.id}</h2><div style={{fontSize:13,color:"#64748b"}}>{DOC_EN}</div></div><Badge color={st.color}>{st.label}</Badge></div>
+<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{avail.map((t,i)=><Btn key={i} variant={t.variant} onClick={()=>setCurSt(t.to)}>{t.label}</Btn>)}<Btn variant="ghost">PDF</Btn></div></div>
+<Timeline current={curSt} statuses={STATUSES}/>
+<div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:20}}>
+<div><Card style={{marginBottom:16}}><h3 style={{margin:"0 0 16px",fontSize:15,borderBottom:"1px solid #f1f5f9",paddingBottom:8}}>Данные документа</h3>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>{FIELDS.map((f,i)=><div key={i}>{renderField(f,curSt!==STATUSES[0].code)}</div>)}</div>
+{TBL.length>0&&<><h3 style={{margin:"16px 0 8px",fontSize:14,color:"#475569"}}>Позиции</h3>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr style={{background:"#f8fafc"}}>{TBL.map((t,i)=><th key={i} style={{padding:8,textAlign:"left",fontSize:11}}>{t}</th>)}</tr></thead>
+<tbody><tr style={{borderBottom:"1px solid #f1f5f9"}}>{TBL.map((t,i)=><td key={i} style={{padding:8}}>Пример данных</td>)}</tr></tbody></table></>}</Card>
+<Card><h3 style={{margin:"0 0 12px",fontSize:15}}>Комментарии / История</h3><div style={{background:"#f8fafc",borderRadius:8,padding:12,fontSize:13,marginBottom:8}}><b>Система</b> <span style={{color:"#94a3b8",fontSize:11}}>сегодня</span><br/>Статус изменен: {st.label}</div><Txa placeholder="Добавить комментарий..." rows={2}/><div style={{marginTop:8,textAlign:"right"}}><Btn variant="primary" size="sm">Отправить</Btn></div></Card></div>
+<div><Card style={{marginBottom:16}}><h3 style={{margin:"0 0 12px",fontSize:15}}>Доступные переходы</h3><div style={{fontSize:13,display:"grid",gap:6}}>
+{avail.length>0?avail.map((t,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span>{t.label}</span><Btn size="sm" variant={t.variant} onClick={()=>setCurSt(t.to)}>→</Btn></div>):<div style={{color:"#94a3b8"}}>Терминальное состояние</div>}</div></Card>
+<Card style={{marginBottom:16}}><h3 style={{margin:"0 0 12px",fontSize:15}}>Доступ по ролям</h3><div style={{fontSize:12,display:"grid",gap:4}}>
+{ROLES.map((r,i)=><div key={i} style={{display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:600}}>{r[0]}</span><span style={{color:"#64748b"}}>{r[1]}</span></div>)}</div></Card>
+<Card style={{background:"#fffbeb",borderColor:"#fde68a"}}><h3 style={{margin:"0 0 8px",fontSize:14,color:"#92400e"}}>Проверки</h3><div style={{fontSize:12,color:"#92400e"}}>
+{CHECKS.map((c,i)=><div key={i} style={{marginBottom:4}}>{c}</div>)}</div></Card></div></div></div>)};
+
+return(<div style={{background:"#f1f5f9",minHeight:"100vh"}}>
+<header style={{background:"#0f172a",color:"#fff",padding:"10px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+<div style={{display:"flex",alignItems:"center",gap:16}}><span style={{fontWeight:700,fontSize:16}}>ServiceDesk CRM</span><span style={{color:"#60a5fa",fontSize:13}}>{DOC_RU}</span></div>
+<div style={{width:28,height:28,borderRadius:"50%",background:"#2563eb",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff"}}>U</div></header>
+<main style={{maxWidth:1200,margin:"0 auto",padding:20}}>
+{screen==="list"&&<ListScreen/>}
+{screen==="create"&&<CreateScreen/>}
+{screen==="view"&&rec&&<ViewScreen/>}
+</main>
+<footer style={{textAlign:"center",padding:12,fontSize:11,color:"#94a3b8"}}>ServiceDesk CRM | {DOC_RU} | Wireframes v1.0</footer>
+</div>)}
+
+function App(){return <WireframeApp DOC_RU={DOC_RU} DOC_EN={DOC_EN} STATUSES={CFG_STATUSES} COLS={CFG_COLS} FIELDS={CFG_FIELDS} TBL={CFG_TBL} TRANSITIONS={CFG_TRANSITIONS} CHECKS={CFG_CHECKS} ROLES={CFG_ROLES} MOCK={CFG_MOCK}/>}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script></body></html>
