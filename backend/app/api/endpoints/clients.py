@@ -1,85 +1,45 @@
-from typing import List, Optional
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+
 from app.core.database import get_db
-from app.models import Client, Interaction
-from app.api.deps import get_current_user
+from app.models import Client, User
+from app.api.deps import get_current_user, require_roles
+from app.schemas import ClientCreate, ClientUpdate, ClientResponse, PaginatedResponse
 
 router = APIRouter()
 
-
-# ─── Schemas ────────────────────────────────────────────────────────────────
-
-class ClientCreate(BaseModel):
-    company_name: str
-    inn: Optional[str] = None
-    kpp: Optional[str] = None
-    ogrn: Optional[str] = None
-    legal_address: Optional[str] = None
-    actual_address: Optional[str] = None
-    contact_name: Optional[str] = None
-    contact_phone: Optional[str] = None
-    contact_email: Optional[str] = None
-    manager_id: Optional[int] = None
-    notes: Optional[str] = None
+_WRITE_ROLES = ("admin", "sales_mgr", "svc_mgr")
+_ADMIN = ("admin",)
 
 
-class ClientOut(BaseModel):
-    id: int
-    company_name: str
-    inn: Optional[str]
-    kpp: Optional[str]
-    contact_name: Optional[str]
-    contact_phone: Optional[str]
-    contact_email: Optional[str]
-    status: str
-    manager_id: Optional[int]
-
-    class Config:
-        from_attributes = True
-
-
-class InteractionCreate(BaseModel):
-    type: str = "call"
-    date: datetime
-    subject: Optional[str] = None
-    description: Optional[str] = None
-
-
-class InteractionOut(BaseModel):
-    id: int
-    type: str
-    date: datetime
-    subject: Optional[str]
-    description: Optional[str]
-
-    class Config:
-        from_attributes = True
-
-
-# ─── Endpoints ──────────────────────────────────────────────────────────────
-
-@router.get("/", response_model=List[ClientOut])
+@router.get("", response_model=PaginatedResponse[ClientResponse])
 def list_clients(
     search: Optional[str] = Query(None),
-    status: Optional[str] = Query(None, description="active | inactive"),
+    contract_type: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(get_current_user),
 ):
-    q = db.query(Client)
-    q = q.filter(Client.status == (status or "active"))
+    q = db.query(Client).filter(Client.is_deleted.is_(False))
     if search:
-        q = q.filter(Client.company_name.ilike(f"%{search}%"))
-    return q.order_by(Client.company_name).all()
+        q = q.filter(Client.name.ilike(f"%{search}%"))
+    if contract_type:
+        q = q.filter(Client.contract_type == contract_type)
+    total = q.count()
+    skip = (page - 1) * size
+    items = q.order_by(Client.name).offset(skip).limit(size).all()
+    pages = max(1, (total + size - 1) // size)
+    return PaginatedResponse(items=items, total=total, page=page, size=size, pages=pages)
 
 
-@router.post("/", response_model=ClientOut)
+@router.post("", response_model=ClientResponse, status_code=status.HTTP_201_CREATED)
 def create_client(
     data: ClientCreate,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(require_roles(*_WRITE_ROLES)),
 ):
     client = Client(**data.model_dump())
     db.add(client)
@@ -88,76 +48,52 @@ def create_client(
     return client
 
 
-@router.get("/{client_id}", response_model=ClientOut)
+@router.get("/{client_id}", response_model=ClientResponse)
 def get_client(
     client_id: int,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(get_current_user),
 ):
-    c = db.query(Client).filter(Client.id == client_id).first()
-    if not c:
-        raise HTTPException(404, "Клиент не найден")
-    return c
+    client = db.query(Client).filter(Client.id == client_id, Client.is_deleted.is_(False)).first()
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Клиент не найден"},
+        )
+    return client
 
 
-@router.put("/{client_id}", response_model=ClientOut)
+@router.put("/{client_id}", response_model=ClientResponse)
 def update_client(
     client_id: int,
-    data: ClientCreate,
+    data: ClientUpdate,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(require_roles("admin", "sales_mgr")),
 ):
-    c = db.query(Client).filter(Client.id == client_id).first()
-    if not c:
-        raise HTTPException(404, "Клиент не найден")
-    for k, v in data.model_dump().items():
-        setattr(c, k, v)
+    client = db.query(Client).filter(Client.id == client_id, Client.is_deleted.is_(False)).first()
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Клиент не найден"},
+        )
+    for k, v in data.model_dump(exclude_none=True).items():
+        setattr(client, k, v)
     db.commit()
-    db.refresh(c)
-    return c
+    db.refresh(client)
+    return client
 
 
-@router.delete("/{client_id}")
-def deactivate_client(
+@router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_client(
     client_id: int,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(require_roles(*_ADMIN)),
 ):
-    c = db.query(Client).filter(Client.id == client_id).first()
-    if not c:
-        raise HTTPException(404, "Клиент не найден")
-    c.status = "inactive"
+    client = db.query(Client).filter(Client.id == client_id, Client.is_deleted.is_(False)).first()
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Клиент не найден"},
+        )
+    client.is_deleted = True
     db.commit()
-    return {"ok": True}
-
-
-@router.get("/{client_id}/interactions", response_model=List[InteractionOut])
-def get_interactions(
-    client_id: int,
-    db: Session = Depends(get_db),
-    _=Depends(get_current_user),
-):
-    return (
-        db.query(Interaction)
-        .filter(Interaction.client_id == client_id)
-        .order_by(Interaction.date.desc())
-        .all()
-    )
-
-
-@router.post("/{client_id}/interactions", response_model=InteractionOut)
-def add_interaction(
-    client_id: int,
-    data: InteractionCreate,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    obj = Interaction(
-        client_id=client_id,
-        user_id=current_user.id,
-        **data.model_dump(),
-    )
-    db.add(obj)
-    db.commit()
-    db.refresh(obj)
-    return obj

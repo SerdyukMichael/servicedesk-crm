@@ -1,13 +1,26 @@
 from fastapi import APIRouter
-from app.api.endpoints import auth, users, clients, equipment, requests, parts, invoices, vendors
+from app.api.endpoints import (
+    auth,
+    users,
+    clients,
+    equipment,
+    tickets,
+    work_templates,
+    parts,
+    vendors,
+    invoices,
+    notifications,
+)
 
 api_router = APIRouter()
 
-api_router.include_router(auth.router,      prefix="/auth",             tags=["Авторизация"])
-api_router.include_router(users.router,     prefix="/users",            tags=["Пользователи"])
-api_router.include_router(clients.router,   prefix="/clients",          tags=["Клиенты"])
-api_router.include_router(equipment.router, prefix="/equipment",        tags=["Оборудование"])
-api_router.include_router(requests.router,  prefix="/requests",         tags=["Заявки"])
-api_router.include_router(parts.router,     prefix="/parts",            tags=["Склад"])
-api_router.include_router(invoices.router,  prefix="/invoices",         tags=["Счета"])
-api_router.include_router(vendors.router,   prefix="/vendors",          tags=["Вендоры"])
+api_router.include_router(auth.router,           prefix="/auth",           tags=["Авторизация"])
+api_router.include_router(users.router,          prefix="/users",          tags=["Пользователи"])
+api_router.include_router(clients.router,        prefix="/clients",        tags=["Клиенты"])
+api_router.include_router(equipment.router,      prefix="/equipment",      tags=["Оборудование"])
+api_router.include_router(tickets.router,        prefix="/tickets",        tags=["Заявки"])
+api_router.include_router(work_templates.router, prefix="/work-templates", tags=["Шаблоны работ"])
+api_router.include_router(parts.router,          prefix="/parts",          tags=["Склад"])
+api_router.include_router(vendors.router,        prefix="/vendors",        tags=["Вендоры"])
+api_router.include_router(invoices.router,       prefix="/invoices",       tags=["Счета"])
+api_router.include_router(notifications.router,  prefix="/notifications",  tags=["Уведомления"])

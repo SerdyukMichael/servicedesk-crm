@@ -1,20 +1,23 @@
-# Для фронтенда на Node.js/React/Vue
-FROM node:18-alpine as build
+# Stage 1: Build
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Копируем package.json и устанавливаем зависимости
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
-# Копируем исходный код и собираем
 COPY . .
 RUN npm run build
 
-# Второй этап: nginx для раздачи статики
-FROM nginx:alpine
+# Stage 2: Serve with nginx
+FROM nginx:1.27-alpine
+
 COPY --from=build /app/dist /usr/share/nginx/html
-# Если используете React/Vue, обычно сборка в папке dist
-# Для разных фреймворков путь может отличаться: /build, /public и т.д.
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s \
+    CMD wget -qO- http://localhost/health || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

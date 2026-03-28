@@ -1,209 +1,140 @@
-from typing import List, Optional
-from decimal import Decimal
-from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+
 from app.core.database import get_db
-from app.models import SparePart, PartsUsage, ServiceRequest
-from app.api.deps import get_current_user
+from app.models import SparePart, User
+from app.api.deps import get_current_user, require_roles
+from app.schemas import SparePartCreate, SparePartUpdate, SparePartResponse, StockAdjust, PaginatedResponse
 
 router = APIRouter()
 
-
-# ─── Schemas ────────────────────────────────────────────────────────────────
-
-class PartCreate(BaseModel):
-    name: str
-    part_number: Optional[str] = None
-    catalog_id: Optional[int] = None
-    vendor_id: Optional[int] = None
-    quantity: int = 0
-    unit: str = "шт"
-    cost_price: Optional[Decimal] = None
-    sale_price: Optional[Decimal] = None
-    min_quantity: int = 0
-    location: Optional[str] = None
-    notes: Optional[str] = None
+_WRITE_ROLES = ("admin", "warehouse")
+_ADMIN = ("admin",)
 
 
-class PartOut(BaseModel):
-    id: int
-    name: str
-    part_number: Optional[str]
-    catalog_id: Optional[int]
-    vendor_id: Optional[int]
-    quantity: int
-    unit: str
-    cost_price: Optional[Decimal]
-    sale_price: Optional[Decimal]
-    min_quantity: int
-    location: Optional[str]
-
-    class Config:
-        from_attributes = True
-
-
-class UsePartRequest(BaseModel):
-    request_id: int
-    quantity: int
-    unit_price: Decimal
-    notes: Optional[str] = None
-
-
-class ReceiveRequest(BaseModel):
-    quantity: int
-    notes: Optional[str] = None
-
-
-class UsageOut(BaseModel):
-    id: int
-    request_id: int
-    part_id: int
-    quantity: int
-    unit_price: Decimal
-    used_by: int
-    notes: Optional[str]
-
-    class Config:
-        from_attributes = True
-
-
-# ─── Endpoints ──────────────────────────────────────────────────────────────
-
-@router.get("/", response_model=List[PartOut])
+@router.get("", response_model=PaginatedResponse[SparePartResponse])
 def list_parts(
-    search: Optional[str] = Query(None),
-    low_stock: bool = Query(False, description="Только позиции с остатком ниже минимума"),
+    category: Optional[str] = Query(None),
+    low_stock: bool = Query(False),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(get_current_user),
 ):
-    q = db.query(SparePart)
-    if search:
-        q = q.filter(
-            SparePart.name.ilike(f"%{search}%") |
-            SparePart.part_number.ilike(f"%{search}%")
-        )
+    q = db.query(SparePart).filter(SparePart.is_active.is_(True))
+    if category:
+        q = q.filter(SparePart.category == category)
     if low_stock:
         q = q.filter(SparePart.quantity <= SparePart.min_quantity)
-    return q.order_by(SparePart.name).all()
+    total = q.count()
+    skip = (page - 1) * size
+    items = q.order_by(SparePart.name).offset(skip).limit(size).all()
+    pages = max(1, (total + size - 1) // size)
+    return PaginatedResponse(items=items, total=total, page=page, size=size, pages=pages)
 
 
-@router.post("/", response_model=PartOut)
+@router.post("", response_model=SparePartResponse, status_code=status.HTTP_201_CREATED)
 def create_part(
-    data: PartCreate,
+    data: SparePartCreate,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(require_roles(*_WRITE_ROLES)),
 ):
-    obj = SparePart(**data.model_dump())
-    db.add(obj)
-    db.commit()
-    db.refresh(obj)
-    return obj
-
-
-@router.get("/low-stock", response_model=List[PartOut])
-def get_low_stock(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return (
-        db.query(SparePart)
-        .filter(SparePart.quantity <= SparePart.min_quantity)
-        .order_by(SparePart.name)
-        .all()
-    )
-
-
-@router.get("/{part_id}", response_model=PartOut)
-def get_part(
-    part_id: int,
-    db: Session = Depends(get_db),
-    _=Depends(get_current_user),
-):
-    obj = db.query(SparePart).filter(SparePart.id == part_id).first()
-    if not obj:
-        raise HTTPException(404, "Запчасть не найдена")
-    return obj
-
-
-@router.put("/{part_id}", response_model=PartOut)
-def update_part(
-    part_id: int,
-    data: PartCreate,
-    db: Session = Depends(get_db),
-    _=Depends(get_current_user),
-):
-    obj = db.query(SparePart).filter(SparePart.id == part_id).first()
-    if not obj:
-        raise HTTPException(404, "Запчасть не найдена")
-    for k, v in data.model_dump().items():
-        setattr(obj, k, v)
-    db.commit()
-    db.refresh(obj)
-    return obj
-
-
-@router.post("/{part_id}/receive", response_model=PartOut)
-def receive_parts(
-    part_id: int,
-    data: ReceiveRequest,
-    db: Session = Depends(get_db),
-    _=Depends(get_current_user),
-):
-    """Поступление запчастей на склад."""
-    part = db.query(SparePart).filter(SparePart.id == part_id).first()
-    if not part:
-        raise HTTPException(404, "Запчасть не найдена")
-    if data.quantity <= 0:
-        raise HTTPException(400, "Количество должно быть больше нуля")
-    part.quantity += data.quantity
+    if db.query(SparePart).filter(SparePart.sku == data.sku).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "CONFLICT", "message": "SKU уже используется"},
+        )
+    part = SparePart(**data.model_dump())
+    db.add(part)
     db.commit()
     db.refresh(part)
     return part
 
 
-@router.post("/{part_id}/use", response_model=UsageOut)
-def use_part(
+@router.get("/{part_id}", response_model=SparePartResponse)
+def get_part(
     part_id: int,
-    data: UsePartRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    _: User = Depends(get_current_user),
 ):
-    """Списание запчасти на заявку."""
     part = db.query(SparePart).filter(SparePart.id == part_id).first()
     if not part:
-        raise HTTPException(404, "Запчасть не найдена")
-    if data.quantity <= 0:
-        raise HTTPException(400, "Количество должно быть больше нуля")
-    if part.quantity < data.quantity:
         raise HTTPException(
-            400, f"Недостаточно на складе: доступно {part.quantity} {part.unit}"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Запчасть не найдена"},
         )
-    req = db.query(ServiceRequest).filter(ServiceRequest.id == data.request_id).first()
-    if not req:
-        raise HTTPException(404, "Заявка не найдена")
+    return part
 
-    usage = PartsUsage(
-        part_id=part_id,
-        request_id=data.request_id,
-        quantity=data.quantity,
-        unit_price=data.unit_price,
-        used_by=current_user.id,
-        notes=data.notes,
-    )
-    part.quantity -= data.quantity
-    db.add(usage)
+
+@router.put("/{part_id}", response_model=SparePartResponse)
+def update_part(
+    part_id: int,
+    data: SparePartUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(*_WRITE_ROLES)),
+):
+    part = db.query(SparePart).filter(SparePart.id == part_id).first()
+    if not part:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Запчасть не найдена"},
+        )
+    update_data = data.model_dump(exclude_none=True)
+    if "sku" in update_data:
+        conflict = db.query(SparePart).filter(SparePart.sku == update_data["sku"], SparePart.id != part_id).first()
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error": "CONFLICT", "message": "SKU уже используется"},
+            )
+    for k, v in update_data.items():
+        setattr(part, k, v)
     db.commit()
-    db.refresh(usage)
-    return usage
+    db.refresh(part)
+    return part
 
 
-@router.get("/{part_id}/usages", response_model=List[UsageOut])
-def get_part_usages(
+@router.delete("/{part_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_part(
     part_id: int,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(require_roles(*_ADMIN)),
 ):
-    return (
-        db.query(PartsUsage)
-        .filter(PartsUsage.part_id == part_id)
-        .order_by(PartsUsage.used_at.desc())
-        .all()
-    )
+    part = db.query(SparePart).filter(SparePart.id == part_id).first()
+    if not part:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Запчасть не найдена"},
+        )
+    part.is_active = False
+    db.commit()
+
+
+@router.post("/{part_id}/adjust", response_model=SparePartResponse)
+def adjust_stock(
+    part_id: int,
+    data: StockAdjust,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(*_WRITE_ROLES)),
+):
+    part = db.query(SparePart).filter(SparePart.id == part_id).first()
+    if not part:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Запчасть не найдена"},
+        )
+    new_qty = part.quantity + data.delta
+    if new_qty < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "BR_VIOLATION",
+                "message": f"Недостаточно на складе: доступно {part.quantity} {part.unit}",
+            },
+        )
+    part.quantity = new_qty
+    db.commit()
+    db.refresh(part)
+    return part

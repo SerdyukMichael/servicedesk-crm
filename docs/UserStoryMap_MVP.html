@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Story Map — MVP | ServiceDesk CRM</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  background: #eceff4;
+  color: #1a2233;
+  min-height: 100vh;
+}
+
+/* ── PAGE HEADER ── */
+.page-header {
+  background: #1a2233;
+  color: #fff;
+  padding: 16px 28px 14px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3);
+}
+.page-header h1 { font-size: 17px; font-weight: 800; }
+.page-header .subtitle { font-size: 11px; color: #8899bb; margin-top: 2px; }
+.legend {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.leg {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: #c0ccdd;
+  white-space: nowrap;
+}
+.leg-dot {
+  width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0;
+}
+.rel-badges {
+  display: flex;
+  gap: 6px;
+  margin-left: 12px;
+  border-left: 1px solid #2d3a52;
+  padding-left: 12px;
+}
+.rel-badge {
+  padding: 3px 10px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid;
+}
+
+/* ── MAIN SCROLL WRAPPER ── */
+.map-outer {
+  overflow-x: auto;
+  padding: 20px 24px 32px;
+}
+.map-inner {
+  min-width: 1500px;
+}
+
+/* ── ACTIVITIES ROW ── */
+.activities-row {
+  display: grid;
+  grid-template-columns: 80px repeat(8, 1fr);
+  gap: 0;
+  margin-bottom: 0;
+}
+.axis-label {
+  background: #1a2233;
+  color: #8899bb;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 6px;
+  border-radius: 6px 0 0 0;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+.activity {
+  padding: 10px 12px 8px;
+  text-align: center;
+  border-right: 2px solid #eceff4;
+  position: relative;
+}
+.activity:last-child { border-right: none; border-radius: 0 6px 0 0; }
+.activity-num {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  opacity: .7;
+  margin-bottom: 3px;
+}
+.activity-name {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: #fff;
+}
+.activity-uc {
+  font-size: 9px;
+  opacity: .6;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* Activity colors */
+.act-1  { background: #2c3e50; }
+.act-2  { background: #1a5276; }
+.act-3  { background: #154360; }
+.act-4  { background: #6c3483; }
+.act-5  { background: #1e8449; }
+.act-6  { background: #784212; }
+.act-7  { background: #17202a; background: #1f618d; }
+.act-8  { background: #1a5276; background: #117a65; }
+
+/* ── WALKING SKELETON ROW ── */
+.skeleton-row {
+  display: grid;
+  grid-template-columns: 80px repeat(8, 1fr);
+  gap: 0;
+  border-top: 3px solid #fff;
+}
+.skeleton-label {
+  background: #2d3a52;
+  color: #8899bb;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  writing-mode: vertical-rl;
+}
+.skeleton-cell {
+  background: #f0f4fa;
+  border-right: 2px solid #eceff4;
+  border-top: none;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.skeleton-cell:last-child { border-right: none; }
+.task-card {
+  background: #fff;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #1a2233;
+  border-left: 3px solid;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  line-height: 1.35;
+  cursor: default;
+}
+.task-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.14); transform: translateY(-1px); transition: all .1s; }
+.task-card .tc-role {
+  font-size: 9px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  opacity: .7;
+}
+
+/* ── RELEASE BAND ── */
+.release-band {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 0;
+}
+.release-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  padding: 8px 6px;
+  border-top: 3px solid #fff;
+}
+.release-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0;
+  border-top: 3px solid;
+}
+.release-col {
+  padding: 8px 8px;
+  border-right: 2px solid #eceff4;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 80px;
+}
+.release-col:last-child { border-right: none; }
+
+/* Release colors */
+.mvp-label   { background: #d4edda; color: #155724; border-color: #28a745; }
+.mvp-grid    { border-color: #28a745; background: #f6fff9; }
+.r2-label    { background: #d1ecf1; color: #0c5460; border-color: #17a2b8; }
+.r2-grid     { border-color: #17a2b8; background: #f0fbff; }
+.back-label  { background: #e2e8f0; color: #3d4a5c; border-color: #8899bb; }
+.back-grid   { border-color: #8899bb; background: #f8f9fb; }
+
+/* Story card */
+.story {
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 10px;
+  line-height: 1.4;
+  border-left: 3px solid;
+  box-shadow: 0 1px 2px rgba(0,0,0,.07);
+  cursor: default;
+  position: relative;
+}
+.story:hover { box-shadow: 0 2px 8px rgba(0,0,0,.13); transform: translateY(-1px); transition: all .1s; }
+.story-role {
+  font-size: 9px;
+  font-weight: 700;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.story-text { color: #222; font-weight: 500; }
+.story-uc {
+  font-size: 9px;
+  margin-top: 3px;
+  font-weight: 700;
+  opacity: .6;
+}
+.story-tag {
+  display: inline-block;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-top: 3px;
+}
+
+/* Role colors */
+.role-manager  { border-color: #2980b9; background: #f0f7ff; }
+.role-manager .story-role { color: #1a5276; }
+.role-engineer { border-color: #27ae60; background: #f0fff5; }
+.role-engineer .story-role { color: #1a6635; }
+.role-client   { border-color: #e67e22; background: #fff8f0; }
+.role-client .story-role { color: #a04d00; }
+.role-admin    { border-color: #e74c3c; background: #fff5f5; }
+.role-admin .story-role { color: #922b21; }
+.role-system   { border-color: #8e44ad; background: #fdf0ff; }
+.role-system .story-role { color: #5b2c6f; }
+.role-sales    { border-color: #16a085; background: #f0fffc; }
+.role-sales .story-role { color: #0e6655; }
+
+/* Task card colors */
+.tc-manager  { border-color: #2980b9; }
+.tc-engineer { border-color: #27ae60; }
+.tc-client   { border-color: #e67e22; }
+.tc-admin    { border-color: #e74c3c; }
+.tc-system   { border-color: #8e44ad; }
+
+/* Stats footer */
+.stats {
+  display: flex;
+  gap: 12px;
+  padding: 14px 24px;
+  flex-wrap: wrap;
+}
+.stat-card {
+  background: #fff;
+  border: 1px solid #dde1e9;
+  border-radius: 6px;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stat-num {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+}
+.stat-label {
+  font-size: 11px;
+  color: #5a6680;
+  line-height: 1.4;
+}
+.stat-sub {
+  font-size: 10px;
+  color: #aaa;
+  margin-top: 1px;
+}
+</style>
+</head>
+<body>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <div>
+    <h1>User Story Map — ServiceDesk CRM</h1>
+    <div class="subtitle">MVP · Фазы разработки 2–5 · 27.03.2026</div>
+  </div>
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#2980b9"></div>Руководитель сервиса</div>
+    <div class="leg"><div class="leg-dot" style="background:#27ae60"></div>Сервисный инженер</div>
+    <div class="leg"><div class="leg-dot" style="background:#e67e22"></div>Клиент</div>
+    <div class="leg"><div class="leg-dot" style="background:#e74c3c"></div>Администратор</div>
+    <div class="leg"><div class="leg-dot" style="background:#8e44ad"></div>Система</div>
+    <div class="leg"><div class="leg-dot" style="background:#16a085"></div>Менеджер продаж</div>
+    <div class="rel-badges">
+      <div class="rel-badge" style="background:#d4edda;color:#155724;border-color:#28a745;">MVP</div>
+      <div class="rel-badge" style="background:#d1ecf1;color:#0c5460;border-color:#17a2b8;">Release 2</div>
+      <div class="rel-badge" style="background:#e2e8f0;color:#3d4a5c;border-color:#8899bb;">Backlog</div>
+    </div>
+  </div>
+</div>
+
+<div class="map-outer">
+<div class="map-inner">
+
+<!-- ════════════════════════════════════════
+     ACTIVITIES — BACKBONE
+     ════════════════════════════════════════ -->
+<div class="activities-row">
+  <div class="axis-label">Активности</div>
+
+  <div class="activity act-1">
+    <div class="activity-num">01</div>
+    <div class="activity-name">Доступ<br>и профиль</div>
+    <div class="activity-uc">Auth · UC-801</div>
+  </div>
+  <div class="activity act-2">
+    <div class="activity-num">02</div>
+    <div class="activity-name">Управление<br>командой</div>
+    <div class="activity-uc">UC-801–806</div>
+  </div>
+  <div class="activity act-3">
+    <div class="activity-num">03</div>
+    <div class="activity-name">База<br>оборудования</div>
+    <div class="activity-uc">UC-1001–1007</div>
+  </div>
+  <div class="activity act-4">
+    <div class="activity-num">04</div>
+    <div class="activity-name">Создание<br>заявки</div>
+    <div class="activity-uc">UC-901 · UC-905</div>
+  </div>
+  <div class="activity act-5">
+    <div class="activity-num">05</div>
+    <div class="activity-name">Планирование<br>и назначение</div>
+    <div class="activity-uc">UC-902 · UC-804</div>
+  </div>
+  <div class="activity act-6">
+    <div class="activity-num">06</div>
+    <div class="activity-name">Выполнение<br>работ</div>
+    <div class="activity-uc">UC-903–904 · UC-907</div>
+  </div>
+  <div class="activity act-7" style="background:#1f618d;">
+    <div class="activity-num">07</div>
+    <div class="activity-name">Коммуникация<br>с клиентом</div>
+    <div class="activity-uc">UC-906 · BR-F-910</div>
+  </div>
+  <div class="activity act-8" style="background:#117a65;">
+    <div class="activity-num">08</div>
+    <div class="activity-name">Закрытие<br>и отчётность</div>
+    <div class="activity-uc">UC-903 · UC-910</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     WALKING SKELETON — KEY USER TASKS
+     ════════════════════════════════════════ -->
+<div class="skeleton-row">
+  <div class="skeleton-label">Ключевые задачи</div>
+
+  <!-- ACT 1 -->
+  <div class="skeleton-cell">
+    <div class="task-card tc-admin">
+      <div class="tc-role">Администратор</div>
+      Войти по email + пароль, получить JWT
+    </div>
+    <div class="task-card tc-admin">
+      <div class="tc-role">Администратор</div>
+      Управлять учётными записями
+    </div>
+  </div>
+  <!-- ACT 2 -->
+  <div class="skeleton-cell">
+    <div class="task-card tc-manager">
+      <div class="tc-role">Руководитель</div>
+      Создать / редактировать профиль инженера
+    </div>
+    <div class="task-card tc-manager">
+      <div class="tc-role">Руководитель</div>
+      Просмотреть загрузку команды
+    </div>
+  </div>
+  <!-- ACT 3 -->
+  <div class="skeleton-cell">
+    <div class="task-card tc-manager">
+      <div class="tc-role">Руководитель / Менеджер</div>
+      Зарегистрировать единицу оборудования
+    </div>
+    <div class="task-card tc-manager">
+      <div class="tc-role">Руководитель</div>
+      Найти оборудование по S/N
+    </div>
+  </div>
+  <!-- ACT 4 -->
+  <div class="skeleton-cell">
+    <div class="task-card tc-manager">
+      <div class="tc-role">Руководитель</div>
+      Создать заявку на ремонт / ТО
+    </div>
+    <div class="task-card tc-client">
+      <div class="tc-role">Клиент</div>
+      Подать заявку через веб-портал
+    </div>
+  </div>
+  <!-- ACT 5 -->
+  <div class="skeleton-cell">
+    <div class="task-card tc-manager">
+      <div class="tc-role">Руководитель</div>
+      Назначить инженера с учётом загрузки
+    </div>
+  </div>
+  <!-- ACT 6 -->
+  <div class="skeleton-cell">
+    <div class="task-card tc-engineer">
+      <div class="tc-role">Инженер</div>
+      Менять статус заявки
+    </div>
+    <div class="task-card tc-engineer">
+      <div class="tc-role">Инженер</div>
+      Заполнить акт выполненных работ
+    </div>
+  </div>
+  <!-- ACT 7 -->
+  <div class="skeleton-cell">
+    <div class="task-card tc-engineer">
+      <div class="tc-role">Инженер / Руководитель</div>
+      Добавить внешний комментарий
+    </div>
+    <div class="task-card tc-client">
+      <div class="tc-role">Клиент</div>
+      Прокомментировать и отследить статус
+    </div>
+  </div>
+  <!-- ACT 8 -->
+  <div class="skeleton-cell">
+    <div class="task-card tc-manager">
+      <div class="tc-role">Руководитель</div>
+      Закрыть заявку после проверки
+    </div>
+    <div class="task-card tc-manager">
+      <div class="tc-role">Директор / Руководитель</div>
+      Просмотреть отчёт по заявкам
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     RELEASE: MVP
+     ════════════════════════════════════════ -->
+<div class="release-band">
+  <div class="release-label mvp-label">MVP<br>Phase 2–4</div>
+  <div class="release-grid mvp-grid">
+
+    <!-- ACT 1: Доступ -->
+    <div class="release-col">
+      <div class="story role-admin">
+        <div class="story-role">🔴 Администратор</div>
+        <div class="story-text">Войти по email/паролю и получить JWT</div>
+        <div class="story-uc">Auth API</div>
+      </div>
+      <div class="story role-admin">
+        <div class="story-role">🔴 Администратор</div>
+        <div class="story-text">Создать учётную запись сотрудника</div>
+        <div class="story-uc">UC-801</div>
+      </div>
+      <div class="story role-admin">
+        <div class="story-role">🔴 Администратор</div>
+        <div class="story-text">Деактивировать / заблокировать пользователя</div>
+        <div class="story-uc">UC-801</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Сбросить пароль сотруднику</div>
+        <div class="story-uc">UC-801</div>
+      </div>
+    </div>
+
+    <!-- ACT 2: Команда -->
+    <div class="release-col">
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Создать и редактировать профиль инженера</div>
+        <div class="story-uc">UC-801</div>
+      </div>
+      <div class="story role-admin">
+        <div class="story-role">🔴 Администратор</div>
+        <div class="story-text">Назначить роль пользователю (RBAC)</div>
+        <div class="story-uc">UC-802</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Добавить компетенции инженера (модели оборудования)</div>
+        <div class="story-uc">UC-803</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Просмотреть текущую загрузку инженеров</div>
+        <div class="story-uc">UC-804</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Зарегистрировать отпуск / больничный</div>
+        <div class="story-uc">UC-805</div>
+      </div>
+    </div>
+
+    <!-- ACT 3: Оборудование -->
+    <div class="release-col">
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель / Менеджер</div>
+        <div class="story-text">Добавить единицу оборудования клиента</div>
+        <div class="story-uc">UC-1001</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Просмотреть паспорт оборудования (S/N, гарантия)</div>
+        <div class="story-uc">UC-1002</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Просмотреть историю ремонтов оборудования</div>
+        <div class="story-uc">UC-1003</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Найти оборудование по S/N, клиенту, модели</div>
+        <div class="story-uc">UC-1005</div>
+      </div>
+      <div class="story role-system">
+        <div class="story-role">🟣 Система</div>
+        <div class="story-text">Автоматически менять статус оборудования при смене статуса заявки</div>
+        <div class="story-uc">UC-1007</div>
+      </div>
+    </div>
+
+    <!-- ACT 4: Создание заявки -->
+    <div class="release-col">
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Создать заявку: выбрать клиента, оборудование, тип, описание</div>
+        <div class="story-uc">UC-901</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Система автоопределяет гарантию и приоритет по договору</div>
+        <div class="story-uc">UC-901 · BR-F-902</div>
+      </div>
+      <div class="story role-client">
+        <div class="story-role">🟠 Клиент</div>
+        <div class="story-text">Подать заявку через веб-портал самостоятельно</div>
+        <div class="story-uc">UC-901 АП</div>
+      </div>
+      <div class="story role-system">
+        <div class="story-role">🟣 Система</div>
+        <div class="story-text">Автоматически создать плановое ТО за 7 дней до срока</div>
+        <div class="story-uc">UC-901 · BR-F-909</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель / Инженер</div>
+        <div class="story-text">Найти и отфильтровать заявки по статусу, инженеру, SLA</div>
+        <div class="story-uc">UC-905 · UC-909</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Фильтры заявок сохраняются в сессии при переходе и возврате</div>
+        <div class="story-uc">UC-909 · BR-F-912</div>
+      </div>
+    </div>
+
+    <!-- ACT 5: Назначение -->
+    <div class="release-col">
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Назначить инженера с фильтром по компетенциям и загрузке</div>
+        <div class="story-uc">UC-902</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Переназначить заявку на другого инженера</div>
+        <div class="story-uc">UC-902</div>
+      </div>
+      <div class="story role-system">
+        <div class="story-role">🟣 Система</div>
+        <div class="story-text">Запустить SLA-таймер при создании заявки</div>
+        <div class="story-uc">BR-F-903</div>
+      </div>
+      <div class="story role-system">
+        <div class="story-role">🟣 Система</div>
+        <div class="story-text">Отображать предупреждение при высокой загрузке инженера</div>
+        <div class="story-uc">UC-804</div>
+      </div>
+    </div>
+
+    <!-- ACT 6: Выполнение работ -->
+    <div class="release-col">
+      <div class="story role-engineer">
+        <div class="story-role">🟢 Инженер</div>
+        <div class="story-text">Изменить статус заявки (Назначена → В работе → Выполнена)</div>
+        <div class="story-uc">UC-903</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Перевести заявку «На проверке» → «Закрыта» или вернуть «В работе»</div>
+        <div class="story-uc">UC-903</div>
+      </div>
+      <div class="story role-engineer">
+        <div class="story-role">🟢 Инженер</div>
+        <div class="story-text">Заполнить акт выполненных работ (дата, запчасти, описание)</div>
+        <div class="story-uc">UC-904</div>
+      </div>
+      <div class="story role-engineer">
+        <div class="story-role">🟢 Инженер</div>
+        <div class="story-text">Зафиксировать клиентское подтверждение в акте</div>
+        <div class="story-uc">UC-904 · BR-F-908</div>
+      </div>
+      <div class="story role-engineer">
+        <div class="story-role">🟢 Инженер</div>
+        <div class="story-text">Прикрепить фото и документы к заявке</div>
+        <div class="story-uc">UC-907</div>
+      </div>
+    </div>
+
+    <!-- ACT 7: Коммуникация -->
+    <div class="release-col">
+      <div class="story role-engineer">
+        <div class="story-role">🟢 Инженер / Руководитель</div>
+        <div class="story-text">Добавить внутренний или внешний комментарий к заявке</div>
+        <div class="story-uc">UC-906</div>
+      </div>
+      <div class="story role-client">
+        <div class="story-role">🟠 Клиент</div>
+        <div class="story-text">Добавить комментарий к своей заявке через портал</div>
+        <div class="story-uc">UC-906 АП-2</div>
+      </div>
+      <div class="story role-client">
+        <div class="story-role">🟠 Клиент</div>
+        <div class="story-text">Получить email при смене статуса: Назначена, В работе, Выполнена, Закрыта</div>
+        <div class="story-uc">BR-F-910</div>
+      </div>
+      <div class="story role-client">
+        <div class="story-role">🟠 Клиент</div>
+        <div class="story-text">Видеть внешние комментарии и свои с датой/временем</div>
+        <div class="story-uc">UC-906 · BR-F-912</div>
+      </div>
+      <div class="story role-system">
+        <div class="story-role">🟣 Система</div>
+        <div class="story-text">Уведомить инженера и руководителя при комментарии клиента</div>
+        <div class="story-uc">BR-F-912</div>
+      </div>
+    </div>
+
+    <!-- ACT 8: Закрытие -->
+    <div class="release-col">
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Закрыть заявку (акт обязателен — BR-R-004)</div>
+        <div class="story-uc">UC-903 · BR-R-004</div>
+      </div>
+      <div class="story role-system">
+        <div class="story-role">🟣 Система</div>
+        <div class="story-text">Вернуть оборудование в статус «Активно» при закрытии</div>
+        <div class="story-uc">UC-903 · UC-1007</div>
+      </div>
+      <div class="story role-system">
+        <div class="story-role">🟣 Система</div>
+        <div class="story-text">Записать каждое изменение статуса в аудит-лог</div>
+        <div class="story-uc">BR-R-010</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Генерировать PDF-акт выполненных работ</div>
+        <div class="story-uc">UC-904 · Phase 3</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     RELEASE 2
+     ════════════════════════════════════════ -->
+<div class="release-band">
+  <div class="release-label r2-label">Release 2<br>Phase 5</div>
+  <div class="release-grid r2-grid">
+
+    <!-- ACT 1 -->
+    <div class="release-col">
+      <div class="story role-engineer">
+        <div class="story-role">🟢 Инженер</div>
+        <div class="story-text">Мобильное приложение: вход и работа с заявками</div>
+        <div class="story-uc">Phase 5</div>
+      </div>
+      <div class="story role-admin">
+        <div class="story-role">🔴 Администратор</div>
+        <div class="story-text">Самостоятельный сброс пароля (email-ссылка)</div>
+      </div>
+    </div>
+
+    <!-- ACT 2 -->
+    <div class="release-col">
+      <div class="story role-admin">
+        <div class="story-role">🔴 Администратор</div>
+        <div class="story-text">Просмотр аудит-лога: все действия пользователей</div>
+        <div class="story-uc">UC-806</div>
+      </div>
+      <div class="story role-admin">
+        <div class="story-role">🔴 Администратор</div>
+        <div class="story-text">Экспорт аудит-лога в CSV</div>
+        <div class="story-uc">UC-806</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Управлять графиком отпусков команды с визуализацией</div>
+        <div class="story-uc">UC-805</div>
+      </div>
+    </div>
+
+    <!-- ACT 3 -->
+    <div class="release-col">
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Загрузить документацию к оборудованию (паспорт, инструкция)</div>
+        <div class="story-uc">UC-1004</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Настроить график планового ТО для единицы оборудования (периодичность, дата первого ТО)</div>
+        <div class="story-uc">UC-908</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Экспортировать список оборудования в XLSX</div>
+        <div class="story-uc">UC-1006</div>
+      </div>
+      <div class="story role-system">
+        <div class="story-role">🟣 Система</div>
+        <div class="story-text">Уведомлять об истечении гарантии за 30 дней</div>
+        <div class="story-uc">BR-F-1002</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель / Инженер</div>
+        <div class="story-text">Фильтровать историю ремонтов оборудования по типу работ и периоду</div>
+        <div class="story-uc">UC-1002</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Оформить возврат оборудования от клиента (гарантийная замена / выкуп б/у) с обязательным указанием причины</div>
+        <div class="story-uc">UC-1007</div>
+      </div>
+    </div>
+
+    <!-- ACT 4 -->
+    <div class="release-col">
+      <div class="story role-client">
+        <div class="story-role">🟠 Клиент</div>
+        <div class="story-text">Подать заявку через мобильное приложение</div>
+        <div class="story-uc">Phase 5</div>
+      </div>
+      <div class="story role-sales">
+        <div class="story-role">🩵 Менеджер продаж</div>
+        <div class="story-text">Автосоздание заявки при продаже оборудования</div>
+        <div class="story-uc">BR-F-307</div>
+      </div>
+    </div>
+
+    <!-- ACT 5 -->
+    <div class="release-col">
+      <div class="story role-system">
+        <div class="story-role">🟣 Система</div>
+        <div class="story-text">Отправить SLA-предупреждение за 2 часа до нарушения</div>
+        <div class="story-uc">BR-F-905</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Приостановить SLA при «Ожидании запчасти» (опционально)</div>
+      </div>
+    </div>
+
+    <!-- ACT 6 -->
+    <div class="release-col">
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель / Администратор</div>
+        <div class="story-text">Создать и редактировать шаблон типовых работ (состав работ + список запчастей)</div>
+        <div class="story-uc">UC-911</div>
+      </div>
+      <div class="story role-engineer">
+        <div class="story-role">🟢 Инженер (мобайл)</div>
+        <div class="story-text">Применить шаблон типовых работ при заполнении акта — предзаполнение одним выбором</div>
+        <div class="story-uc">UC-911 · BR-F-913</div>
+      </div>
+      <div class="story role-engineer">
+        <div class="story-role">🟢 Инженер (мобайл)</div>
+        <div class="story-text">Сделать фото прямо с камеры мобильного устройства</div>
+        <div class="story-uc">UC-907 АП-1</div>
+      </div>
+    </div>
+
+    <!-- ACT 7 -->
+    <div class="release-col">
+      <div class="story role-client">
+        <div class="story-role">🟠 Клиент</div>
+        <div class="story-text">Получать push-уведомления через мобильное приложение</div>
+        <div class="story-uc">UC-1401</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Настроить матрицу уведомлений (каналы × события)</div>
+        <div class="story-uc">UC-1401–1403</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель / Сотрудник</div>
+        <div class="story-text">Настроить личные предпочтения уведомлений (каналы, ночной режим)</div>
+        <div class="story-uc">UC-1402</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Редактировать email-шаблоны для клиентов</div>
+        <div class="story-uc">UC-1403</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель / Сотрудник</div>
+        <div class="story-text">Сбросить настройки уведомлений к значениям по умолчанию</div>
+        <div class="story-uc">UC-1401 АП-1</div>
+      </div>
+    </div>
+
+    <!-- ACT 8 -->
+    <div class="release-col">
+      <div class="story role-manager">
+        <div class="story-role">🔵 Директор / Руководитель</div>
+        <div class="story-text">Сформировать отчёт по заявкам за период (SLA, инженеры)</div>
+        <div class="story-uc">UC-910</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Директор</div>
+        <div class="story-text">Экспортировать отчёт в PDF / XLSX</div>
+        <div class="story-uc">UC-910</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Директор / Руководитель</div>
+        <div class="story-text">Сформировать отчёт по парку оборудования с фильтрацией по клиенту или модели</div>
+        <div class="story-uc">UC-1006</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     BACKLOG
+     ════════════════════════════════════════ -->
+<div class="release-band">
+  <div class="release-label back-label">Backlog<br>Phase 6+</div>
+  <div class="release-grid back-grid">
+
+    <!-- ACT 1 -->
+    <div class="release-col">
+      <div class="story role-admin">
+        <div class="story-role">🔴 Администратор</div>
+        <div class="story-text">Интеграция SSO / Active Directory</div>
+      </div>
+      <div class="story role-admin">
+        <div class="story-role">🔴 Администратор</div>
+        <div class="story-text">2FA (двухфакторная аутентификация)</div>
+      </div>
+    </div>
+
+    <!-- ACT 2 -->
+    <div class="release-col">
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Сводная панель KPI команды (дашборд)</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Интеграция с HR-системой (синхронизация сотрудников)</div>
+      </div>
+    </div>
+
+    <!-- ACT 3 -->
+    <div class="release-col">
+      <div class="story role-system">
+        <div class="story-role">🟣 Система</div>
+        <div class="story-text">QR-код на каждой единице оборудования → быстрый доступ</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Интеграция с каталогом вендоров / запчастей</div>
+      </div>
+    </div>
+
+    <!-- ACT 4 -->
+    <div class="release-col">
+      <div class="story role-client">
+        <div class="story-role">🟠 Клиент</div>
+        <div class="story-text">Публичная страница статуса заявки по уникальному токену (без авторизации)</div>
+        <div class="story-uc">BR-F-910</div>
+      </div>
+      <div class="story role-system">
+        <div class="story-role">🟣 Система</div>
+        <div class="story-text">Автоматическое распределение заявок по инженерам (умное назначение)</div>
+      </div>
+    </div>
+
+    <!-- ACT 5 -->
+    <div class="release-col">
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Настройка SLA-правил по типу договора / оборудования</div>
+      </div>
+      <div class="story role-system">
+        <div class="story-role">🟣 Система</div>
+        <div class="story-text">Автоматическая эскалация при нарушении SLA</div>
+      </div>
+    </div>
+
+    <!-- ACT 6 -->
+    <div class="release-col">
+      <div class="story role-client">
+        <div class="story-role">🟠 Клиент</div>
+        <div class="story-text">Электронная подпись акта выполненных работ (УКЭП)</div>
+      </div>
+      <div class="story role-engineer">
+        <div class="story-role">🟢 Инженер</div>
+        <div class="story-text">Офлайн-режим мобильного приложения с синхронизацией</div>
+      </div>
+    </div>
+
+    <!-- ACT 7 -->
+    <div class="release-col">
+      <div class="story role-client">
+        <div class="story-role">🟠 Клиент</div>
+        <div class="story-text">NPS / CSAT-опрос встроен в email «Заявка закрыта»</div>
+      </div>
+      <div class="story role-client">
+        <div class="story-role">🟠 Клиент</div>
+        <div class="story-text">Чат с инженером внутри заявки в реальном времени</div>
+      </div>
+    </div>
+
+    <!-- ACT 8 -->
+    <div class="release-col">
+      <div class="story role-manager">
+        <div class="story-role">🔵 Директор</div>
+        <div class="story-text">Дашборд реального времени: SLA, загрузка, инциденты</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Директор</div>
+        <div class="story-text">Интеграция с BI-системой (Power BI / Metabase)</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /map-inner -->
+</div><!-- /map-outer -->
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat-card">
+    <div style="font-size:28px;">🗺️</div>
+    <div>
+      <div class="stat-label">Активности<br>(backbone)</div>
+      <div class="stat-num" style="font-size:20px;">8</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:#155724;">27</div>
+    <div>
+      <div class="stat-label">Stories в MVP</div>
+      <div class="stat-sub">Phase 2–4 · Must-приоритет</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:#0c5460;">25</div>
+    <div>
+      <div class="stat-label">Stories в Release 2</div>
+      <div class="stat-sub">Phase 5 · Should/Could</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:#3d4a5c;">16</div>
+    <div>
+      <div class="stat-label">Stories в Backlog</div>
+      <div class="stat-sub">Phase 6+ · Could/Won't (пока)</div>
+    </div>
+  </div>
+  <div class="stat-card" style="border-left:3px solid #2980b9;">
+    <div class="stat-num" style="color:#2980b9;">🔵</div>
+    <div>
+      <div class="stat-label">Руководитель сервиса</div>
+      <div class="stat-sub">Основной актор MVP</div>
+    </div>
+  </div>
+  <div class="stat-card" style="border-left:3px solid #27ae60;">
+    <div class="stat-num" style="color:#27ae60;">🟢</div>
+    <div>
+      <div class="stat-label">Сервисный инженер</div>
+      <div class="stat-sub">Полный функционал в Phase 5 (мобайл)</div>
+    </div>
+  </div>
+  <div class="stat-card" style="border-left:3px solid #e67e22;">
+    <div class="stat-num" style="color:#e67e22;">🟠</div>
+    <div>
+      <div class="stat-label">Клиент</div>
+      <div class="stat-sub">Портал в MVP, мобайл в Release 2</div>
+    </div>
+  </div>
+  <div class="stat-card" style="border-left:3px solid #8e44ad;">
+    <div style="font-size:22px;">🟣</div>
+    <div>
+      <div class="stat-label">Системные stories</div>
+      <div class="stat-sub">SLA, автостатусы, уведомления, аудит</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -2,13 +2,23 @@
 __pycache__/
 *.py[cod]
 venv/
+.venv*/
 .env
 .pytest_cache/
+*.db
 
 # Node / React
 node_modules/
 dist/
 build/
+
+# Test / E2E output
+frontend/e2e-report/
+frontend/test-results/
+tests/
+
+# Archives
+*.zip
 
 # IDE
 .vscode/
@@ -17,3 +27,6 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code memory
+.claude/

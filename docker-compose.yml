@@ -11,8 +11,13 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-servicedesk}
       MYSQL_USER: ${MYSQL_USER:-sduser}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-sdpass}
+    command: >
+      --max-allowed-packet=26214400
+      --innodb-buffer-pool-size=268435456
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
     ports:
-      - "3306:3306"        # открыт только для локальной разработки
+      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -22,15 +27,57 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: servicedesk_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build: ./backend
     container_name: servicedesk_api
     restart: unless-stopped
- #   env_file: ./backend/.env
+    env_file: ./backend/.env
     ports:
       - "8000:8000"
     depends_on:
       mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  celery_worker:
+    build: ./backend
+    container_name: servicedesk_celery
+    restart: unless-stopped
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=4
+    env_file: ./backend/.env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  celery_beat:
+    build: ./backend
+    container_name: servicedesk_beat
+    restart: unless-stopped
+    command: celery -A app.celery_app beat --loglevel=info
+    env_file: ./backend/.env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - ./backend:/app

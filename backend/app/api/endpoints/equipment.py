@@ -1,232 +1,155 @@
-from typing import List, Optional
-from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+
 from app.core.database import get_db
-from app.models import EquipmentCatalog, ClientEquipment
-from app.api.deps import get_current_user, require_admin
+from app.models import Equipment, EquipmentModel, RepairHistory, User
+from app.api.deps import get_current_user, require_roles
+from app.schemas import (
+    EquipmentCreate, EquipmentUpdate, EquipmentResponse,
+    EquipmentModelResponse, RepairHistoryResponse, PaginatedResponse,
+)
 
 router = APIRouter()
 
-
-# ─── Schemas ────────────────────────────────────────────────────────────────
-
-class CatalogCreate(BaseModel):
-    name: str
-    model: Optional[str] = None
-    category: str = "other"
-    vendor_id: Optional[int] = None
-    purchase_price: Optional[float] = None
-    sale_price: Optional[float] = None
-    description: Optional[str] = None
+_WRITE_ROLES = ("admin", "svc_mgr")
+_ADMIN = ("admin",)
 
 
-class CatalogOut(BaseModel):
-    id: int
-    name: str
-    model: Optional[str]
-    category: str
-    vendor_id: Optional[int]
-    purchase_price: Optional[float]
-    sale_price: Optional[float]
-    description: Optional[str]
-    is_active: bool
-
-    class Config:
-        from_attributes = True
-
-
-class UnitCreate(BaseModel):
-    client_id: int
-    catalog_id: int
-    serial_number: str
-    install_date: Optional[date] = None
-    address: Optional[str] = None
-    status: str = "active"
-    warranty_until: Optional[date] = None
-    notes: Optional[str] = None
-
-
-class UnitUpdate(BaseModel):
-    install_date: Optional[date] = None
-    address: Optional[str] = None
-    status: Optional[str] = None
-    warranty_until: Optional[date] = None
-    notes: Optional[str] = None
-
-
-class UnitOut(BaseModel):
-    id: int
-    client_id: int
-    catalog_id: int
-    serial_number: str
-    install_date: Optional[date]
-    address: Optional[str]
-    status: str
-    warranty_until: Optional[date]
-    notes: Optional[str]
-
-    class Config:
-        from_attributes = True
-
-
-# ─── Catalog Endpoints ──────────────────────────────────────────────────────
-
-@router.get("/catalog", response_model=List[CatalogOut])
-def list_catalog(
-    category: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
+@router.get("/models", response_model=list[EquipmentModelResponse])
+def list_equipment_models(
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(get_current_user),
 ):
-    q = db.query(EquipmentCatalog).filter(EquipmentCatalog.is_active == True)
-    if category:
-        q = q.filter(EquipmentCatalog.category == category)
-    if search:
-        q = q.filter(EquipmentCatalog.name.ilike(f"%{search}%"))
-    return q.order_by(EquipmentCatalog.name).all()
+    return (
+        db.query(EquipmentModel)
+        .filter(EquipmentModel.is_active.is_(True))
+        .order_by(EquipmentModel.name)
+        .all()
+    )
 
 
-@router.post("/catalog", response_model=CatalogOut)
-def create_catalog_item(
-    data: CatalogCreate,
-    db: Session = Depends(get_db),
-    _=Depends(require_admin),
-):
-    obj = EquipmentCatalog(**data.model_dump())
-    db.add(obj)
-    db.commit()
-    db.refresh(obj)
-    return obj
-
-
-@router.get("/catalog/{catalog_id}", response_model=CatalogOut)
-def get_catalog_item(
-    catalog_id: int,
-    db: Session = Depends(get_db),
-    _=Depends(get_current_user),
-):
-    obj = db.query(EquipmentCatalog).filter(EquipmentCatalog.id == catalog_id).first()
-    if not obj:
-        raise HTTPException(404, "Позиция каталога не найдена")
-    return obj
-
-
-@router.put("/catalog/{catalog_id}", response_model=CatalogOut)
-def update_catalog_item(
-    catalog_id: int,
-    data: CatalogCreate,
-    db: Session = Depends(get_db),
-    _=Depends(require_admin),
-):
-    obj = db.query(EquipmentCatalog).filter(EquipmentCatalog.id == catalog_id).first()
-    if not obj:
-        raise HTTPException(404, "Позиция каталога не найдена")
-    for k, v in data.model_dump().items():
-        setattr(obj, k, v)
-    db.commit()
-    db.refresh(obj)
-    return obj
-
-
-@router.delete("/catalog/{catalog_id}")
-def delete_catalog_item(
-    catalog_id: int,
-    db: Session = Depends(get_db),
-    _=Depends(require_admin),
-):
-    obj = db.query(EquipmentCatalog).filter(EquipmentCatalog.id == catalog_id).first()
-    if not obj:
-        raise HTTPException(404, "Позиция каталога не найдена")
-    obj.is_active = False
-    db.commit()
-    return {"ok": True}
-
-
-# ─── Client Equipment Units ─────────────────────────────────────────────────
-
-@router.get("/units", response_model=List[UnitOut])
-def list_units(
+@router.get("", response_model=PaginatedResponse[EquipmentResponse])
+def list_equipment(
     client_id: Optional[int] = Query(None),
-    status: Optional[str] = Query(None),
+    eq_status: Optional[str] = Query(None, alias="status"),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(get_current_user),
 ):
-    q = db.query(ClientEquipment)
-    if client_id:
-        q = q.filter(ClientEquipment.client_id == client_id)
-    if status:
-        q = q.filter(ClientEquipment.status == status)
-    return q.order_by(ClientEquipment.id.desc()).all()
+    q = db.query(Equipment).filter(Equipment.is_deleted.is_(False))
+    if client_id is not None:
+        q = q.filter(Equipment.client_id == client_id)
+    if eq_status:
+        q = q.filter(Equipment.status == eq_status)
+    total = q.count()
+    skip = (page - 1) * size
+    items = q.order_by(Equipment.id).offset(skip).limit(size).all()
+    pages = max(1, (total + size - 1) // size)
+    return PaginatedResponse(items=items, total=total, page=page, size=size, pages=pages)
 
 
-@router.post("/units", response_model=UnitOut)
-def create_unit(
-    data: UnitCreate,
+@router.post("", response_model=EquipmentResponse, status_code=status.HTTP_201_CREATED)
+def create_equipment(
+    data: EquipmentCreate,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(require_roles(*_WRITE_ROLES)),
 ):
-    existing = db.query(ClientEquipment).filter(
-        ClientEquipment.serial_number == data.serial_number
-    ).first()
-    if existing:
-        raise HTTPException(400, "Оборудование с таким серийным номером уже существует")
-    obj = ClientEquipment(**data.model_dump())
-    db.add(obj)
+    if db.query(Equipment).filter(Equipment.serial_number == data.serial_number).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "CONFLICT", "message": "Серийный номер уже существует"},
+        )
+    eq = Equipment(**data.model_dump())
+    db.add(eq)
     db.commit()
-    db.refresh(obj)
-    return obj
+    db.refresh(eq)
+    return eq
 
 
-@router.get("/units/{unit_id}", response_model=UnitOut)
-def get_unit(
-    unit_id: int,
+@router.get("/{equipment_id}", response_model=EquipmentResponse)
+def get_equipment(
+    equipment_id: int,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(get_current_user),
 ):
-    obj = db.query(ClientEquipment).filter(ClientEquipment.id == unit_id).first()
-    if not obj:
-        raise HTTPException(404, "Оборудование не найдено")
-    return obj
+    eq = db.query(Equipment).filter(Equipment.id == equipment_id, Equipment.is_deleted.is_(False)).first()
+    if not eq:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Оборудование не найдено"},
+        )
+    return eq
 
 
-@router.put("/units/{unit_id}", response_model=UnitOut)
-def update_unit(
-    unit_id: int,
-    data: UnitUpdate,
+@router.put("/{equipment_id}", response_model=EquipmentResponse)
+def update_equipment(
+    equipment_id: int,
+    data: EquipmentUpdate,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(require_roles(*_WRITE_ROLES)),
 ):
-    obj = db.query(ClientEquipment).filter(ClientEquipment.id == unit_id).first()
-    if not obj:
-        raise HTTPException(404, "Оборудование не найдено")
-    for k, v in data.model_dump(exclude_none=True).items():
-        setattr(obj, k, v)
+    eq = db.query(Equipment).filter(Equipment.id == equipment_id, Equipment.is_deleted.is_(False)).first()
+    if not eq:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Оборудование не найдено"},
+        )
+    update_data = data.model_dump(exclude_none=True)
+    if "serial_number" in update_data:
+        conflict = (
+            db.query(Equipment)
+            .filter(
+                Equipment.serial_number == update_data["serial_number"],
+                Equipment.id != equipment_id,
+            )
+            .first()
+        )
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error": "CONFLICT", "message": "Серийный номер уже существует"},
+            )
+    for k, v in update_data.items():
+        setattr(eq, k, v)
     db.commit()
-    db.refresh(obj)
-    return obj
+    db.refresh(eq)
+    return eq
 
 
-@router.get("/units/{unit_id}/requests")
-def get_unit_requests(
-    unit_id: int,
+@router.delete("/{equipment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_equipment(
+    equipment_id: int,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _: User = Depends(require_roles(*_ADMIN)),
 ):
-    obj = db.query(ClientEquipment).filter(ClientEquipment.id == unit_id).first()
-    if not obj:
-        raise HTTPException(404, "Оборудование не найдено")
-    return [
-        {
-            "id": r.id,
-            "number": r.number,
-            "type": r.type,
-            "priority": r.priority,
-            "status": r.status,
-            "description": r.description,
-            "created_at": r.created_at,
-            "closed_at": r.closed_at,
-        }
-        for r in obj.requests
-    ]
+    eq = db.query(Equipment).filter(Equipment.id == equipment_id, Equipment.is_deleted.is_(False)).first()
+    if not eq:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Оборудование не найдено"},
+        )
+    eq.is_deleted = True
+    db.commit()
+
+
+@router.get("/{equipment_id}/history", response_model=list[RepairHistoryResponse])
+def get_equipment_history(
+    equipment_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    eq = db.query(Equipment).filter(Equipment.id == equipment_id, Equipment.is_deleted.is_(False)).first()
+    if not eq:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Оборудование не найдено"},
+        )
+    return (
+        db.query(RepairHistory)
+        .filter(RepairHistory.equipment_id == equipment_id)
+        .order_by(RepairHistory.performed_at.desc())
+        .all()
+    )

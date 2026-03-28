@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServiceDesk CRM — Эскизы экранов</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #222; background: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: 240px; min-width: 240px; background: #1a2233; color: #c8d0e0;
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  #sidebar .logo {
+    padding: 18px 16px 14px; font-size: 15px; font-weight: 700; color: #fff;
+    border-bottom: 1px solid #2d3a52; letter-spacing: .3px;
+  }
+  #sidebar .logo span { color: #5b9bd5; }
+  #sidebar nav { flex: 1; padding: 8px 0; }
+  #sidebar nav a {
+    display: flex; align-items: flex-start; gap: 10px; padding: 9px 16px;
+    color: #a8b4cc; text-decoration: none; font-size: 12px; line-height: 1.4;
+    border-left: 3px solid transparent; transition: background .15s;
+  }
+  #sidebar nav a:hover { background: #243047; color: #e0e8f8; }
+  #sidebar nav a.active { background: #243047; color: #fff; border-left-color: #5b9bd5; }
+  #sidebar nav a .num { color: #5b9bd5; font-weight: 700; min-width: 16px; margin-top: 1px; }
+  #sidebar nav a .label { flex: 1; }
+  #sidebar nav .section-title {
+    padding: 14px 16px 4px; font-size: 10px; font-weight: 700; color: #5a6680;
+    text-transform: uppercase; letter-spacing: .8px;
+  }
+
+  /* ── TOPBAR ── */
+  #topbar {
+    position: fixed; top: 0; left: 240px; right: 0; height: 48px;
+    background: #fff; border-bottom: 1px solid #dde1e9;
+    display: flex; align-items: center; padding: 0 20px; gap: 12px; z-index: 10;
+  }
+  #topbar .breadcrumb { font-size: 13px; color: #666; flex: 1; }
+  #topbar .breadcrumb strong { color: #222; }
+  .topbar-search {
+    border: 1px solid #d0d5df; border-radius: 4px; padding: 5px 10px;
+    font-size: 12px; width: 180px; color: #555; background: #f8f9fb;
+  }
+  .topbar-icon {
+    width: 32px; height: 32px; border-radius: 50%; background: #e8edf5;
+    display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer;
+  }
+  .topbar-avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: #5b9bd5;
+    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700;
+  }
+
+  /* ── CONTENT ── */
+  #content { flex: 1; overflow-y: auto; padding: 68px 24px 24px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .screen-title {
+    font-size: 18px; font-weight: 700; color: #1a2233; margin-bottom: 4px;
+  }
+  .screen-uc { font-size: 11px; color: #7a8499; margin-bottom: 18px; }
+  .screen-uc span {
+    background: #e8edf5; border: 1px solid #c4cfe0; border-radius: 3px;
+    padding: 2px 6px; margin-right: 4px; font-weight: 600; color: #3d5a8a;
+  }
+
+  /* ── COMMON COMPONENTS ── */
+  .card {
+    background: #fff; border: 1px solid #dde1e9; border-radius: 6px;
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .card-header {
+    padding: 10px 16px; background: #f8f9fb; border-bottom: 1px solid #dde1e9;
+    font-size: 12px; font-weight: 700; color: #3d4a5c; display: flex; align-items: center; gap: 8px;
+  }
+  .card-body { padding: 16px; }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .btn {
+    padding: 6px 14px; border-radius: 4px; font-size: 12px; font-weight: 600;
+    border: 1px solid transparent; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn-primary { background: #5b9bd5; color: #fff; border-color: #4a8bc5; }
+  .btn-default { background: #fff; color: #3d4a5c; border-color: #c4cfe0; }
+  .btn-danger { background: #fff; color: #c0392b; border-color: #e0a0a0; }
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+  .btn-ghost { background: transparent; border: none; color: #5b9bd5; padding: 4px 6px; font-size: 11px; cursor: pointer; }
+  input[type=text], input[type=date], select, textarea {
+    border: 1px solid #c4cfe0; border-radius: 4px; padding: 6px 10px;
+    font-size: 12px; color: #333; background: #fff; outline: none;
+  }
+  input[type=text]:focus, input[type=date]:focus, select:focus, textarea:focus {
+    border-color: #5b9bd5;
+  }
+  textarea { resize: vertical; min-height: 72px; width: 100%; }
+  label { font-size: 11px; font-weight: 600; color: #5a6680; display: block; margin-bottom: 4px; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #f4f6fa; color: #5a6680; font-size: 11px; font-weight: 700;
+       text-transform: uppercase; letter-spacing: .4px; padding: 8px 12px;
+       border-bottom: 2px solid #dde1e9; text-align: left; }
+  td { padding: 9px 12px; border-bottom: 1px solid #edf0f5; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8f9fb; }
+
+  /* Badges */
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 10px; font-weight: 700; letter-spacing: .2px;
+  }
+  .badge-new      { background: #e3f0ff; color: #1a6bbf; }
+  .badge-assigned { background: #e0eafa; color: #2e5ea8; }
+  .badge-work     { background: #fff4cc; color: #8a6000; }
+  .badge-wait     { background: #fdebd5; color: #a04d00; }
+  .badge-done     { background: #d4f5e2; color: #1a7a45; }
+  .badge-review   { background: #ece5f8; color: #5c2db8; }
+  .badge-closed   { background: #e8edf5; color: #5a6680; }
+  .badge-ok       { background: #d4f5e2; color: #1a7a45; }
+  .badge-warn     { background: #fff4cc; color: #8a6000; }
+  .badge-crit     { background: #fde8e8; color: #c0392b; }
+  .badge-admin    { background: #fde8e8; color: #c0392b; }
+  .badge-engineer { background: #e3f0ff; color: #1a6bbf; }
+  .badge-manager  { background: #d4f5e2; color: #1a7a45; }
+  .badge-internal { background: #e8edf5; color: #5a6680; }
+  .badge-external { background: #e3f0ff; color: #1a6bbf; }
+  .badge-client   { background: #d9f0fb; color: #0b6c9a; }
+  .badge-camera   { background: #ece5f8; color: #5c2db8; }
+  .badge-gallery  { background: #e8edf5; color: #5a6680; }
+  .badge-act      { background: #d4f5e2; color: #1a7a45; }
+  .badge-gray     { background: #e8edf5; color: #5a6680; }
+  .badge-red      { background: #fde8e8; color: #c0392b; }
+
+  /* SLA indicator */
+  .sla { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; }
+  .sla-ok   { color: #1a7a45; }
+  .sla-warn { color: #8a6000; }
+  .sla-crit { color: #c0392b; }
+  .sla-dot  { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .sla-dot-ok   { background: #1a7a45; }
+  .sla-dot-warn { background: #e6a817; }
+  .sla-dot-crit { background: #c0392b; }
+
+  /* Load bar */
+  .load-bar { height: 8px; border-radius: 4px; background: #e8edf5; overflow: hidden; min-width: 80px; }
+  .load-fill { height: 100%; border-radius: 4px; }
+  .load-low  { background: #2ecc71; }
+  .load-mid  { background: #e6a817; }
+  .load-high { background: #e74c3c; }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 2px solid #dde1e9; margin-bottom: 16px; }
+  .tab {
+    padding: 8px 18px; font-size: 12px; font-weight: 600; color: #7a8499;
+    border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer;
+  }
+  .tab.active { color: #5b9bd5; border-bottom-color: #5b9bd5; }
+
+  /* Form grid */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+  .form-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group.span2 { grid-column: span 2; }
+  .form-group.span3 { grid-column: span 3; }
+
+  /* Toggle switch */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f2f5; }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-label { font-size: 12px; color: #333; }
+  .toggle { width: 36px; height: 20px; background: #c4cfe0; border-radius: 10px; position: relative; cursor: pointer; }
+  .toggle.on { background: #5b9bd5; }
+  .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: left .2s; }
+  .toggle.on::after { left: 18px; }
+
+  /* Notification grid */
+  .notif-grid { display: grid; grid-template-columns: 200px repeat(4, 80px); gap: 0; }
+  .notif-grid .hdr { font-size: 11px; font-weight: 700; color: #5a6680; padding: 8px 12px; background: #f4f6fa; border: 1px solid #e0e5ed; text-align: center; }
+  .notif-grid .hdr:first-child { text-align: left; }
+  .notif-grid .row-label { font-size: 12px; padding: 9px 12px; border: 1px solid #e0e5ed; border-top: none; color: #333; display: flex; align-items: center; }
+  .notif-grid .cell { padding: 9px 12px; border: 1px solid #e0e5ed; border-top: none; text-align: center; display: flex; align-items: center; justify-content: center; }
+
+  /* Comment item */
+  .comment-item { padding: 12px; border-radius: 5px; margin-bottom: 8px; }
+  .comment-internal { background: #f0f2f5; }
+  .comment-external { background: #fff; border: 1px solid #dde1e9; }
+  .comment-client   { background: #e3f4fc; border: 1px solid #b8ddf5; }
+  .comment-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px; color: #7a8499; }
+  .comment-meta strong { color: #333; font-size: 12px; }
+  .comment-body { font-size: 12px; color: #333; line-height: 1.5; }
+  .comment-actions { margin-top: 6px; display: flex; gap: 6px; }
+
+  /* File list */
+  .file-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid #edf0f5; }
+  .file-item:last-child { border-bottom: none; }
+  .file-icon { width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; }
+  .file-icon-pdf  { background: #e74c3c; }
+  .file-icon-jpg  { background: #3498db; }
+  .file-icon-docx { background: #2980b9; }
+  .file-icon-xlsx { background: #27ae60; }
+  .file-icon-zip  { background: #8e44ad; }
+  .file-info { flex: 1; }
+  .file-name { font-size: 12px; font-weight: 600; color: #222; }
+  .file-meta { font-size: 11px; color: #7a8499; margin-top: 1px; }
+
+  /* Status header strip */
+  .ticket-header {
+    background: #fff; border: 1px solid #dde1e9; border-radius: 6px;
+    padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 20px;
+  }
+  .ticket-header .th-id { font-size: 22px; font-weight: 800; color: #1a2233; }
+  .ticket-header .th-title { font-size: 15px; font-weight: 700; color: #1a2233; }
+  .ticket-header .th-sub { font-size: 11px; color: #7a8499; margin-top: 2px; }
+  .ticket-header .th-actions { margin-left: auto; display: flex; gap: 8px; align-items: flex-start; }
+
+  /* Audit log row */
+  .audit-change { display: flex; gap: 6px; align-items: baseline; }
+  .audit-old { background: #fde8e8; color: #c0392b; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+  .audit-new { background: #d4f5e2; color: #1a7a45; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+  .audit-arrow { color: #999; font-size: 11px; }
+
+  /* Modal overlay hint */
+  .modal-overlay {
+    background: rgba(10,20,40,.45); border-radius: 6px; padding: 24px;
+    display: flex; align-items: flex-start; justify-content: center;
+  }
+  .modal-box {
+    background: #fff; border-radius: 6px; padding: 20px;
+    width: 560px; border: 1px solid #c4cfe0; box-shadow: 0 8px 30px rgba(0,0,0,.18);
+  }
+  .modal-title { font-size: 15px; font-weight: 700; color: #1a2233; margin-bottom: 14px; border-bottom: 1px solid #edf0f5; padding-bottom: 10px; }
+
+  /* Two-column layout */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid #edf0f5; margin: 14px 0; }
+
+  /* Chip */
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; background: #e8edf5; border-radius: 12px; font-size: 11px; color: #3d4a5c; }
+
+  /* Note box */
+  .note { background: #fff8e5; border: 1px solid #f5d978; border-radius: 4px; padding: 8px 12px; font-size: 11px; color: #7a5d00; margin-bottom: 12px; }
+  .note-error { background: #fde8e8; border-color: #f0a0a0; color: #8b1a1a; }
+
+  /* Scrollable inner */
+  .scroll-inner { max-height: 320px; overflow-y: auto; }
+
+  /* Inline action row */
+  .action-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 12px 0; border-top: 1px solid #edf0f5; }
+
+  /* Avatar circle */
+  .avatar { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; background: #5b9bd5; flex-shrink: 0; }
+
+  /* Filter row */
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: flex-end; }
+  .filter-row > * { flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<nav id="sidebar">
+  <div class="logo">Service<span>Desk</span> CRM</div>
+  <nav>
+    <div class="section-title">Модуль 8 — Сотрудники</div>
+    <a href="#" class="active" onclick="show('s1')">
+      <span class="num">1</span>
+      <span class="label">Карточка сотрудника<br><small style="color:#5a6680">UC-801, 802, 803, 805</small></span>
+    </a>
+    <a href="#" onclick="show('s2')">
+      <span class="num">2</span>
+      <span class="label">Панель загрузки инженеров<br><small style="color:#5a6680">UC-804</small></span>
+    </a>
+    <a href="#" onclick="show('s3')">
+      <span class="num">3</span>
+      <span class="label">Аудит-лог<br><small style="color:#5a6680">UC-806</small></span>
+    </a>
+    <div class="section-title">Модуль 9 — Заявки</div>
+    <a href="#" onclick="show('s4')">
+      <span class="num">4</span>
+      <span class="label">Список заявок<br><small style="color:#5a6680">UC-905, 909</small></span>
+    </a>
+    <a href="#" onclick="show('s5')">
+      <span class="num">5</span>
+      <span class="label">Карточка заявки<br><small style="color:#5a6680">UC-901, 903, 904, 906, 907</small></span>
+    </a>
+    <a href="#" onclick="show('s6')">
+      <span class="num">6</span>
+      <span class="label">Назначение инженера<br><small style="color:#5a6680">UC-902, 804</small></span>
+    </a>
+    <div class="section-title">Модуль 10 — Оборудование</div>
+    <a href="#" onclick="show('s7')">
+      <span class="num">7</span>
+      <span class="label">Список оборудования<br><small style="color:#5a6680">UC-1005, 1006</small></span>
+    </a>
+    <a href="#" onclick="show('s8')">
+      <span class="num">8</span>
+      <span class="label">Карточка оборудования<br><small style="color:#5a6680">UC-1001–1004, 1007</small></span>
+    </a>
+    <div class="section-title">Модуль 14 — Уведомления</div>
+    <a href="#" onclick="show('s9')">
+      <span class="num">9</span>
+      <span class="label">Настройки уведомлений<br><small style="color:#5a6680">UC-1401, 1402, 1403</small></span>
+    </a>
+  </nav>
+</nav>
+
+<!-- ═══════════════ TOPBAR ═══════════════ -->
+<div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+<div id="topbar">
+  <div class="breadcrumb" id="breadcrumb"><strong>Карточка сотрудника</strong></div>
+  <input class="topbar-search" type="text" placeholder="🔍  Поиск...">
+  <div class="topbar-icon" title="Уведомления">🔔</div>
+  <div class="topbar-avatar">АК</div>
+</div>
+
+<!-- ═══════════════ CONTENT ═══════════════ -->
+<div id="content">
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN 1 — Карточка сотрудника (UC-801..803, 805)
+     ══════════════════════════════════════════════════ -->
+<div class="screen active" id="s1">
+  <div class="screen-title">Карточка сотрудника</div>
+  <div class="screen-uc"><span>UC-801</span><span>UC-802</span><span>UC-803</span><span>UC-805</span></div>
+
+  <!-- Header strip -->
+  <div class="ticket-header" style="align-items:center;">
+    <div style="width:52px;height:52px;border-radius:50%;background:#5b9bd5;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;flex-shrink:0;">ПА</div>
+    <div>
+      <div class="th-title">Петров Алексей Иванович</div>
+      <div class="th-sub">Сервисный инженер · Москва · Активен с 15.01.2024</div>
+    </div>
+    <div class="th-actions">
+      <span class="badge badge-engineer">Инженер</span>
+      <button class="btn btn-default btn-sm">Редактировать</button>
+      <button class="btn btn-danger btn-sm">Деактивировать</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active">Основное</div>
+    <div class="tab">Роли и права</div>
+    <div class="tab">Компетенции</div>
+    <div class="tab">Отпуска и отсутствия</div>
+  </div>
+
+  <!-- Tab: Основное -->
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-header">📋 Личные данные</div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Фамилия</label>
+              <input type="text" value="Петров">
+            </div>
+            <div class="form-group">
+              <label>Имя</label>
+              <input type="text" value="Алексей">
+            </div>
+            <div class="form-group">
+              <label>Отчество</label>
+              <input type="text" value="Иванович">
+            </div>
+            <div class="form-group">
+              <label>Табельный номер</label>
+              <input type="text" value="EMP-0042">
+            </div>
+            <div class="form-group span2">
+              <label>Email</label>
+              <input type="text" value="petrov@company.ru">
+            </div>
+            <div class="form-group">
+              <label>Телефон</label>
+              <input type="text" value="+7 (916) 123-45-67">
+            </div>
+            <div class="form-group">
+              <label>Регион</label>
+              <select><option>Москва</option><option>Санкт-Петербург</option></select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header">🏢 Служебные данные</div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Должность</label>
+              <select><option>Сервисный инженер</option><option>Руководитель</option></select>
+            </div>
+            <div class="form-group">
+              <label>Роль в системе</label>
+              <select><option>engineer</option><option>manager</option><option>admin</option></select>
+            </div>
+            <div class="form-group">
+              <label>Дата приёма</label>
+              <input type="date" value="2024-01-15">
+            </div>
+            <div class="form-group">
+              <label>Статус</label>
+              <select><option>Активен</option><option>Отпуск</option><option>Деактивирован</option></select>
+            </div>
+            <div class="form-group span2">
+              <label>Комментарий</label>
+              <textarea style="min-height:52px">Специалист по банкоматному оборудованию NCR.</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0">
+        <div class="card-header">📊 Текущая нагрузка</div>
+        <div class="card-body" style="display:flex;align-items:center;gap:16px;">
+          <div style="font-size:26px;font-weight:800;color:#e6a817;">7</div>
+          <div>
+            <div style="font-size:12px;color:#555;">активных заявок</div>
+            <div class="load-bar" style="width:160px;margin-top:5px;"><div class="load-fill load-mid" style="width:70%"></div></div>
+            <div style="font-size:11px;color:#7a8499;margin-top:3px;">70% загрузки</div>
+          </div>
+          <button class="btn btn-default btn-sm" style="margin-left:auto">Все заявки →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Competencies mini-preview (UC-803) -->
+  <div class="card">
+    <div class="card-header">🏷️ Компетенции <span style="font-weight:400;color:#7a8499;font-size:11px;">(вкладка)</span></div>
+    <div class="card-body" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <div class="chip">NCR SelfServ 6</div>
+      <div class="chip">Wincor Nixdorf 2050xe</div>
+      <div class="chip">Ingenico Move/5000</div>
+      <button class="btn btn-default btn-sm">+ Добавить</button>
+    </div>
+  </div>
+  <!-- Absence mini-preview (UC-805) -->
+  <div class="card">
+    <div class="card-header">🗓️ Отпуска и отсутствия <span style="font-weight:400;color:#7a8499;font-size:11px;">(вкладка)</span></div>
+    <div class="card-body">
+      <div class="toolbar">
+        <button class="btn btn-primary btn-sm">+ Добавить отсутствие</button>
+      </div>
+      <table>
+        <tr><th>Тип</th><th>С</th><th>По</th><th>Дней</th><th>Статус</th></tr>
+        <tr>
+          <td>Отпуск</td><td>10.04.2026</td><td>25.04.2026</td><td>16</td>
+          <td><span class="badge badge-warn">Запланирован</span></td>
+        </tr>
+        <tr>
+          <td>Больничный</td><td>03.02.2026</td><td>08.02.2026</td><td>6</td>
+          <td><span class="badge badge-closed">Завершён</span></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  <div class="action-row">
+    <button class="btn btn-primary">Сохранить изменения</button>
+    <button class="btn btn-default">Отмена</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 2 — Панель загрузки инженеров (UC-804)
+     ══════════════════════════════════════════ -->
+<div class="screen" id="s2">
+  <div class="screen-title">Панель загрузки инженеров</div>
+  <div class="screen-uc"><span>UC-804</span></div>
+
+  <div class="filter-row">
+    <div>
+      <label>Регион</label>
+      <select style="width:140px"><option>Все регионы</option><option>Москва</option><option>СПб</option></select>
+    </div>
+    <div>
+      <label>Специализация</label>
+      <select style="width:170px"><option>Все компетенции</option><option>NCR</option><option>Wincor</option></select>
+    </div>
+    <div>
+      <label>Статус</label>
+      <select style="width:130px"><option>Все</option><option>Активен</option><option>Отпуск</option></select>
+    </div>
+    <div style="margin-top:auto"><input type="text" placeholder="🔍 Поиск по имени" style="width:190px"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      👷 Инженеры — 8 из 12 доступны
+      <span style="margin-left:auto;display:flex;gap:10px;font-weight:400;font-size:11px;align-items:center;">
+        <span><span style="display:inline-block;width:10px;height:10px;background:#2ecc71;border-radius:50%;margin-right:3px;"></span>Свободен</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#e6a817;border-radius:50%;margin-right:3px;"></span>Частично загружен</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#e74c3c;border-radius:50%;margin-right:3px;"></span>Перегружен</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#a0a0a0;border-radius:50%;margin-right:3px;"></span>Отсутствует</span>
+      </span>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <tr>
+          <th>Инженер</th><th>Регион</th><th>Компетенции</th>
+          <th>Загрузка</th><th>Активных заявок</th><th>Ближайшее отсутствие</th><th></th>
+        </tr>
+        <tr>
+          <td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar">ПА</div>Петров А.И.</div></td>
+          <td>Москва</td>
+          <td><span class="chip" style="font-size:10px;">NCR</span> <span class="chip" style="font-size:10px;">Wincor</span></td>
+          <td>
+            <div class="load-bar"><div class="load-fill load-mid" style="width:70%"></div></div>
+            <div style="font-size:10px;color:#7a8499;margin-top:2px;">7 зав. / 10 макс.</div>
+          </td>
+          <td style="text-align:center;font-weight:700;">7</td>
+          <td><span class="badge badge-warn">Отпуск 10.04</span></td>
+          <td><button class="btn btn-primary btn-sm">Назначить</button></td>
+        </tr>
+        <tr>
+          <td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar" style="background:#2ecc71;">СМ</div>Сидоров М.В.</div></td>
+          <td>Москва</td>
+          <td><span class="chip" style="font-size:10px;">Ingenico</span></td>
+          <td>
+            <div class="load-bar"><div class="load-fill load-low" style="width:30%"></div></div>
+            <div style="font-size:10px;color:#7a8499;margin-top:2px;">3 зав. / 10 макс.</div>
+          </td>
+          <td style="text-align:center;font-weight:700;">3</td>
+          <td>—</td>
+          <td><button class="btn btn-primary btn-sm">Назначить</button></td>
+        </tr>
+        <tr>
+          <td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar" style="background:#e74c3c;">КД</div>Козлов Д.С.</div></td>
+          <td>СПб</td>
+          <td><span class="chip" style="font-size:10px;">NCR</span></td>
+          <td>
+            <div class="load-bar"><div class="load-fill load-high" style="width:95%"></div></div>
+            <div style="font-size:10px;color:#7a8499;margin-top:2px;">9 зав. / 10 макс.</div>
+          </td>
+          <td style="text-align:center;font-weight:700;">9</td>
+          <td>—</td>
+          <td><button class="btn btn-default btn-sm" style="color:#aaa;border-color:#dde1e9;">Назначить</button></td>
+        </tr>
+        <tr style="opacity:.55;">
+          <td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar" style="background:#a0a0a0;">ВН</div>Волков Н.П.</div></td>
+          <td>Москва</td>
+          <td><span class="chip" style="font-size:10px;">Wincor</span></td>
+          <td><span class="badge badge-closed">Отпуск до 28.03</span></td>
+          <td style="text-align:center;">—</td>
+          <td>до 28.03.2026</td>
+          <td></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 3 — Аудит-лог (UC-806)
+     ══════════════════════════════════════════ -->
+<div class="screen" id="s3">
+  <div class="screen-title">Аудит-лог системы</div>
+  <div class="screen-uc"><span>UC-806</span></div>
+
+  <div class="filter-row">
+    <div>
+      <label>Тип события</label>
+      <select style="width:160px"><option>Все события</option><option>Изменение статуса</option><option>Изменение данных</option><option>Вход/Выход</option></select>
+    </div>
+    <div>
+      <label>Объект</label>
+      <select style="width:140px"><option>Все объекты</option><option>Заявки</option><option>Сотрудники</option><option>Оборудование</option></select>
+    </div>
+    <div>
+      <label>Пользователь</label>
+      <input type="text" placeholder="Имя / email" style="width:160px">
+    </div>
+    <div>
+      <label>С</label>
+      <input type="date" value="2026-03-20" style="width:130px">
+    </div>
+    <div>
+      <label>По</label>
+      <input type="date" value="2026-03-27" style="width:130px">
+    </div>
+    <div style="margin-top:auto;display:flex;gap:6px;">
+      <button class="btn btn-primary btn-sm">Применить</button>
+      <button class="btn btn-default btn-sm">↺ Сбросить</button>
+    </div>
+    <div style="margin-top:auto;margin-left:auto;">
+      <button class="btn btn-default btn-sm">⬇ Экспорт CSV</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      Записей: 1 234 &nbsp;·&nbsp; Страница 1 из 62
+      <span style="margin-left:auto;font-weight:400;font-size:11px;color:#7a8499;">Показано 20 из 1 234</span>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <tr><th>Дата и время</th><th>Пользователь</th><th>Роль</th><th>Событие</th><th>Объект</th><th>Изменение</th></tr>
+        <tr>
+          <td style="white-space:nowrap;color:#7a8499;">27.03.2026 14:35:12</td>
+          <td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar" style="width:22px;height:22px;font-size:9px;">ИА</div>Иванов А.С.</div></td>
+          <td><span class="badge badge-manager">Руководитель</span></td>
+          <td>Изменение статуса</td>
+          <td>Заявка #42</td>
+          <td>
+            <div class="audit-change">
+              <span class="audit-old">На проверке</span>
+              <span class="audit-arrow">→</span>
+              <span class="audit-new">Закрыта</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="white-space:nowrap;color:#7a8499;">27.03.2026 11:20:05</td>
+          <td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar">ПА</div>Петров А.И.</div></td>
+          <td><span class="badge badge-engineer">Инженер</span></td>
+          <td>Загрузка файла</td>
+          <td>Заявка #42</td>
+          <td><span style="font-size:11px;">foto_20260327.jpg (camera)</span></td>
+        </tr>
+        <tr>
+          <td style="white-space:nowrap;color:#7a8499;">27.03.2026 11:18:44</td>
+          <td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar">ПА</div>Петров А.И.</div></td>
+          <td><span class="badge badge-engineer">Инженер</span></td>
+          <td>Заполнен акт</td>
+          <td>Заявка #42</td>
+          <td><span style="font-size:11px;">client_confirmed = true</span></td>
+        </tr>
+        <tr>
+          <td style="white-space:nowrap;color:#7a8499;">26.03.2026 09:05:30</td>
+          <td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar" style="background:#9b59b6;">СА</div>Система</div></td>
+          <td><span class="badge badge-gray">Авто</span></td>
+          <td>Статус оборудования</td>
+          <td>SN-12345</td>
+          <td>
+            <div class="audit-change">
+              <span class="audit-old">На ремонте</span>
+              <span class="audit-arrow">→</span>
+              <span class="audit-new">Активно</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="white-space:nowrap;color:#7a8499;">25.03.2026 17:45:00</td>
+          <td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar" style="background:#e74c3c;">АД</div>Алексеев Д.</div></td>
+          <td><span class="badge badge-admin">Администратор</span></td>
+          <td>Деактивация</td>
+          <td>Пользователь #17</td>
+          <td><span style="font-size:11px;">is_active: true → false</span></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  <!-- Pagination -->
+  <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:8px;">
+    <button class="btn btn-default btn-sm">← Пред.</button>
+    <span style="font-size:12px;color:#5a6680;">стр. 1 из 62</span>
+    <button class="btn btn-default btn-sm">След. →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 4 — Список заявок (UC-905, 909)
+     ══════════════════════════════════════════ -->
+<div class="screen" id="s4">
+  <div class="screen-title">Список заявок</div>
+  <div class="screen-uc"><span>UC-905</span><span>UC-909</span></div>
+
+  <div class="filter-row">
+    <div><input type="text" placeholder="🔍 Поиск по номеру, клиенту, описанию..." style="width:280px"></div>
+    <div>
+      <label>Статус</label>
+      <select style="width:140px"><option>Все статусы</option><option>Новая</option><option>Назначена</option><option>В работе</option><option>Ожидание запчасти</option><option>Выполнена</option><option>На проверке</option><option>Закрыта</option></select>
+    </div>
+    <div>
+      <label>Инженер</label>
+      <select style="width:150px"><option>Все инженеры</option><option>Петров А.И.</option><option>Сидоров М.В.</option></select>
+    </div>
+    <div>
+      <label>SLA</label>
+      <select style="width:110px"><option>Все</option><option>✅ В норме</option><option>⚠ Истекает</option><option>❌ Просрочена</option></select>
+    </div>
+    <div style="margin-top:auto;">
+      <button class="btn btn-primary">+ Создать заявку</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Заявки — 47 активных</div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <tr><th>#</th><th>Клиент / Адрес</th><th>Оборудование</th><th>Тип</th><th>Статус</th><th>Инженер</th><th>SLA</th><th>Создана</th></tr>
+        <tr style="cursor:pointer" onclick="show('s5')">
+          <td style="font-weight:700;color:#5b9bd5;">#42</td>
+          <td>
+            <div style="font-weight:600;">АО «Банк Восток»</div>
+            <div style="font-size:11px;color:#7a8499;">Москва, ул. Ленина, 10</div>
+          </td>
+          <td>
+            <div>NCR SelfServ 6</div>
+            <div style="font-size:11px;color:#7a8499;">SN: ATM-2024-0042</div>
+          </td>
+          <td><span class="badge badge-warn">Ремонт</span></td>
+          <td><span class="badge badge-work">В работе</span></td>
+          <td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar" style="width:22px;height:22px;font-size:9px;">ПА</div>Петров А.И.</div></td>
+          <td><span class="sla sla-warn"><span class="sla-dot sla-dot-warn"></span>1ч 42м</span></td>
+          <td style="color:#7a8499;font-size:11px;">25.03.2026</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700;color:#5b9bd5;">#41</td>
+          <td>
+            <div style="font-weight:600;">ООО «Ритейл Плюс»</div>
+            <div style="font-size:11px;color:#7a8499;">СПб, пр. Невский, 55</div>
+          </td>
+          <td>
+            <div>Ingenico Move/5000</div>
+            <div style="font-size:11px;color:#7a8499;">SN: POS-0890</div>
+          </td>
+          <td><span class="badge badge-closed">ТО</span></td>
+          <td><span class="badge badge-wait">Ожидание запчасти</span></td>
+          <td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar" style="background:#2ecc71;width:22px;height:22px;font-size:9px;">СМ</div>Сидоров М.В.</div></td>
+          <td><span class="sla sla-ok"><span class="sla-dot sla-dot-ok"></span>5ч 20м</span></td>
+          <td style="color:#7a8499;font-size:11px;">26.03.2026</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700;color:#5b9bd5;">#40</td>
+          <td>
+            <div style="font-weight:600;">ПАО «СберBank»</div>
+            <div style="font-size:11px;color:#7a8499;">Москва, Тверская, 1</div>
+          </td>
+          <td>
+            <div>Wincor Nixdorf 2050xe</div>
+            <div style="font-size:11px;color:#7a8499;">SN: WIN-3314</div>
+          </td>
+          <td><span class="badge badge-warn">Ремонт</span></td>
+          <td><span class="badge badge-crit">Новая</span></td>
+          <td style="color:#aaa;">— не назначен —</td>
+          <td><span class="sla sla-crit"><span class="sla-dot sla-dot-crit"></span>Просрочена</span></td>
+          <td style="color:#7a8499;font-size:11px;">27.03.2026</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700;color:#5b9bd5;">#39</td>
+          <td>
+            <div style="font-weight:600;">ООО «ФастПей»</div>
+            <div style="font-size:11px;color:#7a8499;">Москва, Арбат, 7</div>
+          </td>
+          <td>
+            <div>NCR SelfServ 6</div>
+            <div style="font-size:11px;color:#7a8499;">SN: ATM-2024-0039</div>
+          </td>
+          <td><span class="badge badge-closed">ТО</span></td>
+          <td><span class="badge badge-review">На проверке</span></td>
+          <td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar">ПА</div>Петров А.И.</div></td>
+          <td><span class="sla sla-ok"><span class="sla-dot sla-dot-ok"></span>Выполнена вовремя</span></td>
+          <td style="color:#7a8499;font-size:11px;">20.03.2026</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  <!-- Pagination -->
+  <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:8px;">
+    <button class="btn btn-default btn-sm">← Пред.</button>
+    <span style="font-size:12px;color:#5a6680;">стр. 1 из 3</span>
+    <button class="btn btn-default btn-sm">След. →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 5 — Карточка заявки (UC-901,903,904,906,907)
+     ══════════════════════════════════════════ -->
+<div class="screen" id="s5">
+  <div class="screen-title">Карточка заявки</div>
+  <div class="screen-uc"><span>UC-901</span><span>UC-903</span><span>UC-904</span><span>UC-906</span><span>UC-907</span></div>
+
+  <!-- Ticket header strip -->
+  <div class="ticket-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="th-id">#42</div>
+        <span class="badge badge-work" style="font-size:12px;padding:4px 12px;">В работе</span>
+        <span class="sla sla-warn" style="font-size:12px;"><span class="sla-dot sla-dot-warn"></span>1ч 42м до SLA</span>
+      </div>
+      <div class="th-title" style="margin-top:6px;">Не выдаёт купюры — замена механизма подачи</div>
+      <div class="th-sub">АО «Банк Восток» · SN: ATM-2024-0042 · NCR SelfServ 6 · Создана: 25.03.2026 09:12 · Инженер: Петров А.И.</div>
+    </div>
+    <div class="th-actions">
+      <button class="btn btn-default btn-sm" onclick="show('s6')">Переназначить</button>
+      <button class="btn btn-primary btn-sm">Ожидание запчасти</button>
+      <button class="btn btn-primary" style="opacity:.45;cursor:not-allowed" title="Требуется подтверждение клиента в акте">Выполнена 🔒</button>
+    </div>
+  </div>
+
+  <!-- Blocked message hint (ИП-4) -->
+  <div class="note note-error">⚠ Кнопка «Выполнена» заблокирована: акт выполненных работ не содержит клиентского подтверждения (client_confirmed = false). Заполните акт.</div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active">Основное</div>
+    <div class="tab">Акт выполненных работ</div>
+    <div class="tab">Комментарии <span style="background:#e74c3c;color:#fff;border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px;">2</span></div>
+    <div class="tab">Файлы</div>
+  </div>
+
+  <!-- === TAB: Основное === -->
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-header">📋 Данные заявки</div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Тип обслуживания</label>
+              <select><option>Ремонт</option><option>ТО</option><option>Инсталляция</option></select>
+            </div>
+            <div class="form-group">
+              <label>Приоритет</label>
+              <select><option>Критический</option><option>Высокий</option><option>Стандартный</option></select>
+            </div>
+            <div class="form-group span2">
+              <label>Описание проблемы</label>
+              <textarea>При попытке снятия наличных банкомат выдаёт ошибку E007. Механизм подачи купюр не работает.</textarea>
+            </div>
+            <div class="form-group">
+              <label>Клиент</label>
+              <input type="text" value="АО «Банк Восток»">
+            </div>
+            <div class="form-group">
+              <label>Контактное лицо</label>
+              <input type="text" value="Смирнов Д.А., +7 916 000-11-22">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header">🏧 Оборудование</div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group span2">
+              <label>Единица оборудования</label>
+              <input type="text" value="NCR SelfServ 6 · SN: ATM-2024-0042">
+            </div>
+            <div class="form-group">
+              <label>Статус оборудования</label>
+              <span class="badge badge-warn" style="margin-top:4px;">На ремонте</span>
+            </div>
+            <div class="form-group">
+              <label>Гарантия</label>
+              <span class="badge badge-ok" style="margin-top:4px;">До 12.2027</span>
+            </div>
+            <div class="form-group span2">
+              <label>Адрес установки</label>
+              <input type="text" value="Москва, ул. Ленина, 10, доп. офис 3">
+            </div>
+          </div>
+          <button class="btn btn-ghost" style="margin-top:8px;">→ Открыть карточку оборудования</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">👷 Назначенный инженер</div>
+        <div class="card-body" style="display:flex;align-items:center;gap:12px;">
+          <div class="avatar" style="width:40px;height:40px;font-size:15px;">ПА</div>
+          <div>
+            <div style="font-weight:700;">Петров Алексей И.</div>
+            <div style="font-size:11px;color:#7a8499;">Загрузка: 7 заявок · NCR, Wincor</div>
+          </div>
+          <button class="btn btn-default btn-sm" style="margin-left:auto;" onclick="show('s6')">Сменить →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- === TAB HINT: Акт выполненных работ (UC-904) === -->
+  <div class="card">
+    <div class="card-header">📄 Акт выполненных работ <span style="font-weight:400;color:#7a8499;font-size:11px;">(вкладка)</span></div>
+    <div class="card-body">
+      <div class="form-grid cols3">
+        <div class="form-group">
+          <label>Дата выполнения работ</label>
+          <input type="date" value="2026-03-27">
+          <div style="font-size:10px;color:#7a8499;margin-top:2px;">По умолчанию: сегодня. Допустимо только прошлое или сегодня.</div>
+        </div>
+        <div class="form-group">
+          <label>Замененные запчасти</label>
+          <input type="text" value="Ролик подачи, арт. NCR-0042">
+        </div>
+        <div class="form-group">
+          <label>Израсходовано материалов</label>
+          <input type="text" value="Смазка, ветошь">
+        </div>
+        <div class="form-group span3">
+          <label>Описание выполненных работ</label>
+          <textarea>Произведена замена ролика механизма подачи купюр. Тест прошёл успешно — 50 купюр без ошибок.</textarea>
+        </div>
+      </div>
+      <hr class="divider">
+      <div style="font-size:12px;font-weight:700;color:#1a2233;margin-bottom:10px;">✅ Подтверждение клиента (BR-F-908)</div>
+      <div class="form-grid cols3">
+        <div class="form-group">
+          <label>Подтверждение получено</label>
+          <select>
+            <option value="">— выберите —</option>
+            <option value="on_device">На устройстве (подпись)</option>
+            <option value="email_link">По email-ссылке</option>
+            <option value="verbal">Устное подтверждение</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>ФИО представителя клиента</label>
+          <input type="text" placeholder="Сидоров П.П.">
+        </div>
+        <div class="form-group">
+          <label>Дата/время подтверждения</label>
+          <input type="text" value="27.03.2026 11:18" style="background:#f8f9fb;">
+        </div>
+      </div>
+      <div class="note" style="margin-top:10px;">ℹ Кнопка «Выполнена» становится активной только после выбора способа подтверждения и указания ФИО.</div>
+      <div class="action-row">
+        <button class="btn btn-primary">Сохранить акт</button>
+        <button class="btn btn-default">Отмена</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- === TAB HINT: Комментарии (UC-906) === -->
+  <div class="card">
+    <div class="card-header">💬 Комментарии <span style="font-weight:400;color:#7a8499;font-size:11px;">(вкладка)</span></div>
+    <div class="card-body">
+      <div class="comment-item comment-internal">
+        <div class="comment-meta">
+          <div class="avatar" style="width:22px;height:22px;font-size:9px;">ПА</div>
+          <strong>Петров А.И.</strong>
+          <span class="badge badge-internal">Внутренний</span>
+          <span>25.03.2026 10:15</span>
+        </div>
+        <div class="comment-body">Нужна замена ролика подачи, арт. NCR-0042. Проверю наличие на складе.</div>
+        <div class="comment-actions"><button class="btn btn-ghost">✏ Изменить</button></div>
+      </div>
+      <div class="comment-item comment-external">
+        <div class="comment-meta">
+          <div class="avatar" style="width:22px;height:22px;font-size:9px;">ИА</div>
+          <strong>Иванов А.С.</strong>
+          <span class="badge badge-external">Внешний 👁 Видно клиенту</span>
+          <span>25.03.2026 14:30</span>
+        </div>
+        <div class="comment-body">Ожидаем поставку запчасти, ориентировочно 27.03.2026.</div>
+      </div>
+      <div class="comment-item comment-client">
+        <div class="comment-meta">
+          <div class="avatar" style="background:#0b6c9a;width:22px;height:22px;font-size:9px;">СД</div>
+          <strong>Смирнов Д.А.</strong>
+          <span class="badge badge-client">От клиента</span>
+          <span>26.03.2026 09:05</span>
+        </div>
+        <div class="comment-body">Уточните срок прибытия инженера, у нас очередь клиентов накапливается.</div>
+      </div>
+      <hr class="divider">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px;">+ Добавить комментарий</div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+        <label style="margin:0;display:flex;align-items:center;gap:4px;cursor:pointer;">
+          <input type="radio" name="ctype" checked> Внутренний
+        </label>
+        <label style="margin:0;display:flex;align-items:center;gap:4px;cursor:pointer;">
+          <input type="radio" name="ctype"> Внешний (виден клиенту)
+        </label>
+      </div>
+      <textarea placeholder="Введите комментарий..."></textarea>
+      <div class="action-row">
+        <button class="btn btn-primary btn-sm">Отправить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- === TAB HINT: Файлы (UC-907) === -->
+  <div class="card">
+    <div class="card-header">📎 Файлы <span style="font-weight:400;color:#7a8499;font-size:11px;">(вкладка)</span></div>
+    <div class="card-body">
+      <div class="toolbar">
+        <button class="btn btn-primary btn-sm">📎 Прикрепить файл</button>
+        <button class="btn btn-default btn-sm">📷 Сделать фото</button>
+        <span style="font-size:11px;color:#7a8499;margin-left:4px;">(только мобильное приложение)</span>
+      </div>
+      <div class="file-item">
+        <div class="file-icon file-icon-jpg">JPG</div>
+        <div class="file-info">
+          <div class="file-name">foto_20260327_1118.jpg <span class="badge badge-camera">camera</span></div>
+          <div class="file-meta">1.2 МБ · Петров А.И. · 27.03.2026 11:18</div>
+        </div>
+        <button class="btn btn-default btn-sm">⬇ Скачать</button>
+      </div>
+      <div class="file-item">
+        <div class="file-icon file-icon-pdf">PDF</div>
+        <div class="file-info">
+          <div class="file-name">act_42_signed.pdf <span class="badge badge-act">Из акта</span></div>
+          <div class="file-meta">0.4 МБ · Петров А.И. · 27.03.2026 11:20</div>
+        </div>
+        <button class="btn btn-default btn-sm">⬇ Скачать</button>
+      </div>
+      <div class="file-item">
+        <div class="file-icon file-icon-docx">DOC</div>
+        <div class="file-info">
+          <div class="file-name">diagnostic_report.docx <span class="badge badge-gallery">gallery</span></div>
+          <div class="file-meta">0.8 МБ · Петров А.И. · 25.03.2026 10:10</div>
+        </div>
+        <button class="btn btn-default btn-sm">⬇ Скачать</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 6 — Назначение инженера (UC-902 + UC-804)
+     ══════════════════════════════════════════ -->
+<div class="screen" id="s6">
+  <div class="screen-title">Назначение инженера</div>
+  <div class="screen-uc"><span>UC-902</span><span>UC-804</span></div>
+
+  <div class="note">Модальное окно поверх карточки заявки #42. Доступно только Руководителю сервиса.</div>
+
+  <div class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">Назначить инженера на заявку #42</div>
+
+      <!-- Filters inside modal -->
+      <div class="filter-row" style="margin-bottom:12px;">
+        <div>
+          <label>Компетенции</label>
+          <select style="width:160px"><option>NCR SelfServ 6 ✓</option><option>Wincor</option></select>
+        </div>
+        <div>
+          <label>Регион</label>
+          <select style="width:120px"><option>Москва ✓</option><option>СПб</option></select>
+        </div>
+        <div>
+          <label>Доступность</label>
+          <select style="width:120px"><option>Только свободные</option><option>Все</option></select>
+        </div>
+      </div>
+
+      <!-- Engineer table -->
+      <table style="font-size:12px;">
+        <tr><th>Инженер</th><th>Загрузка</th><th>Заявок</th><th>Статус</th><th></th></tr>
+        <tr style="background:#e8f4e8;">
+          <td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar" style="background:#2ecc71;width:22px;height:22px;font-size:9px;">СМ</div>Сидоров М.В.</div></td>
+          <td><div class="load-bar" style="width:80px;"><div class="load-fill load-low" style="width:30%"></div></div></td>
+          <td style="text-align:center;font-weight:700;color:#1a7a45;">3</td>
+          <td><span class="badge badge-ok">Свободен</span></td>
+          <td><button class="btn btn-primary btn-sm">Назначить</button></td>
+        </tr>
+        <tr>
+          <td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar">ПА</div>Петров А.И.</div></td>
+          <td><div class="load-bar" style="width:80px;"><div class="load-fill load-mid" style="width:70%"></div></div></td>
+          <td style="text-align:center;font-weight:700;color:#8a6000;">7</td>
+          <td><span class="badge badge-warn">Частично загружен</span></td>
+          <td><button class="btn btn-default btn-sm">Назначить</button></td>
+        </tr>
+        <tr style="opacity:.5;">
+          <td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar" style="background:#a0a0a0;">ВН</div>Волков Н.П.</div></td>
+          <td>—</td>
+          <td style="text-align:center;">—</td>
+          <td><span class="badge badge-closed">Отпуск</span></td>
+          <td></td>
+        </tr>
+      </table>
+
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #edf0f5;display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn btn-default" onclick="show('s5')">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 7 — Список оборудования (UC-1005, 1006)
+     ══════════════════════════════════════════ -->
+<div class="screen" id="s7">
+  <div class="screen-title">Список оборудования</div>
+  <div class="screen-uc"><span>UC-1005</span><span>UC-1006</span></div>
+
+  <div class="filter-row">
+    <div><input type="text" placeholder="🔍 Поиск по S/N, модели, клиенту..." style="width:270px"></div>
+    <div>
+      <label>Тип</label>
+      <select style="width:130px"><option>Все типы</option><option>Банкомат</option><option>POS-терминал</option><option>Инфокиоск</option></select>
+    </div>
+    <div>
+      <label>Статус</label>
+      <select style="width:130px"><option>Все</option><option>Активно</option><option>На ремонте</option><option>Списано</option></select>
+    </div>
+    <div>
+      <label>Гарантия</label>
+      <select style="width:130px"><option>Все</option><option>Действует</option><option>Истекает (30 дн.)</option><option>Истекла</option></select>
+    </div>
+    <div style="margin-top:auto;">
+      <button class="btn btn-primary">+ Добавить оборудование</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Оборудование — 124 единицы</div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <tr><th>Серийный номер</th><th>Модель</th><th>Тип</th><th>Клиент / Адрес</th><th>Статус</th><th>Гарантия</th><th>Последнее ТО</th></tr>
+        <tr style="cursor:pointer;" onclick="show('s8')">
+          <td style="font-weight:700;color:#5b9bd5;">ATM-2024-0042</td>
+          <td>NCR SelfServ 6</td>
+          <td><span class="badge badge-warn">Банкомат</span></td>
+          <td>
+            <div>АО «Банк Восток»</div>
+            <div style="font-size:11px;color:#7a8499;">Москва, ул. Ленина, 10</div>
+          </td>
+          <td><span class="badge badge-warn">На ремонте</span></td>
+          <td><span class="badge badge-ok">До 12.2027</span></td>
+          <td style="font-size:11px;color:#7a8499;">15.01.2026</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700;color:#5b9bd5;">POS-0890</td>
+          <td>Ingenico Move/5000</td>
+          <td><span class="badge badge-closed">POS</span></td>
+          <td>
+            <div>ООО «Ритейл Плюс»</div>
+            <div style="font-size:11px;color:#7a8499;">СПб, пр. Невский, 55</div>
+          </td>
+          <td><span class="badge badge-ok">Активно</span></td>
+          <td><span class="badge badge-warn">До 04.2026 ⚠</span></td>
+          <td style="font-size:11px;color:#7a8499;">10.10.2025</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700;color:#5b9bd5;">WIN-3314</td>
+          <td>Wincor Nixdorf 2050xe</td>
+          <td><span class="badge badge-warn">Банкомат</span></td>
+          <td>
+            <div>ПАО «СберBank»</div>
+            <div style="font-size:11px;color:#7a8499;">Москва, Тверская, 1</div>
+          </td>
+          <td><span class="badge badge-crit">Ремонт (активная заявка)</span></td>
+          <td><span class="badge badge-red">Истекла 01.2026</span></td>
+          <td style="font-size:11px;color:#7a8499;">05.01.2026</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 8 — Карточка оборудования (UC-1001–1004, 1007)
+     ══════════════════════════════════════════ -->
+<div class="screen" id="s8">
+  <div class="screen-title">Карточка оборудования</div>
+  <div class="screen-uc"><span>UC-1001</span><span>UC-1002</span><span>UC-1003</span><span>UC-1004</span><span>UC-1007</span></div>
+
+  <!-- Header -->
+  <div class="ticket-header">
+    <div style="font-size:32px;">🏧</div>
+    <div>
+      <div class="th-title">NCR SelfServ 6</div>
+      <div style="font-size:12px;font-weight:700;color:#5b9bd5;">SN: ATM-2024-0042</div>
+      <div class="th-sub">АО «Банк Восток» · Москва, ул. Ленина, 10, доп. офис 3</div>
+    </div>
+    <div style="margin-left:16px;">
+      <span class="badge badge-warn" style="font-size:12px;padding:5px 12px;">На ремонте</span>
+      <div style="margin-top:6px;"><span class="badge badge-ok">Гарантия до 12.2027</span></div>
+    </div>
+    <div class="th-actions">
+      <button class="btn btn-default btn-sm">Редактировать</button>
+      <button class="btn btn-primary btn-sm" onclick="show('s4')">+ Создать заявку</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active">Паспорт</div>
+    <div class="tab">История ремонтов</div>
+    <div class="tab">Документы</div>
+  </div>
+
+  <!-- Passport tab -->
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-header">📋 Технические данные</div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Производитель</label>
+              <input type="text" value="NCR Corporation">
+            </div>
+            <div class="form-group">
+              <label>Модель</label>
+              <input type="text" value="SelfServ 6">
+            </div>
+            <div class="form-group">
+              <label>Серийный номер</label>
+              <input type="text" value="ATM-2024-0042">
+            </div>
+            <div class="form-group">
+              <label>Инвентарный номер</label>
+              <input type="text" value="INV-2024-0042">
+            </div>
+            <div class="form-group">
+              <label>Дата производства</label>
+              <input type="date" value="2024-03-01">
+            </div>
+            <div class="form-group">
+              <label>Дата ввода в эксплуатацию</label>
+              <input type="date" value="2024-06-15">
+            </div>
+            <div class="form-group span2">
+              <label>Адрес установки</label>
+              <input type="text" value="Москва, ул. Ленина, 10, доп. офис 3">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header">🛡️ Гарантия и обслуживание</div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Начало гарантии</label>
+              <input type="date" value="2024-06-15">
+            </div>
+            <div class="form-group">
+              <label>Конец гарантии</label>
+              <input type="date" value="2027-12-15">
+            </div>
+            <div class="form-group">
+              <label>Тип договора ТО</label>
+              <select><option>Полное ТО</option><option>Частичное</option><option>Без договора</option></select>
+            </div>
+            <div class="form-group">
+              <label>Периодичность ТО</label>
+              <select><option>Квартально</option><option>Раз в полгода</option><option>Ежегодно</option></select>
+            </div>
+            <div class="form-group">
+              <label>Следующее плановое ТО</label>
+              <input type="date" value="2026-06-15">
+            </div>
+            <div class="form-group">
+              <label>Статус (UC-1007)</label>
+              <span class="badge badge-warn" style="margin-top:4px;">На ремонте</span>
+              <div style="font-size:10px;color:#7a8499;margin-top:3px;">Автоматически: заявка #42 «В работе»</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Repair history mini (UC-1003) -->
+      <div class="card">
+        <div class="card-header">🔧 Последние ремонты <span style="font-weight:400;color:#7a8499;font-size:11px;">(вкладка)</span></div>
+        <div class="card-body" style="padding:0;">
+          <table>
+            <tr><th>Заявка</th><th>Дата</th><th>Описание</th></tr>
+            <tr>
+              <td><span style="color:#5b9bd5;font-weight:700;">#42</span></td>
+              <td style="font-size:11px;">25.03.2026</td>
+              <td style="font-size:11px;">Замена ролика подачи (В работе)</td>
+            </tr>
+            <tr>
+              <td><span style="color:#5b9bd5;font-weight:700;">#28</span></td>
+              <td style="font-size:11px;">15.01.2026</td>
+              <td style="font-size:11px;">Плановое ТО, замена картриджа</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 9 — Настройки уведомлений (UC-1401–1403)
+     ══════════════════════════════════════════ -->
+<div class="screen" id="s9">
+  <div class="screen-title">Настройки уведомлений</div>
+  <div class="screen-uc"><span>UC-1401</span><span>UC-1402</span><span>UC-1403</span></div>
+
+  <div class="note">Настройки доступны Руководителю сервиса (глобальные правила) и каждому сотруднику (личные предпочтения).</div>
+
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-header">🔔 Матрица каналов уведомлений</div>
+        <div class="card-body" style="padding:0;overflow-x:auto;">
+          <div class="notif-grid">
+            <div class="hdr">Событие</div>
+            <div class="hdr">Email</div>
+            <div class="hdr">Push</div>
+            <div class="hdr">SMS</div>
+            <div class="hdr">В системе</div>
+
+            <div class="row-label">Создана новая заявка</div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+
+            <div class="row-label">Заявка назначена инженеру</div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+
+            <div class="row-label">Статус изменён</div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+
+            <div class="row-label">SLA истекает (2 часа)</div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+
+            <div class="row-label">SLA просрочена</div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+
+            <div class="row-label">Комментарий от клиента</div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+
+            <div class="row-label">Заявка возвращена на доработку</div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+
+            <div class="row-label">Истекает гарантия (30 дн.)</div>
+            <div class="cell"><div class="toggle on"></div></div>
+            <div class="cell"><div class="toggle"></div></div>
+            <div class="cell"><div class="toggle"></div></div>
+            <div class="cell"><div class="toggle on"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header">👤 Личные предпочтения (UC-1402)</div>
+        <div class="card-body">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Email для уведомлений</label>
+            <input type="text" value="petrov@company.ru">
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Телефон (SMS / Push)</label>
+            <input type="text" value="+7 (916) 123-45-67">
+          </div>
+          <hr class="divider">
+          <div style="font-size:12px;font-weight:700;color:#1a2233;margin-bottom:8px;">Личные переопределения</div>
+          <div class="toggle-row">
+            <span class="toggle-label">Уведомлять о назначенных мне заявках</span>
+            <div class="toggle on"></div>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Уведомлять об изменениях статуса</span>
+            <div class="toggle on"></div>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Уведомлять о SLA-нарушениях</span>
+            <div class="toggle on"></div>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Ночной режим (нет Push 22:00–07:00)</span>
+            <div class="toggle"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">📋 Email-шаблоны (UC-1403)</div>
+        <div class="card-body">
+          <div style="font-size:12px;color:#5a6680;margin-bottom:10px;">Шаблоны доступны Администратору.</div>
+          <table>
+            <tr><th>Событие</th><th>Шаблон</th><th></th></tr>
+            <tr>
+              <td style="font-size:11px;">Статус → «Назначена»</td>
+              <td><span class="chip">tpl_assigned.html</span></td>
+              <td><button class="btn btn-ghost">Редактировать</button></td>
+            </tr>
+            <tr>
+              <td style="font-size:11px;">Статус → «Выполнена»</td>
+              <td><span class="chip">tpl_completed.html</span></td>
+              <td><button class="btn btn-ghost">Редактировать</button></td>
+            </tr>
+            <tr>
+              <td style="font-size:11px;">Статус → «Закрыта»</td>
+              <td><span class="chip">tpl_closed.html</span></td>
+              <td><button class="btn btn-ghost">Редактировать</button></td>
+            </tr>
+            <tr>
+              <td style="font-size:11px;">SLA просрочена</td>
+              <td><span class="chip">tpl_sla_breach.html</span></td>
+              <td><button class="btn btn-ghost">Редактировать</button></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button class="btn btn-primary">Сохранить настройки</button>
+    <button class="btn btn-default">Отмена</button>
+  </div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /main col -->
+
+<script>
+const breadcrumbs = {
+  s1: 'Карточка сотрудника',
+  s2: 'Панель загрузки инженеров',
+  s3: 'Аудит-лог',
+  s4: 'Список заявок',
+  s5: 'Карточка заявки #42',
+  s6: 'Назначение инженера → заявка #42',
+  s7: 'Список оборудования',
+  s8: 'Карточка оборудования — ATM-2024-0042',
+  s9: 'Настройки уведомлений',
+};
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const idx = parseInt(id.replace('s',''));
+  const links = document.querySelectorAll('#sidebar nav a');
+  if (links[idx - 1]) links[idx - 1].classList.add('active');
+  document.getElementById('breadcrumb').innerHTML = '<strong>' + (breadcrumbs[id] || '') + '</strong>';
+  document.getElementById('content').scrollTop = 0;
+  return false;
+}
+
+// Prevent sidebar links from navigating
+document.querySelectorAll('#sidebar nav a').forEach((a, i) => {
+  a.addEventListener('click', function(e) {
+    e.preventDefault();
+    show('s' + (i + 1));
+  });
+});
+</script>
+</body>
+</html>

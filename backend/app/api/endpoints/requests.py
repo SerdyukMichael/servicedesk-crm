@@ -80,7 +80,7 @@ class RequestOut(BaseModel):
 
 # ─── Endpoints ──────────────────────────────────────────────────────────────
 
-@router.get("/", response_model=List[RequestOut])
+@router.get("", response_model=List[RequestOut])
 def list_requests(
     status: Optional[str] = Query(None),
     client_id: Optional[int] = Query(None),
@@ -104,7 +104,7 @@ def list_requests(
     return q.order_by(ServiceRequest.created_at.desc()).all()
 
 
-@router.post("/", response_model=RequestOut)
+@router.post("", response_model=RequestOut)
 def create_request(
     data: RequestCreate,
     db: Session = Depends(get_db),

@@ -11,9 +11,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 from app.core.database import Base
-import app.models.user, app.models.client, app.models.interaction
-import app.models.equipment, app.models.service_request
-import app.models.spare_part, app.models.invoice, app.models.vendor
+import app.models  # noqa — registers all models with Base.metadata
 
 target_metadata = Base.metadata
 

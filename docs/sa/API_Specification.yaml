@@ -1,0 +1,2208 @@
+openapi: 3.0.3
+info:
+  title: ServiceDesk CRM API
+  description: |
+    REST API для системы автоматизации сервисной компании по обслуживанию банкоматов и платёжного оборудования.
+
+    ## Аутентификация
+    Все защищённые эндпоинты требуют заголовок `Authorization: Bearer <token>`.
+    Токен получается через `POST /auth/login`. Срок действия — 480 минут (8 часов).
+
+    ## Формат ошибок
+    ```json
+    { "error": "ERROR_CODE", "message": "Описание ошибки", "details": {} }
+    ```
+
+    ## Пагинация
+    Поддерживается параметрами `?page=1&size=20`.
+    Ответ всегда включает `total`, `page`, `size`, `pages`.
+  version: "2.0.0"
+  contact:
+    name: Solution Architect
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development
+  - url: http://localhost/api/v1
+    description: Docker Compose (via Nginx)
+
+tags:
+  - name: Auth
+    description: Аутентификация и авторизация
+  - name: Пользователи
+    description: Управление пользователями (Module 8)
+  - name: Клиенты
+    description: CRM — клиентская база и контакты
+  - name: Оборудование
+    description: Парк оборудования (Module 10)
+  - name: Заявки
+    description: Заявки на обслуживание (Module 9)
+  - name: Шаблоны работ
+    description: Шаблоны типовых работ (UC-911)
+  - name: Запчасти
+    description: Склад запчастей
+  - name: Вендоры
+    description: Поставщики запчастей и оборудования
+  - name: Счета
+    description: Счета и финансовые документы
+  - name: Файлы
+    description: Загрузка и выдача файлов (BLOB, ADR-001)
+  - name: Уведомления
+    description: In-app уведомления и настройки (Module 14)
+  - name: Отчёты
+    description: Аналитика и экспорт (Module 9/10)
+  - name: Аудит
+    description: Журнал изменений (admin/director)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ─── Общие ───────────────────────────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: TICKET_NOT_FOUND
+        message:
+          type: string
+          example: "Заявка #42 не найдена"
+        details:
+          type: object
+      required: [error, message, details]
+
+    PaginatedMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+          description: Текущая страница (начиная с 1)
+        size:
+          type: integer
+          description: Размер страницы
+        pages:
+          type: integer
+          description: Общее количество страниц
+      required: [total, page, size, pages]
+
+    # ─── Auth ─────────────────────────────────────────────────────────────────
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required: [email, password]
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          example: bearer
+      required: [access_token, token_type]
+
+    # ─── User ─────────────────────────────────────────────────────────────────
+    UserRole:
+      type: string
+      enum: [admin, sales_mgr, svc_mgr, engineer, manager, warehouse, accountant, director]
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+          description: Массив ролей пользователя (union прав)
+        phone:
+          type: string
+          nullable: true
+        telegram_chat_id:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+        is_deleted:
+          type: boolean
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, email, full_name, roles, is_active, is_deleted, created_at, updated_at]
+
+    UserCreate:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+          maxLength: 200
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+          default: ["engineer"]
+        password:
+          type: string
+          minLength: 8
+        phone:
+          type: string
+          nullable: true
+        telegram_chat_id:
+          type: string
+          nullable: true
+      required: [email, full_name, password]
+
+    UserUpdate:
+      type: object
+      properties:
+        full_name:
+          type: string
+          maxLength: 200
+        phone:
+          type: string
+          nullable: true
+        telegram_chat_id:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+        new_password:
+          type: string
+          minLength: 8
+          nullable: true
+
+    # ─── Client ───────────────────────────────────────────────────────────────
+    ClientResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        inn:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        assigned_manager_id:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required: [id, name, created_at]
+
+    ClientCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 300
+        inn:
+          type: string
+          maxLength: 12
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        assigned_manager_id:
+          type: integer
+          nullable: true
+      required: [name]
+
+    ClientContactResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        client_id:
+          type: integer
+        full_name:
+          type: string
+        position:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        is_primary:
+          type: boolean
+      required: [id, client_id, full_name, is_primary]
+
+    # ─── Equipment ────────────────────────────────────────────────────────────
+    WarrantyStatus:
+      type: string
+      enum: [valid, expiring_soon, expired]
+
+    EquipmentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        serial_number:
+          type: string
+        client_id:
+          type: integer
+        model_id:
+          type: integer
+        model_name:
+          type: string
+        location:
+          type: string
+          nullable: true
+        install_date:
+          type: string
+          format: date
+          nullable: true
+        warranty_expiry:
+          type: string
+          format: date
+          nullable: true
+        warranty_status:
+          $ref: '#/components/schemas/WarrantyStatus'
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required: [id, serial_number, client_id, model_id, model_name, warranty_status, created_at]
+
+    EquipmentCreate:
+      type: object
+      properties:
+        serial_number:
+          type: string
+          maxLength: 100
+        client_id:
+          type: integer
+        model_id:
+          type: integer
+        location:
+          type: string
+          nullable: true
+        install_date:
+          type: string
+          format: date
+          nullable: true
+        warranty_expiry:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+      required: [serial_number, client_id, model_id]
+
+    EquipmentModelResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        vendor:
+          type: string
+        model_name:
+          type: string
+        equipment_type:
+          type: string
+      required: [id, vendor, model_name, equipment_type]
+
+    # ─── Ticket ───────────────────────────────────────────────────────────────
+    TicketStatus:
+      type: string
+      enum: [new, assigned, in_progress, waiting_part, on_review, completed, closed, cancelled]
+
+    TicketPriority:
+      type: string
+      enum: [critical, high, medium, low]
+
+    TicketType:
+      type: string
+      enum: [repair, maintenance, diagnostics, installation]
+
+    TicketResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        number:
+          type: string
+          example: "T-20260328-0001"
+          description: "Формат: T-YYYYMMDD-XXXX"
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        priority:
+          $ref: '#/components/schemas/TicketPriority'
+        type:
+          $ref: '#/components/schemas/TicketType'
+        client_id:
+          type: integer
+        equipment_id:
+          type: integer
+          nullable: true
+        assigned_to:
+          type: integer
+          nullable: true
+          description: ID назначенного инженера
+        created_by:
+          type: integer
+          description: ID создавшего пользователя
+        work_template_id:
+          type: integer
+          nullable: true
+        sla_deadline:
+          type: string
+          format: date-time
+          nullable: true
+        closed_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_deleted:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, number, title, status, priority, type, client_id, created_by, is_deleted, created_at, updated_at]
+
+    TicketCreate:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 300
+        description:
+          type: string
+          nullable: true
+        priority:
+          $ref: '#/components/schemas/TicketPriority'
+        ticket_type:
+          $ref: '#/components/schemas/TicketType'
+        client_id:
+          type: integer
+        equipment_id:
+          type: integer
+          nullable: true
+        work_template_id:
+          type: integer
+          nullable: true
+          description: "Применить шаблон работ при создании заявки (UC-911)"
+      required: [title, priority, ticket_type, client_id]
+
+    TicketAssign:
+      type: object
+      properties:
+        engineer_id:
+          type: integer
+      required: [engineer_id]
+
+    TicketStatusUpdate:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        comment:
+          type: string
+          nullable: true
+      required: [status]
+
+    CommentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        ticket_id:
+          type: integer
+        author_id:
+          type: integer
+        author_name:
+          type: string
+        text:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required: [id, ticket_id, author_id, author_name, text, created_at]
+
+    CommentCreate:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+      required: [text]
+
+    WorkActResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        ticket_id:
+          type: integer
+        act_number:
+          type: string
+        status:
+          type: string
+          enum: [draft, signed]
+        work_description:
+          type: string
+        signed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required: [id, ticket_id, act_number, status, work_description, created_at]
+
+    # ─── Work Template ────────────────────────────────────────────────────────
+    WorkTemplateResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        equipment_model_id:
+          type: integer
+        equipment_model_name:
+          type: string
+        work_items:
+          type: array
+          items:
+            type: object
+            properties:
+              order:
+                type: integer
+              description:
+                type: string
+            required: [order, description]
+        parts:
+          type: array
+          items:
+            type: object
+            properties:
+              part_id:
+                type: integer
+              part_name:
+                type: string
+              quantity:
+                type: integer
+            required: [part_id, part_name, quantity]
+        created_at:
+          type: string
+          format: date-time
+      required: [id, name, equipment_model_id, equipment_model_name, work_items, parts, created_at]
+
+    WorkTemplateCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        equipment_model_id:
+          type: integer
+        work_items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              order:
+                type: integer
+              description:
+                type: string
+            required: [order, description]
+        parts:
+          type: array
+          items:
+            type: object
+            properties:
+              part_id:
+                type: integer
+              quantity:
+                type: integer
+                minimum: 1
+            required: [part_id, quantity]
+      required: [name, equipment_model_id, work_items]
+
+    # ─── Spare Part ───────────────────────────────────────────────────────────
+    SparePartResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        sku:
+          type: string
+          nullable: true
+        stock_quantity:
+          type: integer
+        unit:
+          type: string
+        min_stock:
+          type: integer
+        price:
+          type: number
+          format: float
+          nullable: true
+      required: [id, name, stock_quantity, unit, min_stock]
+
+    # ─── File ─────────────────────────────────────────────────────────────────
+    FileUploadResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        file_name:
+          type: string
+        mime_type:
+          type: string
+        file_size:
+          type: integer
+          description: Размер в байтах
+        uploaded_at:
+          type: string
+          format: date-time
+      required: [id, file_name, mime_type, file_size, uploaded_at]
+
+    # ─── Notification ─────────────────────────────────────────────────────────
+    NotificationResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        event_type:
+          type: string
+        message:
+          type: string
+        entity_type:
+          type: string
+          nullable: true
+        entity_id:
+          type: integer
+          nullable: true
+        is_read:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required: [id, event_type, message, is_read, created_at]
+
+    UnreadCountResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+      required: [count]
+
+    NotificationSettingResponse:
+      type: object
+      properties:
+        event_type:
+          type: string
+        channel:
+          type: string
+          enum: [email, telegram, in_app]
+        enabled:
+          type: boolean
+      required: [event_type, channel, enabled]
+
+    NotificationSettingUpdate:
+      type: object
+      properties:
+        event_type:
+          type: string
+        channel:
+          type: string
+          enum: [email, telegram]
+          description: "in_app нельзя отключить (BR-F-1400)"
+        enabled:
+          type: boolean
+      required: [event_type, channel, enabled]
+
+  responses:
+    Unauthorized:
+      description: Токен отсутствует или истёк
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: INVALID_TOKEN
+            message: "Токен недействителен"
+            details: {}
+
+    Forbidden:
+      description: Недостаточно прав
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: FORBIDDEN
+            message: "Требуется роль: admin, svc_mgr"
+            details: {}
+
+    NotFound:
+      description: Запись не найдена
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: Конфликт уникальности
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    BusinessError:
+      description: Нарушение бизнес-правила
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ═══════════════════════════════════════════════════════════════
+  # AUTH
+  # ═══════════════════════════════════════════════════════════════
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Вход в систему
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: admin@company.ru
+              password: secret123
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Неверные учётные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: INVALID_CREDENTIALS
+                message: "Неверный email или пароль"
+                details: {}
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Текущий пользователь
+      responses:
+        '200':
+          description: Данные текущего пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ═══════════════════════════════════════════════════════════════
+  # USERS (Module 8)
+  # ═══════════════════════════════════════════════════════════════
+  /users:
+    get:
+      tags: [Пользователи]
+      summary: Список пользователей
+      description: Доступно admin, svc_mgr, director.
+      parameters:
+        - in: query
+          name: role
+          schema:
+            $ref: '#/components/schemas/UserRole'
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 20
+            maximum: 200
+      responses:
+        '200':
+          description: Список пользователей
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags: [Пользователи]
+      summary: Создать пользователя
+      description: Только admin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Пользователь создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /users/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Пользователи]
+      summary: Получить пользователя по ID
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          description: OK
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Пользователи]
+      summary: Обновить пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          description: OK
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Пользователи]
+      summary: Удалить пользователя (soft delete)
+      description: Только admin. Нельзя удалить себя.
+      responses:
+        '204':
+          description: Удалён
+        '400':
+          $ref: '#/components/responses/BusinessError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ═══════════════════════════════════════════════════════════════
+  # CLIENTS
+  # ═══════════════════════════════════════════════════════════════
+  /clients:
+    get:
+      tags: [Клиенты]
+      summary: Список клиентов
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Поиск по названию или ИНН
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 20
+            maximum: 200
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ClientResponse'
+
+    post:
+      tags: [Клиенты]
+      summary: Создать клиента
+      description: admin, sales_mgr, svc_mgr.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientCreate'
+      responses:
+        '201':
+          description: Клиент создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /clients/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Клиенты]
+      summary: Получить клиента
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Клиенты]
+      summary: Обновить клиента
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientCreate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+
+    delete:
+      tags: [Клиенты]
+      summary: Удалить клиента (soft delete)
+      description: Только admin.
+      responses:
+        '204':
+          description: Удалён
+
+  /clients/{id}/contacts:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Клиенты]
+      summary: Список контактов клиента
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClientContactResponse'
+
+    post:
+      tags: [Клиенты]
+      summary: Добавить контакт
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientContactResponse'
+      responses:
+        '201':
+          description: Контакт создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientContactResponse'
+
+  # ═══════════════════════════════════════════════════════════════
+  # EQUIPMENT (Module 10)
+  # ═══════════════════════════════════════════════════════════════
+  /equipment:
+    get:
+      tags: [Оборудование]
+      summary: Список оборудования
+      parameters:
+        - in: query
+          name: client_id
+          schema:
+            type: integer
+        - in: query
+          name: model_id
+          schema:
+            type: integer
+        - in: query
+          name: warranty_status
+          schema:
+            $ref: '#/components/schemas/WarrantyStatus'
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 20
+            maximum: 200
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/EquipmentResponse'
+
+    post:
+      tags: [Оборудование]
+      summary: Добавить оборудование
+      description: admin, svc_mgr.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EquipmentCreate'
+      responses:
+        '201':
+          description: Оборудование добавлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /equipment/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Оборудование]
+      summary: Карточка оборудования
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Оборудование]
+      summary: Обновить оборудование
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EquipmentCreate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentResponse'
+
+    delete:
+      tags: [Оборудование]
+      summary: Удалить (soft delete)
+      description: Только admin.
+      responses:
+        '204':
+          description: Удалено
+
+  /equipment/{id}/documents:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Оборудование]
+      summary: Список документов оборудования
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileUploadResponse'
+
+    post:
+      tags: [Оборудование]
+      summary: Загрузить документ (PDF/DOCX/XLSX/ZIP, ≤20МБ)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        '201':
+          description: Документ загружен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadResponse'
+        '400':
+          $ref: '#/components/responses/BusinessError'
+
+  /equipment/{id}/history:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Оборудование]
+      summary: История ремонтов и ТО (UC-1002)
+      parameters:
+        - in: query
+          name: work_type
+          schema:
+            type: string
+            enum: [repair, maintenance]
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    work_type:
+                      type: string
+                    work_date:
+                      type: string
+                      format: date
+                    engineer_name:
+                      type: string
+                    description:
+                      type: string
+                    ticket_number:
+                      type: string
+                      nullable: true
+
+  /equipment/models:
+    get:
+      tags: [Оборудование]
+      summary: Справочник моделей оборудования
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EquipmentModelResponse'
+
+  # ═══════════════════════════════════════════════════════════════
+  # TICKETS (Module 9)
+  # ═══════════════════════════════════════════════════════════════
+  /tickets:
+    get:
+      tags: [Заявки]
+      summary: Список заявок
+      description: |
+        Инженер видит только свои заявки.
+        Руководитель и admin видят все.
+        Фильтры сохраняются в сессии на фронте (UC-909).
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/TicketStatus'
+        - in: query
+          name: priority
+          schema:
+            $ref: '#/components/schemas/TicketPriority'
+        - in: query
+          name: engineer_id
+          schema:
+            type: integer
+        - in: query
+          name: client_id
+          schema:
+            type: integer
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: sla_violated
+          schema:
+            type: boolean
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 20
+            maximum: 200
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TicketResponse'
+
+    post:
+      tags: [Заявки]
+      summary: Создать заявку
+      description: admin, svc_mgr, engineer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketCreate'
+      responses:
+        '201':
+          description: Заявка создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketResponse'
+
+  /tickets/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Заявки]
+      summary: Карточка заявки
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Заявки]
+      summary: Обновить заявку (поля, не статус)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketCreate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketResponse'
+
+    delete:
+      tags: [Заявки]
+      summary: Удалить (soft delete). Только admin.
+      responses:
+        '204':
+          description: Удалена
+
+  /tickets/{id}/assign:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    patch:
+      tags: [Заявки]
+      summary: Назначить инженера на заявку
+      description: admin, svc_mgr.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketAssign'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tickets/{id}/status:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    patch:
+      tags: [Заявки]
+      summary: Изменить статус заявки
+      description: |
+        Матрица переходов:
+        - new → in_progress (при назначении инженера)
+        - in_progress → pending_parts
+        - in_progress → resolved
+        - pending_parts → in_progress
+        - resolved → closed (требует signed work_act)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketStatusUpdate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketResponse'
+        '400':
+          $ref: '#/components/responses/BusinessError'
+
+  /tickets/{id}/comments:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Заявки]
+      summary: Список комментариев к заявке
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CommentResponse'
+
+    post:
+      tags: [Заявки]
+      summary: Добавить комментарий
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentCreate'
+      responses:
+        '201':
+          description: Комментарий добавлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentResponse'
+
+  /tickets/{id}/attachments:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Заявки]
+      summary: Список вложений к заявке
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileUploadResponse'
+
+    post:
+      tags: [Заявки]
+      summary: Загрузить вложение (все типы, ≤20МБ)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        '201':
+          description: Вложение загружено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadResponse'
+
+  /tickets/{id}/work-act:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Заявки]
+      summary: Получить акт выполненных работ
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkActResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Заявки]
+      summary: Создать акт выполненных работ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                work_description:
+                  type: string
+              required: [work_description]
+      responses:
+        '201':
+          description: Акт создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkActResponse'
+
+  /tickets/{id}/work-act/sign:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    post:
+      tags: [Заявки]
+      summary: Подписать акт (статус → signed)
+      description: engineer, svc_mgr, admin.
+      responses:
+        '200':
+          description: Акт подписан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkActResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ═══════════════════════════════════════════════════════════════
+  # WORK TEMPLATES (UC-911)
+  # ═══════════════════════════════════════════════════════════════
+  /work-templates:
+    get:
+      tags: [Шаблоны работ]
+      summary: Список шаблонов
+      parameters:
+        - in: query
+          name: equipment_model_id
+          schema:
+            type: integer
+          description: Фильтр по модели оборудования (для выпадающего списка при создании заявки)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkTemplateResponse'
+
+    post:
+      tags: [Шаблоны работ]
+      summary: Создать шаблон
+      description: admin, svc_mgr. work_items — минимум 1 позиция.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkTemplateCreate'
+      responses:
+        '201':
+          description: Шаблон создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkTemplateResponse'
+        '400':
+          $ref: '#/components/responses/BusinessError'
+
+  /work-templates/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Шаблоны работ]
+      summary: Получить шаблон
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkTemplateResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Шаблоны работ]
+      summary: Обновить шаблон
+      description: admin, svc_mgr.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkTemplateCreate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkTemplateResponse'
+
+    delete:
+      tags: [Шаблоны работ]
+      summary: Удалить (soft delete)
+      description: admin, svc_mgr.
+      responses:
+        '204':
+          description: Удалён
+
+  # ═══════════════════════════════════════════════════════════════
+  # SPARE PARTS
+  # ═══════════════════════════════════════════════════════════════
+  /parts:
+    get:
+      tags: [Запчасти]
+      summary: Список запчастей
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: low_stock
+          schema:
+            type: boolean
+          description: Только позиции с остатком ниже минимума
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 20
+            maximum: 200
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SparePartResponse'
+
+    post:
+      tags: [Запчасти]
+      summary: Добавить запчасть в номенклатуру
+      description: admin, warehouse.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SparePartResponse'
+      responses:
+        '201':
+          description: Создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SparePartResponse'
+
+  /parts/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Запчасти]
+      summary: Получить запчасть
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SparePartResponse'
+
+    put:
+      tags: [Запчасти]
+      summary: Обновить запчасть
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SparePartResponse'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SparePartResponse'
+
+  /parts/{id}/adjust-stock:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    post:
+      tags: [Запчасти]
+      summary: Изменить остаток (приход/расход)
+      description: warehouse, admin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                delta:
+                  type: integer
+                  description: "Положительное = приход, отрицательное = расход"
+                reason:
+                  type: string
+              required: [delta, reason]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SparePartResponse'
+        '400':
+          $ref: '#/components/responses/BusinessError'
+
+  # ═══════════════════════════════════════════════════════════════
+  # FILES
+  # ═══════════════════════════════════════════════════════════════
+  /files/equipment-documents/{doc_id}:
+    parameters:
+      - in: path
+        name: doc_id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Файлы]
+      summary: Скачать документ оборудования (BLOB stream)
+      responses:
+        '200':
+          description: Файл
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Файлы]
+      summary: Удалить документ
+      responses:
+        '204':
+          description: Удалён
+
+  /files/ticket-attachments/{attach_id}:
+    parameters:
+      - in: path
+        name: attach_id
+        required: true
+        schema:
+          type: integer
+
+    get:
+      tags: [Файлы]
+      summary: Скачать вложение заявки (BLOB stream)
+      responses:
+        '200':
+          description: Файл
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Файлы]
+      summary: Удалить вложение
+      responses:
+        '204':
+          description: Удалено
+
+  # ═══════════════════════════════════════════════════════════════
+  # NOTIFICATIONS (Module 14)
+  # ═══════════════════════════════════════════════════════════════
+  /notifications:
+    get:
+      tags: [Уведомления]
+      summary: Список уведомлений текущего пользователя
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 20
+            maximum: 200
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/NotificationResponse'
+
+  /notifications/unread:
+    get:
+      tags: [Уведомления]
+      summary: Количество непрочитанных (для бейджа)
+      description: Polling каждые 30 секунд (ADR-004). React Query refetchInterval=30000.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCountResponse'
+
+  /notifications/{id}/read:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+
+    post:
+      tags: [Уведомления]
+      summary: Отметить уведомление прочитанным
+      responses:
+        '204':
+          description: OK
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/read-all:
+    post:
+      tags: [Уведомления]
+      summary: Отметить все прочитанными
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated:
+                    type: integer
+
+  /notifications/settings:
+    get:
+      tags: [Уведомления]
+      summary: Настройки уведомлений текущего пользователя
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationSettingResponse'
+
+    put:
+      tags: [Уведомления]
+      summary: Обновить настройки уведомлений
+      description: in_app нельзя отключить (BR-F-1400).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/NotificationSettingUpdate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationSettingResponse'
+        '400':
+          $ref: '#/components/responses/BusinessError'
+
+  /notifications/settings/reset:
+    post:
+      tags: [Уведомления]
+      summary: Сбросить настройки к значениям по умолчанию (UC-1401 АП-1)
+      responses:
+        '204':
+          description: Сброшены
+
+  # ═══════════════════════════════════════════════════════════════
+  # REPORTS
+  # ═══════════════════════════════════════════════════════════════
+  /reports/tickets:
+    get:
+      tags: [Отчёты]
+      summary: Отчёт по заявкам (UC-910)
+      description: director, svc_mgr.
+      parameters:
+        - in: query
+          name: date_from
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: date_to
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: engineer_id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  period:
+                    type: object
+                  total_tickets:
+                    type: integer
+                  by_status:
+                    type: object
+                  by_priority:
+                    type: object
+                  sla_compliance:
+                    type: object
+                  avg_resolution_hours:
+                    type: number
+                  engineers:
+                    type: array
+                    items:
+                      type: object
+
+  /reports/tickets/export/pdf:
+    get:
+      tags: [Отчёты]
+      summary: Экспорт отчёта в PDF
+      parameters:
+        - in: query
+          name: date_from
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: date_to
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: engineer_id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: PDF файл
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /reports/tickets/export/xlsx:
+    get:
+      tags: [Отчёты]
+      summary: Экспорт отчёта в XLSX (UC-910)
+      parameters:
+        - in: query
+          name: date_from
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: date_to
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: XLSX файл
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /reports/equipment:
+    get:
+      tags: [Отчёты]
+      summary: Отчёт по парку оборудования (UC-1006)
+      description: director, svc_mgr, admin.
+      parameters:
+        - in: query
+          name: client_id
+          schema:
+            type: integer
+        - in: query
+          name: model_id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # ═══════════════════════════════════════════════════════════════
+  # AUDIT
+  # ═══════════════════════════════════════════════════════════════
+  /audit:
+    get:
+      tags: [Аудит]
+      summary: Журнал изменений
+      description: Только admin и director.
+      parameters:
+        - in: query
+          name: entity_type
+          schema:
+            type: string
+          description: "Например: ticket, equipment, user"
+        - in: query
+          name: entity_id
+          schema:
+            type: integer
+        - in: query
+          name: user_id
+          schema:
+            type: integer
+        - in: query
+          name: skip
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            user_id:
+                              type: integer
+                              nullable: true
+                            user_name:
+                              type: string
+                              nullable: true
+                            action:
+                              type: string
+                            entity_type:
+                              type: string
+                            entity_id:
+                              type: integer
+                              nullable: true
+                            details:
+                              type: object
+                            created_at:
+                              type: string
+                              format: date-time
+        '403':
+          $ref: '#/components/responses/Forbidden'
