@@ -6,8 +6,11 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useEquipmentItem, useEquipmentModels, useUpdateEquipment } from '../hooks/useEquipment'
+import { useEquipmentTickets } from '../hooks/useTickets'
 import { useClients } from '../hooks/useClients'
 import { useAuth } from '../context/AuthContext'
+import StatusBadge from '../components/StatusBadge'
+import PriorityBadge from '../components/PriorityBadge'
 
 const EQUIPMENT_STATUS_LABELS: Record<string, string> = {
   active: 'Активно',
@@ -64,6 +67,7 @@ export default function EquipmentDetailPage() {
   const [formError, setFormError] = useState('')
 
   const { data: eq, isLoading, isError } = useEquipmentItem(equipmentId)
+  const { data: tickets } = useEquipmentTickets(equipmentId)
   const { data: modelsData } = useEquipmentModels()
   const { data: clientsData } = useClients({ size: 200 })
   const updateMutation = useUpdateEquipment(equipmentId)
@@ -246,6 +250,59 @@ export default function EquipmentDetailPage() {
               </li>
             </ul>
           </div>
+        </div>
+      </div>
+
+      {/* Tickets */}
+      <div style={{ maxWidth: 900, marginTop: 16 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>
+          Заявки{tickets && tickets.length > 0 ? ` (${tickets.length})` : ''}
+        </h2>
+        <div className="table-wrap">
+          <table className="table table-hover">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Заголовок</th>
+                <th>Приоритет</th>
+                <th>Статус</th>
+                <th>Инженер</th>
+                <th>Создана</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(!tickets || tickets.length === 0) && (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                    Заявок по этому оборудованию нет
+                  </td>
+                </tr>
+              )}
+              {tickets
+                ?.slice()
+                .sort((a, b) => a.created_at.localeCompare(b.created_at))
+                .map(t => (
+                  <tr
+                    key={t.id}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/tickets/${t.id}`)}
+                  >
+                    <td style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>
+                      {t.number}
+                    </td>
+                    <td style={{ fontWeight: 500 }}>{t.title}</td>
+                    <td><PriorityBadge priority={t.priority} /></td>
+                    <td><StatusBadge status={t.status} /></td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                      {t.engineer?.full_name ?? '—'}
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
+                      {format(parseISO(t.created_at), 'dd.MM.yyyy', { locale: ru })}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </div>
       </div>
 

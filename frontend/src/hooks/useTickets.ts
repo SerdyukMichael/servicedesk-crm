@@ -149,3 +149,11 @@ export function useClientTickets(clientId: number) {
     enabled: !!clientId,
   })
 }
+
+export function useEquipmentTickets(equipmentId: number) {
+  return useQuery({
+    queryKey: ['equipment-tickets', equipmentId],
+    queryFn: () => api.getTickets({ equipment_id: equipmentId, size: 200 }).then(r => r.items),
+    enabled: !!equipmentId,
+  })
+}

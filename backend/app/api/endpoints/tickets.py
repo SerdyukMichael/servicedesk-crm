@@ -60,6 +60,7 @@ def list_tickets(
     ticket_status: Optional[str] = Query(None, alias="status"),
     priority: Optional[str] = Query(None),
     client_id: Optional[int] = Query(None),
+    equipment_id: Optional[int] = Query(None),
     assigned_to: Optional[int] = Query(None),
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
@@ -80,6 +81,8 @@ def list_tickets(
         q = q.filter(Ticket.priority == priority)
     if client_id:
         q = q.filter(Ticket.client_id == client_id)
+    if equipment_id:
+        q = q.filter(Ticket.equipment_id == equipment_id)
     if assigned_to:
         q = q.filter(Ticket.assigned_to == assigned_to)
     if search:
