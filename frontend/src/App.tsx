@@ -10,6 +10,7 @@ import TicketFormPage from './pages/TicketFormPage'
 import ClientsPage from './pages/ClientsPage'
 import ClientDetailPage from './pages/ClientDetailPage'
 import EquipmentPage from './pages/EquipmentPage'
+import EquipmentDetailPage from './pages/EquipmentDetailPage'
 import UsersPage from './pages/UsersPage'
 import PartsPage from './pages/PartsPage'
 import InvoicesPage from './pages/InvoicesPage'
@@ -51,6 +52,7 @@ export default function App() {
 
           {/* Equipment */}
           <Route path="equipment" element={<EquipmentPage />} />
+          <Route path="equipment/:id" element={<EquipmentDetailPage />} />
 
           {/* Users (restricted) */}
           <Route

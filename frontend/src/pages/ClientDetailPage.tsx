@@ -259,10 +259,14 @@ export default function ClientDetailPage() {
                 const warrantyExpired =
                   !eq.warranty_end || isPast(parseISO(eq.warranty_end))
                 return (
-                  <tr key={eq.id}>
-                    <td>{eq.serial_number}</td>
+                  <tr
+                    key={eq.id}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/equipment/${eq.id}`)}
+                  >
+                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{eq.serial_number}</td>
                     <td>{eq.model?.name ?? '—'}</td>
-                    <td>{eq.address ?? '—'}</td>
+                    <td>{eq.address ?? eq.location ?? '—'}</td>
                     <td>{eq.status}</td>
                     <td>
                       {eq.warranty_end ? (

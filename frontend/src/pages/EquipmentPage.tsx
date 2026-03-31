@@ -1,13 +1,13 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { format, parseISO } from 'date-fns'
 import { ru } from 'date-fns/locale'
-import { useEquipment, useEquipmentModels, useCreateEquipment, useUpdateEquipment } from '../hooks/useEquipment'
+import { useEquipment, useEquipmentModels, useCreateEquipment } from '../hooks/useEquipment'
 import { useClients } from '../hooks/useClients'
 import Pagination from '../components/Pagination'
-import type { Equipment } from '../api/types'
 
 const EQUIPMENT_STATUS_LABELS: Record<string, string> = {
   active: 'Активно',
@@ -198,11 +198,11 @@ function EquipmentFormModal({
 }
 
 export default function EquipmentPage() {
+  const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [clientFilter, setClientFilter] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [showCreate, setShowCreate] = useState(false)
-  const [editEquipment, setEditEquipment] = useState<Equipment | null>(null)
   const [formError, setFormError] = useState<string>('')
 
   const params: Record<string, unknown> = { page, size: 20 }
@@ -212,7 +212,6 @@ export default function EquipmentPage() {
   const { data, isLoading, isError } = useEquipment(params)
   const { data: clientsData } = useClients({ size: 200 })
   const createMutation = useCreateEquipment()
-  const updateMutation = useUpdateEquipment(editEquipment?.id ?? 0)
 
   const clients = clientsData?.items ?? []
 
@@ -225,22 +224,6 @@ export default function EquipmentPage() {
       const detail = (e as { response?: { data?: { message?: string } } })?.response?.data
       setFormError(detail?.message ?? 'Ошибка при создании')
     }
-  }
-
-  const handleUpdate = async (values: FormValues) => {
-    setFormError('')
-    try {
-      await updateMutation.mutateAsync(values as Parameters<typeof updateMutation.mutateAsync>[0])
-      setEditEquipment(null)
-    } catch (e: unknown) {
-      const detail = (e as { response?: { data?: { message?: string } } })?.response?.data
-      setFormError(detail?.message ?? 'Ошибка при сохранении')
-    }
-  }
-
-  const openEdit = (eq: Equipment) => {
-    setFormError('')
-    setEditEquipment(eq)
   }
 
   return (
@@ -314,7 +297,7 @@ export default function EquipmentPage() {
                   const wsColors = WARRANTY_STATUS_COLORS[ws] ?? WARRANTY_STATUS_COLORS.unknown
 
                   return (
-                    <tr key={eq.id} style={{ cursor: 'pointer' }} onClick={() => openEdit(eq)}>
+                    <tr key={eq.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/equipment/${eq.id}`)}>
                       <td>
                         <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
                           {eq.serial_number}
@@ -387,30 +370,6 @@ export default function EquipmentPage() {
           onClose={() => setShowCreate(false)}
           onSubmit={handleCreate}
           isLoading={createMutation.isPending}
-          error={formError}
-        />
-      )}
-
-      {editEquipment && (
-        <EquipmentFormModal
-          title={`Редактировать: ${editEquipment.serial_number}`}
-          defaultValues={{
-            client_id: editEquipment.client_id,
-            model_id: editEquipment.model_id ?? undefined,
-            serial_number: editEquipment.serial_number,
-            location: editEquipment.location ?? editEquipment.address ?? '',
-            status: editEquipment.status,
-            manufacture_date: editEquipment.manufacture_date ?? '',
-            sale_date: editEquipment.sale_date ?? '',
-            installed_at: editEquipment.installed_at ?? editEquipment.installation_date ?? '',
-            warranty_start: editEquipment.warranty_start ?? '',
-            warranty_until: editEquipment.warranty_end ?? editEquipment.warranty_until ?? '',
-            firmware_version: editEquipment.firmware_version ?? '',
-            notes: editEquipment.notes ?? '',
-          }}
-          onClose={() => setEditEquipment(null)}
-          onSubmit={handleUpdate}
-          isLoading={updateMutation.isPending}
           error={formError}
         />
       )}
