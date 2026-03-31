@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { format, isPast, parseISO } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useTickets } from '../hooks/useTickets'
+import { useClients } from '../hooks/useClients'
 import { useAuth } from '../context/AuthContext'
 import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
@@ -37,13 +38,16 @@ export default function TicketsPage() {
   const [status, setStatus] = useState<TicketStatus | ''>('')
   const [priority, setPriority] = useState<TicketPriority | ''>('')
   const [search, setSearch] = useState('')
+  const [clientId, setClientId] = useState<number | ''>('')
 
   const params: Record<string, unknown> = { page, size: 20 }
   if (status) params.status = status
   if (priority) params.priority = priority
   if (search) params.search = search
+  if (clientId) params.client_id = clientId
 
   const { data, isLoading, isError } = useTickets(params)
+  const { data: clientsData } = useClients({ size: 200 })
 
   const canCreate = hasRole('admin', 'svc_mgr', 'manager')
 
@@ -59,6 +63,11 @@ export default function TicketsPage() {
 
   const handlePriorityChange = (val: string) => {
     setPriority(val as TicketPriority | '')
+    setPage(1)
+  }
+
+  const handleClientChange = (val: string) => {
+    setClientId(val ? parseInt(val, 10) : '')
     setPage(1)
   }
 
@@ -105,6 +114,16 @@ export default function TicketsPage() {
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
+          ))}
+        </select>
+        <select
+          className="form-select"
+          value={clientId}
+          onChange={e => handleClientChange(e.target.value)}
+        >
+          <option value="">Все клиенты</option>
+          {clientsData?.items.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
       </div>

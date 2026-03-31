@@ -31,6 +31,7 @@ export interface User {
   roles: UserRole[]
   is_active: boolean
   last_login?: string
+  last_login_at?: string
   created_at: string
 }
 
@@ -106,6 +107,17 @@ export interface Ticket {
   work_act?: WorkAct
   created_at: string
   updated_at: string
+}
+
+export interface TicketStatusHistoryEntry {
+  id: number
+  ticket_id: number
+  from_status?: string
+  to_status: string
+  changed_by?: number
+  changer?: User
+  comment?: string
+  changed_at: string
 }
 
 export interface TicketComment {

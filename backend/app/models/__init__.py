@@ -59,12 +59,12 @@ class Client(Base):
     inn:                  Mapped[Optional[str]]  = mapped_column(String(12))
     kpp:                  Mapped[Optional[str]]  = mapped_column(String(9))
     legal_address:        Mapped[Optional[str]]  = mapped_column(Text)
-    contract_type:        Mapped[str]            = mapped_column(
-        Enum("none", "standard", "premium", name="contract_type_enum"), default="none", nullable=False
-    )
+    contract_type:        Mapped[str]            = mapped_column(String(64), default="none", nullable=False)
     contract_number:      Mapped[Optional[str]]  = mapped_column(String(64))
+    contract_start:       Mapped[Optional[date]] = mapped_column(Date)
     contract_valid_until: Mapped[Optional[date]] = mapped_column(Date)
     address:              Mapped[Optional[str]]  = mapped_column(Text)
+    city:                 Mapped[Optional[str]]  = mapped_column(String(128))
     manager_id:           Mapped[Optional[int]]  = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     is_deleted:           Mapped[bool]           = mapped_column(Boolean, default=False, nullable=False)
     created_at:           Mapped[datetime]       = mapped_column(DateTime, default=func.now(), nullable=False)
@@ -205,11 +205,28 @@ class Ticket(Base):
     assignee:      Mapped[Optional["User"]]      = relationship("User", foreign_keys=[assigned_to], back_populates="assigned_tickets")
     creator:       Mapped["User"]                = relationship("User", foreign_keys=[created_by], back_populates="created_tickets")
     work_template: Mapped[Optional["WorkTemplate"]] = relationship("WorkTemplate", back_populates="tickets")
+    status_history: Mapped[List["TicketStatusHistory"]] = relationship("TicketStatusHistory", back_populates="ticket", cascade="all, delete-orphan", order_by="TicketStatusHistory.changed_at")
     comments:      Mapped[List["TicketComment"]] = relationship("TicketComment", back_populates="ticket", cascade="all, delete-orphan")
     files:         Mapped[List["TicketFile"]]    = relationship("TicketFile", back_populates="ticket", cascade="all, delete-orphan")
     work_act:      Mapped[Optional["WorkAct"]]   = relationship("WorkAct", back_populates="ticket", uselist=False)
     repair_history: Mapped[List["RepairHistory"]] = relationship("RepairHistory", back_populates="ticket")
     notifications: Mapped[List["Notification"]]  = relationship("Notification", back_populates="ticket")
+
+
+# ── Ticket Status History ─────────────────────────────────────────────────────
+class TicketStatusHistory(Base):
+    __tablename__ = "ticket_status_history"
+
+    id:          Mapped[int]            = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticket_id:   Mapped[int]            = mapped_column(ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    from_status: Mapped[Optional[str]]  = mapped_column(String(32))
+    to_status:   Mapped[str]            = mapped_column(String(32), nullable=False)
+    changed_by:  Mapped[Optional[int]]  = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    comment:     Mapped[Optional[str]]  = mapped_column(Text)
+    changed_at:  Mapped[datetime]       = mapped_column(DateTime, default=func.now(), nullable=False)
+
+    ticket:  Mapped["Ticket"]          = relationship("Ticket", back_populates="status_history")
+    changer: Mapped[Optional["User"]]  = relationship("User")
 
 
 # ── Ticket Comments ───────────────────────────────────────────────────────────
@@ -236,7 +253,7 @@ class TicketFile(Base):
     file_name:   Mapped[str]           = mapped_column(String(255), nullable=False)
     file_type:   Mapped[Optional[str]] = mapped_column(String(128))
     file_size:   Mapped[Optional[int]] = mapped_column(Integer)
-    file_data:   Mapped[Optional[bytes]] = mapped_column(LargeBinary)
+    file_data:   Mapped[Optional[bytes]] = mapped_column(LargeBinary(length=4294967295))
     created_at:  Mapped[datetime]      = mapped_column(DateTime, default=func.now(), nullable=False)
 
     ticket:   Mapped["Ticket"] = relationship("Ticket", back_populates="files")
@@ -428,6 +445,7 @@ __all__ = [
     "WorkTemplate",
     "WorkTemplateStep",
     "Ticket",
+    "TicketStatusHistory",
     "TicketComment",
     "TicketFile",
     "WorkAct",

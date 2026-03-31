@@ -8,7 +8,7 @@ from datetime import datetime, date
 from decimal import Decimal
 from typing import Any, Generic, List, Optional, TypeVar
 
-from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator, model_validator
 
 T = TypeVar("T")
 
@@ -62,8 +62,15 @@ class UserResponse(BaseModel):
     is_active: bool
     is_deleted: bool
     last_login_at: Optional[datetime]
+    last_login: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+
+    @model_validator(mode="after")
+    def _set_last_login(self) -> "UserResponse":
+        if self.last_login is None:
+            self.last_login = self.last_login_at
+        return self
 
     @field_validator("roles", mode="before")
     @classmethod
@@ -106,19 +113,24 @@ class ClientContactResponse(BaseModel):
 
 class ClientCreate(BaseModel):
     name: str
-    inn: Optional[str] = None
+    inn: str
+    city: str
+    contract_type: str
+    contract_number: str
     kpp: Optional[str] = None
     legal_address: Optional[str] = None
-    contract_type: str = "none"
-    contract_number: Optional[str] = None
+    contract_start: Optional[date] = None
+    contract_end: Optional[date] = None        # maps to contract_valid_until
     contract_valid_until: Optional[date] = None
     address: Optional[str] = None
     manager_id: Optional[int] = None
 
-    @field_validator("contract_type", mode="before")
+    @field_validator("inn", "city", "contract_type", "contract_number", mode="before")
     @classmethod
-    def default_contract_type(cls, v: str) -> str:
-        return v if v and v.strip() else "none"
+    def required_not_empty(cls, v: str) -> str:
+        if not v or not str(v).strip():
+            raise ValueError("Поле обязательно для заполнения")
+        return v
 
 
 class ClientUpdate(BaseModel):
@@ -128,8 +140,11 @@ class ClientUpdate(BaseModel):
     legal_address: Optional[str] = None
     contract_type: Optional[str] = None
     contract_number: Optional[str] = None
+    contract_start: Optional[date] = None
+    contract_end: Optional[date] = None        # maps to contract_valid_until
     contract_valid_until: Optional[date] = None
     address: Optional[str] = None
+    city: Optional[str] = None
     manager_id: Optional[int] = None
 
 
@@ -143,9 +158,16 @@ class ClientResponse(BaseModel):
     legal_address: Optional[str]
     contract_type: str = "none"
     contract_number: Optional[str]
+    contract_start: Optional[date]
     contract_valid_until: Optional[date]
+    contract_end: Optional[date] = None
     address: Optional[str]
+    city: Optional[str]
     manager_id: Optional[int]
+    manager: Optional["UserResponse"] = None
+    is_deleted: bool
+    created_at: datetime
+    updated_at: datetime
 
     @field_validator("contract_type", mode="before")
     @classmethod
@@ -153,9 +175,12 @@ class ClientResponse(BaseModel):
         if not v or (isinstance(v, str) and not v.strip()):
             return "none"
         return str(v)
-    is_deleted: bool
-    created_at: datetime
-    updated_at: datetime
+
+    @model_validator(mode="after")
+    def _aliases(self) -> "ClientResponse":
+        if self.contract_end is None:
+            self.contract_end = self.contract_valid_until
+        return self
 
 
 # ── Equipment Models ──────────────────────────────────────────────────────────
@@ -196,20 +221,35 @@ class EquipmentUpdate(BaseModel):
 
 
 class EquipmentResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: int
     client_id: int
+    client: Optional[ClientResponse] = None
     model_id: int
+    model: Optional[EquipmentModelResponse] = None
     serial_number: str
-    location: Optional[str]
+    location: Optional[str] = None
+    address: Optional[str] = None
     status: str
-    installed_at: Optional[date]
-    warranty_until: Optional[date]
+    installed_at: Optional[date] = None
+    installation_date: Optional[date] = None
+    warranty_until: Optional[date] = None
+    warranty_end: Optional[date] = None
     notes: Optional[str]
     is_deleted: bool
     created_at: datetime
     updated_at: datetime
+
+    @model_validator(mode='after')
+    def _aliases(self) -> 'EquipmentResponse':
+        if self.installation_date is None:
+            self.installation_date = self.installed_at
+        if self.warranty_end is None:
+            self.warranty_end = self.warranty_until
+        if self.address is None:
+            self.address = self.location
+        return self
 
 
 # ── Work Templates ────────────────────────────────────────────────────────────
@@ -297,9 +337,12 @@ class TicketResponse(BaseModel):
     id: int
     number: str
     client_id: int
+    client: Optional[ClientResponse] = None
     equipment_id: Optional[int]
+    equipment: Optional[EquipmentResponse] = None
     assigned_to: Optional[int]
-    created_by: int
+    engineer: Optional[UserResponse] = Field(None, validation_alias='assignee')
+    created_by: Optional[UserResponse] = Field(None, validation_alias='creator')
     title: str
     description: Optional[str]
     type: str
@@ -311,6 +354,21 @@ class TicketResponse(BaseModel):
     is_deleted: bool
     created_at: datetime
     updated_at: datetime
+
+
+# ── Ticket Status History ─────────────────────────────────────────────────────
+
+class TicketStatusHistoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    ticket_id: int
+    from_status: Optional[str]
+    to_status: str
+    changed_by: Optional[int]
+    changer: Optional["UserResponse"] = None
+    comment: Optional[str]
+    changed_at: datetime
 
 
 # ── Comments ──────────────────────────────────────────────────────────────────
@@ -391,11 +449,18 @@ class SparePartResponse(BaseModel):
     unit: str
     quantity: int
     min_quantity: int
-    unit_price: Decimal
+    unit_price: float
+    price: Optional[float] = None   # alias для фронтенда (number в JSON)
     currency: str
     vendor_id: Optional[int]
     description: Optional[str]
     is_active: bool
+
+    @model_validator(mode='after')
+    def _set_price(self) -> 'SparePartResponse':
+        if self.price is None:
+            self.price = self.unit_price
+        return self
 
 
 class StockAdjust(BaseModel):

@@ -49,8 +49,8 @@ export function useNotificationSettings() {
 export function useUpdateNotificationSetting() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
-      api.updateNotificationSetting(id, enabled),
+    mutationFn: ({ event_type, channel, enabled }: { event_type: string; channel: string; enabled: boolean }) =>
+      api.updateNotificationSetting(event_type, channel, enabled),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ['notification-settings'] }),
   })

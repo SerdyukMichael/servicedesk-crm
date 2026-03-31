@@ -6,6 +6,7 @@ import {
   useTicket,
   useTicketComments,
   useTicketAttachments,
+  useTicketStatusHistory,
   useWorkAct,
   useAddComment,
   useAssignEngineer,
@@ -21,7 +22,7 @@ import PriorityBadge from '../components/PriorityBadge'
 import type { TicketStatus } from '../api/types'
 
 const STATUS_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
-  new: ['assigned', 'cancelled'],
+  new: ['cancelled'],
   assigned: ['in_progress', 'cancelled'],
   in_progress: ['waiting_part', 'on_review', 'cancelled'],
   waiting_part: ['in_progress', 'cancelled'],
@@ -59,6 +60,7 @@ export default function TicketDetailPage() {
   const { data: ticket, isLoading, isError } = useTicket(ticketId)
   const { data: comments } = useTicketComments(ticketId)
   const { data: attachments } = useTicketAttachments(ticketId)
+  const { data: statusHistory } = useTicketStatusHistory(ticketId)
   const { data: workAct } = useWorkAct(ticketId)
   const { data: usersData } = useUsers({ role: 'engineer', size: 100 })
 
@@ -70,6 +72,7 @@ export default function TicketDetailPage() {
   const uploadAttachment = useUploadAttachment(ticketId)
 
   const [selectedEngineer, setSelectedEngineer] = useState<string>('')
+  const [assignError, setAssignError] = useState<string | null>(null)
   const [commentText, setCommentText] = useState('')
   const [isInternal, setIsInternal] = useState(false)
   const [workActDesc, setWorkActDesc] = useState('')
@@ -101,7 +104,11 @@ export default function TicketDetailPage() {
   const canSignAct = hasRole('svc_mgr', 'admin')
 
   const handleAssign = () => {
-    if (!selectedEngineer) return
+    if (!selectedEngineer) {
+      setAssignError('Необходимо назначить инженера на заявку')
+      return
+    }
+    setAssignError(null)
     assignMutation.mutate(parseInt(selectedEngineer, 10), {
       onSuccess: () => setSelectedEngineer(''),
     })
@@ -505,7 +512,10 @@ export default function TicketDetailPage() {
                   <select
                     className="form-select"
                     value={selectedEngineer}
-                    onChange={e => setSelectedEngineer(e.target.value)}
+                    onChange={e => {
+                      setSelectedEngineer(e.target.value)
+                      if (e.target.value) setAssignError(null)
+                    }}
                   >
                     <option value="">— Выберите инженера —</option>
                     {engineers.map(eng => (
@@ -515,11 +525,16 @@ export default function TicketDetailPage() {
                     ))}
                   </select>
                 </div>
+                {assignError && (
+                  <div style={{ color: 'var(--color-danger, #e53e3e)', fontSize: 13, marginBottom: 8 }}>
+                    {assignError}
+                  </div>
+                )}
                 <button
                   className="btn btn-primary"
                   style={{ width: '100%' }}
                   onClick={handleAssign}
-                  disabled={!selectedEngineer || assignMutation.isPending}
+                  disabled={assignMutation.isPending}
                 >
                   {assignMutation.isPending ? 'Назначение...' : 'Назначить'}
                 </button>
@@ -559,6 +574,36 @@ export default function TicketDetailPage() {
                   </span>
                 </li>
               </ul>
+
+              {statusHistory && statusHistory.length > 0 && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+                    История статусов
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {statusHistory.map(entry => (
+                      <div key={entry.id} style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 2, borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          {entry.from_status ? (
+                            <>
+                              <span style={{ color: 'var(--text-muted)' }}>{STATUS_LABELS[entry.from_status as TicketStatus] ?? entry.from_status}</span>
+                              <span style={{ color: 'var(--text-muted)' }}>→</span>
+                            </>
+                          ) : null}
+                          <span style={{ fontWeight: 600 }}>{STATUS_LABELS[entry.to_status as TicketStatus] ?? entry.to_status}</span>
+                        </div>
+                        <div style={{ color: 'var(--text-muted)', display: 'flex', gap: 6 }}>
+                          <span>{format(parseISO(entry.changed_at), 'dd.MM.yyyy HH:mm', { locale: ru })}</span>
+                          {entry.changer && <span>· {entry.changer.full_name}</span>}
+                        </div>
+                        {entry.comment && (
+                          <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>{entry.comment}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -46,6 +46,7 @@ export function useAssignEngineer(ticketId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ticket', ticketId] })
       qc.invalidateQueries({ queryKey: ['tickets'] })
+      qc.invalidateQueries({ queryKey: ['ticket-status-history', ticketId] })
     },
   })
 }
@@ -57,7 +58,16 @@ export function useChangeTicketStatus(ticketId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ticket', ticketId] })
       qc.invalidateQueries({ queryKey: ['tickets'] })
+      qc.invalidateQueries({ queryKey: ['ticket-status-history', ticketId] })
     },
+  })
+}
+
+export function useTicketStatusHistory(ticketId: number) {
+  return useQuery({
+    queryKey: ['ticket-status-history', ticketId],
+    queryFn: () => api.getTicketStatusHistory(ticketId),
+    enabled: !!ticketId,
   })
 }
 

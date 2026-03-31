@@ -6,6 +6,7 @@ import type {
   Equipment,
   EquipmentModel,
   Ticket,
+  TicketStatusHistoryEntry,
   TicketComment,
   TicketAttachment,
   WorkAct,
@@ -122,6 +123,9 @@ export const changeTicketStatus = (
     .patch<Ticket>(`/tickets/${ticketId}/status`, { status })
     .then(r => r.data)
 
+export const getTicketStatusHistory = (ticketId: number): Promise<TicketStatusHistoryEntry[]> =>
+  api.get<TicketStatusHistoryEntry[]>(`/tickets/${ticketId}/status-history`).then(r => r.data)
+
 export const getTicketComments = (ticketId: number): Promise<TicketComment[]> =>
   api.get<TicketComment[]>(`/tickets/${ticketId}/comments`).then(r => r.data)
 
@@ -147,9 +151,7 @@ export const uploadTicketAttachment = (
   const formData = new FormData()
   formData.append('file', file)
   return api
-    .post<TicketAttachment>(`/tickets/${ticketId}/attachments`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    .post<TicketAttachment>(`/tickets/${ticketId}/attachments`, formData)
     .then(r => r.data)
 }
 
@@ -250,9 +252,10 @@ export const getNotificationSettings = (): Promise<NotificationSetting[]> =>
   api.get<NotificationSetting[]>('/notifications/settings').then(r => r.data)
 
 export const updateNotificationSetting = (
-  id: number,
+  event_type: string,
+  channel: string,
   enabled: boolean
 ): Promise<NotificationSetting> =>
   api
-    .put<NotificationSetting>(`/notifications/settings/${id}`, { enabled })
+    .put<NotificationSetting>('/notifications/settings', { event_type, channel, enabled })
     .then(r => r.data)

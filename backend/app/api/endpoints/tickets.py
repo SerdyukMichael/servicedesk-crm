@@ -4,19 +4,21 @@ Ticket management endpoint — full CRUD + sub-resources.
 
 from datetime import datetime, timedelta
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from fastapi.responses import Response
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models import Ticket, TicketComment, TicketFile, WorkAct, User, RepairHistory
+from app.models import Ticket, TicketComment, TicketFile, WorkAct, User, RepairHistory, Equipment, EquipmentModel, TicketStatusHistory
 from app.api.deps import get_current_user, require_roles, _get_user_roles
 from app.schemas import (
     TicketCreate, TicketUpdate, TicketResponse, TicketAssign,
     TicketStatusChange, CommentCreate, CommentResponse,
     WorkActCreate, WorkActResponse, PaginatedResponse,
+    TicketStatusHistoryResponse,
 )
 
 router = APIRouter()
@@ -66,7 +68,7 @@ def list_tickets(
     current_user: User = Depends(get_current_user),
 ):
     user_roles = _get_user_roles(current_user)
-    q = db.query(Ticket).filter(Ticket.is_deleted.is_(False))
+    q = db.query(Ticket).options(joinedload(Ticket.client), joinedload(Ticket.assignee), joinedload(Ticket.creator), joinedload(Ticket.equipment).joinedload(Equipment.model)).filter(Ticket.is_deleted.is_(False))
 
     # Engineers see only their own tickets
     if not any(r in user_roles for r in ("admin", "svc_mgr", "director")):
@@ -111,6 +113,13 @@ def create_ticket(
         work_template_id=data.work_template_id,
     )
     db.add(ticket)
+    db.flush()  # get ticket.id before commit
+    db.add(TicketStatusHistory(
+        ticket_id=ticket.id,
+        from_status=None,
+        to_status="new",
+        changed_by=current_user.id,
+    ))
     db.commit()
     db.refresh(ticket)
     return ticket
@@ -122,7 +131,12 @@ def get_ticket(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False)).first()
+    ticket = (
+        db.query(Ticket)
+        .options(joinedload(Ticket.client), joinedload(Ticket.assignee), joinedload(Ticket.creator), joinedload(Ticket.equipment).joinedload(Equipment.model))
+        .filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False))
+        .first()
+    )
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -167,6 +181,7 @@ def delete_ticket(
     db.commit()
 
 
+@router.patch("/{ticket_id}/assign", response_model=TicketResponse)
 @router.post("/{ticket_id}/assign", response_model=TicketResponse)
 def assign_ticket(
     ticket_id: int,
@@ -188,12 +203,19 @@ def assign_ticket(
         )
     ticket.assigned_to = data.engineer_id
     if ticket.status == "new":
+        db.add(TicketStatusHistory(
+            ticket_id=ticket_id,
+            from_status="new",
+            to_status="assigned",
+            changed_by=_.id,
+        ))
         ticket.status = "assigned"
     db.commit()
-    db.refresh(ticket)
+    ticket = db.query(Ticket).options(joinedload(Ticket.client), joinedload(Ticket.assignee), joinedload(Ticket.creator), joinedload(Ticket.equipment).joinedload(Equipment.model)).filter(Ticket.id == ticket_id).first()
     return ticket
 
 
+@router.patch("/{ticket_id}/status", response_model=TicketResponse)
 @router.post("/{ticket_id}/status", response_model=TicketResponse)
 def change_ticket_status(
     ticket_id: int,
@@ -216,23 +238,48 @@ def change_ticket_status(
                 "message": f"Переход из '{ticket.status}' в '{data.status}' недопустим",
             },
         )
-    # Closing requires a signed work act
-    if data.status == "closed":
-        act = db.query(WorkAct).filter(WorkAct.ticket_id == ticket_id).first()
-        if not act or act.signed_at is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "error": "BR_VIOLATION",
-                    "message": "Нельзя закрыть заявку без подписанного акта выполненных работ",
-                },
-            )
+    if data.status == "assigned" and not ticket.assigned_to:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "BR_VIOLATION",
+                "message": "Необходимо назначить инженера на заявку",
+            },
+        )
+    prev_status = ticket.status
     ticket.status = data.status
     if data.status in ("closed", "completed"):
         ticket.closed_at = datetime.utcnow()
+    db.add(TicketStatusHistory(
+        ticket_id=ticket_id,
+        from_status=prev_status,
+        to_status=data.status,
+        changed_by=current_user.id,
+        comment=data.comment if data.comment else None,
+    ))
     db.commit()
-    db.refresh(ticket)
+    ticket = db.query(Ticket).options(joinedload(Ticket.client), joinedload(Ticket.assignee), joinedload(Ticket.creator), joinedload(Ticket.equipment).joinedload(Equipment.model)).filter(Ticket.id == ticket_id).first()
     return ticket
+
+
+# ─── Status History ───────────────────────────────────────────────────────────
+
+@router.get("/{ticket_id}/status-history", response_model=list[TicketStatusHistoryResponse])
+def get_status_history(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False)).first()
+    if not ticket:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "NOT_FOUND", "message": "Заявка не найдена"})
+    return (
+        db.query(TicketStatusHistory)
+        .options(joinedload(TicketStatusHistory.changer))
+        .filter(TicketStatusHistory.ticket_id == ticket_id)
+        .order_by(TicketStatusHistory.changed_at)
+        .all()
+    )
 
 
 # ─── Comments ─────────────────────────────────────────────────────────────────
@@ -300,9 +347,13 @@ async def upload_attachment(
     db.refresh(attachment)
     return {
         "id": attachment.id,
+        "ticket_id": ticket_id,
+        "filename": attachment.file_name,
         "file_name": attachment.file_name,
         "file_type": attachment.file_type,
         "file_size": attachment.file_size,
+        "file_url": f"/api/v1/tickets/{ticket_id}/attachments/{attachment.id}/download",
+        "uploaded_by_id": attachment.uploaded_by,
         "created_at": attachment.created_at,
     }
 
@@ -323,9 +374,13 @@ def list_attachments(
     return [
         {
             "id": f.id,
+            "ticket_id": ticket_id,
+            "filename": f.file_name,
             "file_name": f.file_name,
             "file_type": f.file_type,
             "file_size": f.file_size,
+            "file_url": f"/api/v1/tickets/{ticket_id}/attachments/{f.id}/download",
+            "uploaded_by_id": f.uploaded_by,
             "uploaded_by": f.uploaded_by,
             "created_at": f.created_at,
         }
@@ -346,10 +401,41 @@ def download_attachment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "NOT_FOUND", "message": "Файл не найден"},
         )
+    mime = f.file_type or "application/octet-stream"
+    inline_types = ("image/", "text/")
+    disposition = "inline" if any(mime.startswith(t) for t in inline_types) else "attachment"
+    encoded_name = quote(f.file_name, safe="")
     return Response(
         content=f.file_data,
-        media_type=f.file_type or "application/octet-stream",
-        headers={"Content-Disposition": f'attachment; filename="{f.file_name}"'},
+        media_type=mime,
+        headers={"Content-Disposition": f"{disposition}; filename*=UTF-8''{encoded_name}"},
+    )
+
+
+@router.get("/{ticket_id}/attachments/{file_id}/download")
+def download_attachment_direct(
+    ticket_id: int,
+    file_id: int,
+    db: Session = Depends(get_db),
+):
+    """Download endpoint without JWT auth — accessible via direct browser link."""
+    f = db.query(TicketFile).filter(TicketFile.id == file_id, TicketFile.ticket_id == ticket_id).first()
+    if not f:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Файл не найден"},
+        )
+    mime = f.file_type or "application/octet-stream"
+    # Images and text open inline in the browser tab; other types are downloaded
+    inline_types = ("image/", "text/")
+    disposition = "inline" if any(mime.startswith(t) for t in inline_types) else "attachment"
+    # RFC 5987: encode non-ASCII filename so Cyrillic/etc. don't crash latin-1 header encoding
+    encoded_name = quote(f.file_name, safe="")
+    content_disposition = f"{disposition}; filename*=UTF-8''{encoded_name}"
+    return Response(
+        content=f.file_data,
+        media_type=mime,
+        headers={"Content-Disposition": content_disposition},
     )
 
 

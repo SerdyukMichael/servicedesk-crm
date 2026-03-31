@@ -16,13 +16,23 @@ type Tab = 'list' | 'settings'
 const EVENT_TYPE_LABELS: Record<string, string> = {
   ticket_created: 'Создание заявки',
   ticket_assigned: 'Назначение инженера',
-  ticket_status_changed: 'Изменение статуса',
+  ticket_assigned_to_me: 'Заявка назначена мне',
+  ticket_status_changed: 'Изменение статуса заявки',
+  ticket_closed: 'Заявка закрыта',
   ticket_comment: 'Новый комментарий',
+  ticket_comment_added: 'Новый комментарий',
+  new_comment_on_my_ticket: 'Комментарий к моей заявке',
+  sla_warning: 'Предупреждение SLA',
+  sla_breach: 'Нарушение SLA',
+  sla_violation: 'Нарушение SLA',
   ticket_sla_warning: 'Предупреждение SLA',
   work_act_created: 'Создание акта',
   work_act_signed: 'Подписание акта',
   invoice_sent: 'Счёт отправлен',
+  payment_due: 'Оплата просрочена',
   part_low_stock: 'Мало запчастей',
+  maintenance_due: 'Плановое ТО',
+  warranty_expiring: 'Истекает гарантия',
 }
 
 const CHANNEL_LABELS: Record<NotificationChannel, string> = {
@@ -184,7 +194,8 @@ export default function NotificationsPage() {
                             onChange={e => {
                               if (setting) {
                                 updateSetting.mutate({
-                                  id: setting.id,
+                                  event_type: setting.event_type,
+                                  channel: setting.channel,
                                   enabled: e.target.checked,
                                 })
                               }
