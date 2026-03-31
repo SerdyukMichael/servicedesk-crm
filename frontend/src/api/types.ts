@@ -15,7 +15,8 @@ export type TicketStatus =
 export type TicketPriority = 'critical' | 'high' | 'medium' | 'low'
 export type TicketType = 'repair' | 'maintenance' | 'installation' | 'consultation' | 'other'
 
-export type EquipmentStatus = 'active' | 'inactive' | 'decommissioned' | 'in_repair'
+export type EquipmentStatus = 'active' | 'inactive' | 'decommissioned' | 'in_repair' | 'written_off' | 'transferred'
+export type WarrantyStatus = 'on_warranty' | 'expiring' | 'expired' | 'unknown'
 export type ContractType = 'full_service' | 'partial' | 'time_and_material' | 'warranty'
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
 export type InvoiceType = 'service' | 'parts' | 'combined'
@@ -76,10 +77,18 @@ export interface Equipment {
   model?: EquipmentModel
   client_id: number
   client?: Client
+  location?: string
   address?: string
   status: EquipmentStatus
   installation_date?: string
+  installed_at?: string
   warranty_end?: string
+  warranty_until?: string
+  warranty_start?: string
+  manufacture_date?: string
+  sale_date?: string
+  firmware_version?: string
+  warranty_status?: WarrantyStatus
   notes?: string
   created_at: string
 }

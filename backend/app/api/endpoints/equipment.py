@@ -1,7 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.models import Equipment, EquipmentModel, RepairHistory, User
@@ -39,7 +39,7 @@ def list_equipment(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    q = db.query(Equipment).filter(Equipment.is_deleted.is_(False))
+    q = db.query(Equipment).options(joinedload(Equipment.client), joinedload(Equipment.model)).filter(Equipment.is_deleted.is_(False))
     if client_id is not None:
         q = q.filter(Equipment.client_id == client_id)
     if eq_status:
@@ -57,15 +57,29 @@ def create_equipment(
     db: Session = Depends(get_db),
     _: User = Depends(require_roles(*_WRITE_ROLES)),
 ):
-    if db.query(Equipment).filter(Equipment.serial_number == data.serial_number).first():
+    existing = (
+        db.query(Equipment)
+        .options(joinedload(Equipment.client), joinedload(Equipment.model))
+        .filter(Equipment.serial_number == data.serial_number)
+        .first()
+    )
+    if existing:
+        client_name = existing.client.name if existing.client else f"id={existing.client_id}"
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={"error": "CONFLICT", "message": "Серийный номер уже существует"},
+            detail={
+                "error": "DUPLICATE_SERIAL",
+                "message": (
+                    f"Серийный номер {data.serial_number} уже существует: "
+                    f"клиент {client_name}"
+                ),
+            },
         )
     eq = Equipment(**data.model_dump())
     db.add(eq)
     db.commit()
     db.refresh(eq)
+    db.refresh(eq, ["client", "model"])
     return eq
 
 
@@ -75,7 +89,12 @@ def get_equipment(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    eq = db.query(Equipment).filter(Equipment.id == equipment_id, Equipment.is_deleted.is_(False)).first()
+    eq = (
+        db.query(Equipment)
+        .options(joinedload(Equipment.client), joinedload(Equipment.model))
+        .filter(Equipment.id == equipment_id, Equipment.is_deleted.is_(False))
+        .first()
+    )
     if not eq:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -116,6 +135,7 @@ def update_equipment(
         setattr(eq, k, v)
     db.commit()
     db.refresh(eq)
+    db.refresh(eq, ["client", "model"])
     return eq
 
 

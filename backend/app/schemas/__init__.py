@@ -206,6 +206,10 @@ class EquipmentCreate(BaseModel):
     status: str = "active"
     installed_at: Optional[date] = None
     warranty_until: Optional[date] = None
+    manufacture_date: Optional[date] = None
+    sale_date: Optional[date] = None
+    warranty_start: Optional[date] = None
+    firmware_version: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -217,7 +221,23 @@ class EquipmentUpdate(BaseModel):
     status: Optional[str] = None
     installed_at: Optional[date] = None
     warranty_until: Optional[date] = None
+    manufacture_date: Optional[date] = None
+    sale_date: Optional[date] = None
+    warranty_start: Optional[date] = None
+    firmware_version: Optional[str] = None
     notes: Optional[str] = None
+
+
+def _compute_warranty_status(warranty_until: Optional[date]) -> str:
+    if not warranty_until:
+        return "unknown"
+    from datetime import timedelta
+    today = date.today()
+    if today > warranty_until:
+        return "expired"
+    if today >= warranty_until - timedelta(days=30):
+        return "expiring"
+    return "on_warranty"
 
 
 class EquipmentResponse(BaseModel):
@@ -236,6 +256,11 @@ class EquipmentResponse(BaseModel):
     installation_date: Optional[date] = None
     warranty_until: Optional[date] = None
     warranty_end: Optional[date] = None
+    manufacture_date: Optional[date] = None
+    sale_date: Optional[date] = None
+    warranty_start: Optional[date] = None
+    firmware_version: Optional[str] = None
+    warranty_status: str = "unknown"
     notes: Optional[str]
     is_deleted: bool
     created_at: datetime
@@ -249,6 +274,7 @@ class EquipmentResponse(BaseModel):
             self.warranty_end = self.warranty_until
         if self.address is None:
             self.address = self.location
+        self.warranty_status = _compute_warranty_status(self.warranty_until)
         return self
 
 

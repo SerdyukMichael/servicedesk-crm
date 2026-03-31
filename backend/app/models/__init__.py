@@ -114,21 +114,26 @@ class EquipmentModel(Base):
 class Equipment(Base):
     __tablename__ = "equipment"
 
-    id:             Mapped[int]            = mapped_column(Integer, primary_key=True, autoincrement=True)
-    client_id:      Mapped[int]            = mapped_column(ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False)
-    model_id:       Mapped[int]            = mapped_column(ForeignKey("equipment_models.id", ondelete="RESTRICT"), nullable=False)
-    serial_number:  Mapped[str]            = mapped_column(String(128), unique=True, nullable=False)
-    location:       Mapped[Optional[str]]  = mapped_column(Text)
-    status:         Mapped[str]            = mapped_column(
-        Enum("active", "in_repair", "decommissioned", "written_off", name="equipment_status_enum"),
+    id:               Mapped[int]            = mapped_column(Integer, primary_key=True, autoincrement=True)
+    client_id:        Mapped[int]            = mapped_column(ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False)
+    model_id:         Mapped[int]            = mapped_column(ForeignKey("equipment_models.id", ondelete="RESTRICT"), nullable=False)
+    serial_number:    Mapped[str]            = mapped_column(String(128), unique=True, nullable=False)
+    location:         Mapped[Optional[str]]  = mapped_column(Text)
+    status:           Mapped[str]            = mapped_column(
+        Enum("active", "in_repair", "decommissioned", "written_off", "transferred",
+             name="equipment_status_enum"),
         default="active", nullable=False
     )
-    installed_at:   Mapped[Optional[date]] = mapped_column(Date)
-    warranty_until: Mapped[Optional[date]] = mapped_column(Date)
-    notes:          Mapped[Optional[str]]  = mapped_column(Text)
-    is_deleted:     Mapped[bool]           = mapped_column(Boolean, default=False, nullable=False)
-    created_at:     Mapped[datetime]       = mapped_column(DateTime, default=func.now(), nullable=False)
-    updated_at:     Mapped[datetime]       = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    installed_at:     Mapped[Optional[date]] = mapped_column(Date)
+    warranty_until:   Mapped[Optional[date]] = mapped_column(Date)
+    manufacture_date: Mapped[Optional[date]] = mapped_column(Date)
+    sale_date:        Mapped[Optional[date]] = mapped_column(Date)
+    warranty_start:   Mapped[Optional[date]] = mapped_column(Date)
+    firmware_version: Mapped[Optional[str]]  = mapped_column(String(64))
+    notes:            Mapped[Optional[str]]  = mapped_column(Text)
+    is_deleted:       Mapped[bool]           = mapped_column(Boolean, default=False, nullable=False)
+    created_at:       Mapped[datetime]       = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at:       Mapped[datetime]       = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
     client:         Mapped["Client"]            = relationship("Client", back_populates="equipment")
     model:          Mapped["EquipmentModel"]    = relationship("EquipmentModel", back_populates="equipment")
