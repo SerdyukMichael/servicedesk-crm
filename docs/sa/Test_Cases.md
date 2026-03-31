@@ -248,27 +248,42 @@
 
 ### T-EQP-008 — История ремонтов (UC-1002)
 
-**Предусловие:** Оборудование id=10 имеет 3 записи в equipment_history.
+**Предусловие:** Оборудование id=X имеет 3 записи в `repair_history` (автосозданы при завершении заявок).
 
 **Шаги:**
-1. `GET /api/v1/equipment/10/history`
+1. `GET /api/v1/equipment/{id}/history`
 
 **Ожидаемый результат:**
 - HTTP 200
-- Массив из 3 объектов с полями `work_type`, `work_date`, `engineer_name`
+- Массив из 3 объектов с полями `work_type`, `work_date`, `description`, `parts_used`, `ticket_id`
+- Записи отсортированы по `work_date DESC` (новые сверху)
 
 ---
 
 ### T-EQP-009 — Фильтр истории по типу работ (UC-1002)
 
-**Предусловие:** История: 2 записи repair, 1 запись maintenance.
+**Предусловие:** `repair_history` для оборудования: 2 записи `unplanned_repair`, 1 запись `planned_maintenance`.
 
 **Шаги:**
-1. `GET /api/v1/equipment/10/history?work_type=repair`
+1. `GET /api/v1/equipment/{id}/history?work_type=unplanned_repair`
 
 **Ожидаемый результат:**
 - HTTP 200
-- Массив из 2 объектов, все `work_type = "repair"`
+- Массив из 2 объектов, все `work_type = "unplanned_repair"`
+
+---
+
+### T-EQP-010b — Авто-создание записи при завершении заявки (BR-F-906)
+
+**Предусловие:** Заявка типа `maintenance` назначена на оборудование, статус `in_progress`.
+
+**Шаги:**
+1. `PATCH /api/v1/tickets/{id}/status` `{"status": "completed"}`
+2. `GET /api/v1/equipment/{equipment_id}/history`
+
+**Ожидаемый результат:**
+- В истории появилась новая запись с `work_type = "planned_maintenance"`
+- `ticket_id` равен id завершённой заявки
 
 ---
 

@@ -381,6 +381,7 @@ class RepairHistory(Base):
     description:   Mapped[Optional[str]]  = mapped_column(Text)
     performed_by:  Mapped[Optional[int]]  = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     performed_at:  Mapped[datetime]       = mapped_column(DateTime, default=func.now(), nullable=False)
+    parts_used:    Mapped[Optional[Any]]  = mapped_column(JSON)
 
     ticket:    Mapped[Optional["Ticket"]]    = relationship("Ticket", back_populates="repair_history")
     equipment: Mapped["Equipment"]           = relationship("Equipment", back_populates="repair_history")

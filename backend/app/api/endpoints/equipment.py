@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
-from app.models import Equipment, EquipmentModel, RepairHistory, User
+from app.models import Equipment, EquipmentModel, RepairHistory, User, Ticket
 from app.api.deps import get_current_user, require_roles
 from app.schemas import (
     EquipmentCreate, EquipmentUpdate, EquipmentResponse,
@@ -158,6 +158,7 @@ def delete_equipment(
 @router.get("/{equipment_id}/history", response_model=list[RepairHistoryResponse])
 def get_equipment_history(
     equipment_id: int,
+    work_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -167,9 +168,11 @@ def get_equipment_history(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "NOT_FOUND", "message": "Оборудование не найдено"},
         )
-    return (
+    q = (
         db.query(RepairHistory)
+        .options(joinedload(RepairHistory.performer), joinedload(RepairHistory.ticket))
         .filter(RepairHistory.equipment_id == equipment_id)
-        .order_by(RepairHistory.performed_at.desc())
-        .all()
     )
+    if work_type:
+        q = q.filter(RepairHistory.action_type == work_type)
+    return q.order_by(RepairHistory.performed_at.desc()).all()

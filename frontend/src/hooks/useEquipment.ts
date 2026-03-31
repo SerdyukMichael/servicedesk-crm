@@ -40,6 +40,14 @@ export function useCreateEquipment() {
   })
 }
 
+export function useEquipmentHistory(equipmentId: number, params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['equipment-history', equipmentId, params],
+    queryFn: () => api.getEquipmentHistory(equipmentId, params),
+    enabled: !!equipmentId,
+  })
+}
+
 export function useUpdateEquipment(id: number) {
   const qc = useQueryClient()
   return useMutation({

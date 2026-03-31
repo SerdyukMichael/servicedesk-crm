@@ -5,6 +5,7 @@ import type {
   ClientContact,
   Equipment,
   EquipmentModel,
+  RepairHistoryEntry,
   Ticket,
   TicketStatusHistoryEntry,
   TicketComment,
@@ -92,6 +93,12 @@ export const getEquipmentModels = (): Promise<EquipmentModel[]> =>
 
 export const getClientEquipment = (clientId: number): Promise<Equipment[]> =>
   api.get<Equipment[]>(`/clients/${clientId}/equipment`).then(r => r.data)
+
+export const getEquipmentHistory = (
+  equipmentId: number,
+  params?: Record<string, unknown>
+): Promise<RepairHistoryEntry[]> =>
+  api.get<RepairHistoryEntry[]>(`/equipment/${equipmentId}/history`, { params }).then(r => r.data)
 
 // ===== Tickets =====
 

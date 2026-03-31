@@ -250,17 +250,19 @@
 
 ### `repair_history` — История ремонтов оборудования (BR-F-1001)
 
-| Поле | Тип | Ограничения | Описание |
-| --- | --- | --- | --- |
-| id | bigint | PK, NN | |
-| equipment_id | bigint | FK → equipment.id, NN | |
-| ticket_id | bigint | FK → tickets.id | NULL только при ручном вводе |
-| work_type | enum | NN | `warranty_repair` / `planned_maintenance` / `unplanned_repair` / `installation` |
-| work_date | date | NN | |
-| engineer_id | bigint | FK → users.id | |
-| parts_used | JSON | | [{part_id, name, qty}] — денормализованный снапшот |
-| description | text | | |
-| created_at | timestamp | NN | |
+| Поле в БД | Псевдоним в API | Тип | Ограничения | Описание |
+| --- | --- | --- | --- | --- |
+| id | id | bigint | PK, NN | |
+| equipment_id | equipment_id | bigint | FK → equipment.id, NN | |
+| ticket_id | ticket_id | bigint | FK → tickets.id | NULL если без заявки |
+| action_type | work_type | varchar(64) | NN | `unplanned_repair` / `planned_maintenance` / `warranty_repair` / `installation` / `diagnostics` |
+| performed_at | work_date | timestamp | NN | Дата выполнения работ |
+| performed_by | engineer_id | bigint | FK → users.id | |
+| parts_used | parts_used | JSON | | [{part_id, name, qty}] — денормализованный снапшот |
+| description | description | text | | |
+| created_at | created_at | timestamp | NN | |
+
+> **Примечание:** В DB-слое сохранены исторические имена (`action_type`, `performed_by`, `performed_at`). API экспонирует поля под именами из UC-1002 через псевдонимы Pydantic-схемы.
 
 ---
 
