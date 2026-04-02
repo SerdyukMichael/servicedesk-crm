@@ -15,6 +15,7 @@ import UsersPage from './pages/UsersPage'
 import PartsPage from './pages/PartsPage'
 import InvoicesPage from './pages/InvoicesPage'
 import NotificationsPage from './pages/NotificationsPage'
+import EquipmentModelsPage from './pages/EquipmentModelsPage'
 
 function NotFoundPage() {
   return (
@@ -53,6 +54,14 @@ export default function App() {
           {/* Equipment */}
           <Route path="equipment" element={<EquipmentPage />} />
           <Route path="equipment/:id" element={<EquipmentDetailPage />} />
+          <Route
+            path="equipment-models"
+            element={
+              <PrivateRoute roles={['admin', 'svc_mgr', 'engineer', 'director', 'sales_mgr', 'manager']}>
+                <EquipmentModelsPage />
+              </PrivateRoute>
+            }
+          />
 
           {/* Users (restricted) */}
           <Route
@@ -76,9 +85,6 @@ export default function App() {
           {/* 404 */}
           <Route path="*" element={<NotFoundPage />} />
         </Route>
-
-        {/* Root 404 */}
-        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
   )

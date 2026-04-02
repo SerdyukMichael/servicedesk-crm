@@ -185,6 +185,22 @@ class ClientResponse(BaseModel):
 
 # ── Equipment Models ──────────────────────────────────────────────────────────
 
+class EquipmentModelCreate(BaseModel):
+    name: str
+    manufacturer: Optional[str] = None
+    category: str = "other"
+    description: Optional[str] = None
+    warranty_months_default: Optional[int] = None
+
+
+class EquipmentModelUpdate(BaseModel):
+    name: Optional[str] = None
+    manufacturer: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    warranty_months_default: Optional[int] = None
+
+
 class EquipmentModelResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -193,6 +209,7 @@ class EquipmentModelResponse(BaseModel):
     manufacturer: Optional[str]
     category: str
     description: Optional[str]
+    warranty_months_default: Optional[int]
     is_active: bool
 
 

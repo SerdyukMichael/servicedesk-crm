@@ -88,8 +88,22 @@ export const createEquipment = (data: Partial<Equipment>): Promise<Equipment> =>
 export const updateEquipment = (id: number, data: Partial<Equipment>): Promise<Equipment> =>
   api.put<Equipment>(`/equipment/${id}`, data).then(r => r.data)
 
-export const getEquipmentModels = (): Promise<EquipmentModel[]> =>
-  api.get<EquipmentModel[]>('/equipment/models').then(r => r.data)
+export const getEquipmentModels = (includeInactive = false): Promise<EquipmentModel[]> =>
+  api
+    .get<EquipmentModel[]>('/equipment/models', { params: { include_inactive: includeInactive } })
+    .then(r => r.data)
+
+export const createEquipmentModel = (data: Partial<EquipmentModel>): Promise<EquipmentModel> =>
+  api.post<EquipmentModel>('/equipment/models', data).then(r => r.data)
+
+export const updateEquipmentModel = (id: number, data: Partial<EquipmentModel>): Promise<EquipmentModel> =>
+  api.put<EquipmentModel>(`/equipment/models/${id}`, data).then(r => r.data)
+
+export const deactivateEquipmentModel = (id: number): Promise<EquipmentModel> =>
+  api.patch<EquipmentModel>(`/equipment/models/${id}/deactivate`).then(r => r.data)
+
+export const activateEquipmentModel = (id: number): Promise<EquipmentModel> =>
+  api.patch<EquipmentModel>(`/equipment/models/${id}/activate`).then(r => r.data)
 
 export const getClientEquipment = (clientId: number): Promise<Equipment[]> =>
   api.get<Equipment[]>(`/clients/${clientId}/equipment`).then(r => r.data)

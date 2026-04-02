@@ -60,8 +60,8 @@ def _ensure_settings(user: User, db: Session) -> None:
 @router.get("", response_model=PaginatedResponse[NotificationResponse])
 def list_notifications(
     is_read: Optional[bool] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -69,8 +69,10 @@ def list_notifications(
     if is_read is not None:
         q = q.filter(Notification.is_read == is_read)
     total = q.count()
-    items = q.order_by(Notification.created_at.desc()).offset(skip).limit(limit).all()
-    return PaginatedResponse(items=items, total=total, skip=skip, limit=limit, has_more=(skip + limit) < total)
+    skip = (page - 1) * size
+    items = q.order_by(Notification.created_at.desc()).offset(skip).limit(size).all()
+    pages = max(1, (total + size - 1) // size)
+    return PaginatedResponse(items=items, total=total, page=page, size=size, pages=pages)
 
 
 @router.get("/unread-count")

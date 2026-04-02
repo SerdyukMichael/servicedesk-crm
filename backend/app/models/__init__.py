@@ -103,8 +103,9 @@ class EquipmentModel(Base):
         Enum("atm", "card_printer", "pos_terminal", "other", name="equipment_category_enum"),
         default="other", nullable=False
     )
-    description:  Mapped[Optional[str]] = mapped_column(Text)
-    is_active:    Mapped[bool]          = mapped_column(Boolean, default=True, nullable=False)
+    description:              Mapped[Optional[str]] = mapped_column(Text)
+    warranty_months_default:  Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    is_active:                Mapped[bool]          = mapped_column(Boolean, default=True, nullable=False)
 
     equipment:       Mapped[List["Equipment"]]     = relationship("Equipment", back_populates="model")
     work_templates:  Mapped[List["WorkTemplate"]]  = relationship("WorkTemplate", back_populates="equipment_model")

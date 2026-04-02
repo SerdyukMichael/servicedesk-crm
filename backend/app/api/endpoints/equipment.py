@@ -8,7 +8,8 @@ from app.models import Equipment, EquipmentModel, RepairHistory, User, Ticket
 from app.api.deps import get_current_user, require_roles
 from app.schemas import (
     EquipmentCreate, EquipmentUpdate, EquipmentResponse,
-    EquipmentModelResponse, RepairHistoryResponse, PaginatedResponse,
+    EquipmentModelCreate, EquipmentModelUpdate, EquipmentModelResponse,
+    RepairHistoryResponse, PaginatedResponse,
 )
 
 router = APIRouter()
@@ -19,15 +20,100 @@ _ADMIN = ("admin",)
 
 @router.get("/models", response_model=list[EquipmentModelResponse])
 def list_equipment_models(
+    include_inactive: bool = Query(False),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return (
-        db.query(EquipmentModel)
-        .filter(EquipmentModel.is_active.is_(True))
-        .order_by(EquipmentModel.name)
-        .all()
-    )
+    q = db.query(EquipmentModel)
+    if not include_inactive:
+        q = q.filter(EquipmentModel.is_active.is_(True))
+    return q.order_by(EquipmentModel.name).all()
+
+
+@router.post("/models", response_model=EquipmentModelResponse, status_code=status.HTTP_201_CREATED)
+def create_equipment_model(
+    data: EquipmentModelCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(*_WRITE_ROLES)),
+):
+    existing = db.query(EquipmentModel).filter(EquipmentModel.name == data.name).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "DUPLICATE_NAME", "message": f"Модель «{data.name}» уже существует"},
+        )
+    m = EquipmentModel(**data.model_dump())
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+@router.put("/models/{model_id}", response_model=EquipmentModelResponse)
+def update_equipment_model(
+    model_id: int,
+    data: EquipmentModelUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(*_WRITE_ROLES)),
+):
+    m = db.query(EquipmentModel).filter(EquipmentModel.id == model_id).first()
+    if not m:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Модель оборудования не найдена"},
+        )
+    update_data = data.model_dump(exclude_none=True)
+    if "name" in update_data:
+        conflict = db.query(EquipmentModel).filter(
+            EquipmentModel.name == update_data["name"],
+            EquipmentModel.id != model_id,
+        ).first()
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error": "DUPLICATE_NAME", "message": f"Модель «{update_data['name']}» уже существует"},
+            )
+    for k, v in update_data.items():
+        setattr(m, k, v)
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+@router.patch("/models/{model_id}/deactivate", response_model=EquipmentModelResponse)
+def deactivate_equipment_model(
+    model_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(*_WRITE_ROLES)),
+):
+    m = db.query(EquipmentModel).filter(EquipmentModel.id == model_id).first()
+    if not m:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Модель оборудования не найдена"},
+        )
+    m.is_active = False
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+@router.patch("/models/{model_id}/activate", response_model=EquipmentModelResponse)
+def activate_equipment_model(
+    model_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(*_WRITE_ROLES)),
+):
+    m = db.query(EquipmentModel).filter(EquipmentModel.id == model_id).first()
+    if not m:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Модель оборудования не найдена"},
+        )
+    m.is_active = True
+    db.commit()
+    db.refresh(m)
+    return m
 
 
 @router.get("", response_model=PaginatedResponse[EquipmentResponse])

@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: '/tickets', icon: '🔧', label: 'Заявки' },
   { to: '/clients', icon: '🏢', label: 'Клиенты' },
   { to: '/equipment', icon: '💻', label: 'Оборудование' },
+  { to: '/equipment-models', icon: '📋', label: 'Модели' },
   { to: '/parts', icon: '📦', label: 'Склад' },
   { to: '/invoices', icon: '📄', label: 'Счета' },
   { to: '/notifications', icon: '🔔', label: 'Уведомления', badge: true },

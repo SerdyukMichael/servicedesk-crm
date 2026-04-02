@@ -190,3 +190,35 @@ Secrets: `SERVER_HOST`, `SERVER_USER`, `SERVER_SSH_KEY`
 - **Phase 4** — React UI
 - **Phase 5** — React Native (мобильное приложение)
 - **Phase 6** — тесты, оптимизация, документация
+
+---
+
+## Практики разработки
+
+### Тесты — обязательно
+
+- **Для любой новой функциональности** создаются тесты (pytest, `backend/tests/`).
+- **Все тесты всегда зелёные** — перед завершением задачи запустить `pytest tests/ -v` в контейнере и убедиться, что нет FAILED.
+- Команда для запуска: `docker compose exec backend pytest tests/ -v`
+
+### Структура тестов
+
+- Фабрики объектов: `make_admin`, `make_engineer`, `make_client`, `make_equipment_model`, `make_equipment` из `tests/conftest.py`.
+- Новые фабрики добавлять в `conftest.py`.
+- Один класс тестов на эндпоинт/модуль.
+
+### Пагинация
+
+- Все list-эндпоинты возвращают `PaginatedResponse` с полями `items`, `total`, `page`, `size`, `pages`.
+- Параметры запроса: `page` (от 1) и `size`. Не использовать `skip`/`limit`/`has_more`.
+
+### Soft delete
+
+- Записи не удаляются физически: `is_deleted = True` (пользователи, оборудование, клиенты, заявки).
+- Справочники (модели оборудования, шаблоны, вендоры) — деактивация через `is_active = False`.
+
+### RBAC
+
+- `require_roles(*roles)` из `api/deps.py` — для write-операций.
+- Write-роли для оборудования/справочников: `admin`, `svc_mgr`.
+- Просмотр — всем авторизованным.

@@ -68,6 +68,8 @@ export interface EquipmentModel {
   manufacturer?: string
   category?: string
   description?: string
+  warranty_months_default?: number
+  is_active: boolean
 }
 
 export interface Equipment {

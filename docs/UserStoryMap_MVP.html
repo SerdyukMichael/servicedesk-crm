@@ -69,13 +69,13 @@ body {
   padding: 20px 24px 32px;
 }
 .map-inner {
-  min-width: 1500px;
+  min-width: 1700px;
 }
 
 /* ── ACTIVITIES ROW ── */
 .activities-row {
   display: grid;
-  grid-template-columns: 80px repeat(8, 1fr);
+  grid-template-columns: 80px repeat(9, 1fr);
   gap: 0;
   margin-bottom: 0;
 }
@@ -125,17 +125,18 @@ body {
 /* Activity colors */
 .act-1  { background: #2c3e50; }
 .act-2  { background: #1a5276; }
-.act-3  { background: #154360; }
-.act-4  { background: #6c3483; }
-.act-5  { background: #1e8449; }
-.act-6  { background: #784212; }
-.act-7  { background: #17202a; background: #1f618d; }
-.act-8  { background: #1a5276; background: #117a65; }
+.act-3  { background: #0e6655; }
+.act-4  { background: #154360; }
+.act-5  { background: #6c3483; }
+.act-6  { background: #1e8449; }
+.act-7  { background: #784212; }
+.act-8  { background: #1f618d; }
+.act-9  { background: #117a65; }
 
 /* ── WALKING SKELETON ROW ── */
 .skeleton-row {
   display: grid;
-  grid-template-columns: 80px repeat(8, 1fr);
+  grid-template-columns: 80px repeat(9, 1fr);
   gap: 0;
   border-top: 3px solid #fff;
 }
@@ -202,7 +203,7 @@ body {
 }
 .release-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(9, 1fr);
   gap: 0;
   border-top: 3px solid;
 }
@@ -320,7 +321,7 @@ body {
 <div class="page-header">
   <div>
     <h1>User Story Map — ServiceDesk CRM</h1>
-    <div class="subtitle">MVP · Фазы разработки 2–5 · 27.03.2026</div>
+    <div class="subtitle">MVP · Фазы разработки 2–5 · 31.03.2026 · v1.1 (добавлены UC-301, UC-912, UC-1008, UC-1009)</div>
   </div>
   <div class="legend">
     <div class="leg"><div class="leg-dot" style="background:#2980b9"></div>Руководитель сервиса</div>
@@ -358,33 +359,38 @@ body {
   </div>
   <div class="activity act-3">
     <div class="activity-num">03</div>
-    <div class="activity-name">База<br>оборудования</div>
-    <div class="activity-uc">UC-1001–1007</div>
+    <div class="activity-name">CRM —<br>Клиенты</div>
+    <div class="activity-uc">UC-301</div>
   </div>
   <div class="activity act-4">
     <div class="activity-num">04</div>
-    <div class="activity-name">Создание<br>заявки</div>
-    <div class="activity-uc">UC-901 · UC-905</div>
+    <div class="activity-name">База<br>оборудования</div>
+    <div class="activity-uc">UC-1001–1009</div>
   </div>
   <div class="activity act-5">
     <div class="activity-num">05</div>
-    <div class="activity-name">Планирование<br>и назначение</div>
-    <div class="activity-uc">UC-902 · UC-804</div>
+    <div class="activity-name">Создание<br>заявки</div>
+    <div class="activity-uc">UC-901 · UC-905</div>
   </div>
   <div class="activity act-6">
     <div class="activity-num">06</div>
+    <div class="activity-name">Планирование<br>и назначение</div>
+    <div class="activity-uc">UC-902 · UC-804</div>
+  </div>
+  <div class="activity act-7">
+    <div class="activity-num">07</div>
     <div class="activity-name">Выполнение<br>работ</div>
     <div class="activity-uc">UC-903–904 · UC-907</div>
   </div>
-  <div class="activity act-7" style="background:#1f618d;">
-    <div class="activity-num">07</div>
+  <div class="activity act-8">
+    <div class="activity-num">08</div>
     <div class="activity-name">Коммуникация<br>с клиентом</div>
     <div class="activity-uc">UC-906 · BR-F-910</div>
   </div>
-  <div class="activity act-8" style="background:#117a65;">
-    <div class="activity-num">08</div>
+  <div class="activity act-9">
+    <div class="activity-num">09</div>
     <div class="activity-name">Закрытие<br>и отчётность</div>
-    <div class="activity-uc">UC-903 · UC-910</div>
+    <div class="activity-uc">UC-903 · UC-910 · UC-912</div>
   </div>
 </div>
 
@@ -416,7 +422,18 @@ body {
       Просмотреть загрузку команды
     </div>
   </div>
-  <!-- ACT 3 -->
+  <!-- ACT 3: CRM -->
+  <div class="skeleton-cell">
+    <div class="task-card tc-manager">
+      <div class="tc-role">Менеджер / Руководитель</div>
+      Управлять клиентами и контактными лицами
+    </div>
+    <div class="task-card tc-manager">
+      <div class="tc-role">Менеджер продаж</div>
+      Выдать контакту доступ к порталу
+    </div>
+  </div>
+  <!-- ACT 4 -->
   <div class="skeleton-cell">
     <div class="task-card tc-manager">
       <div class="tc-role">Руководитель / Менеджер</div>
@@ -427,7 +444,7 @@ body {
       Найти оборудование по S/N
     </div>
   </div>
-  <!-- ACT 4 -->
+  <!-- ACT 5 -->
   <div class="skeleton-cell">
     <div class="task-card tc-manager">
       <div class="tc-role">Руководитель</div>
@@ -438,14 +455,14 @@ body {
       Подать заявку через веб-портал
     </div>
   </div>
-  <!-- ACT 5 -->
+  <!-- ACT 6 -->
   <div class="skeleton-cell">
     <div class="task-card tc-manager">
       <div class="tc-role">Руководитель</div>
       Назначить инженера с учётом загрузки
     </div>
   </div>
-  <!-- ACT 6 -->
+  <!-- ACT 7 -->
   <div class="skeleton-cell">
     <div class="task-card tc-engineer">
       <div class="tc-role">Инженер</div>
@@ -456,7 +473,7 @@ body {
       Заполнить акт выполненных работ
     </div>
   </div>
-  <!-- ACT 7 -->
+  <!-- ACT 8 -->
   <div class="skeleton-cell">
     <div class="task-card tc-engineer">
       <div class="tc-role">Инженер / Руководитель</div>
@@ -467,7 +484,7 @@ body {
       Прокомментировать и отследить статус
     </div>
   </div>
-  <!-- ACT 8 -->
+  <!-- ACT 9 -->
   <div class="skeleton-cell">
     <div class="task-card tc-manager">
       <div class="tc-role">Руководитель</div>
@@ -540,8 +557,37 @@ body {
       </div>
     </div>
 
-    <!-- ACT 3: Оборудование -->
+    <!-- ACT 3: CRM — Клиенты (NEW) -->
     <div class="release-col">
+      <div class="story role-sales">
+        <div class="story-role">🩵 Менеджер продаж</div>
+        <div class="story-text">Просмотреть список контактных лиц клиента</div>
+        <div class="story-uc">UC-301</div>
+      </div>
+      <div class="story role-sales">
+        <div class="story-role">🩵 Менеджер продаж</div>
+        <div class="story-text">Добавить и редактировать контактное лицо (ФИО, должность, телефон, email)</div>
+        <div class="story-uc">UC-301</div>
+      </div>
+      <div class="story role-sales">
+        <div class="story-role">🩵 Менеджер продаж</div>
+        <div class="story-text">Выдать / отозвать доступ контакта к порталу самообслуживания</div>
+        <div class="story-uc">UC-301</div>
+      </div>
+      <div class="story role-sales">
+        <div class="story-role">🩵 Менеджер продаж</div>
+        <div class="story-text">Деактивировать контактное лицо (доступ к порталу отзывается автоматически)</div>
+        <div class="story-uc">UC-301</div>
+      </div>
+    </div>
+
+    <!-- ACT 4: Оборудование -->
+    <div class="release-col">
+      <div class="story role-admin">
+        <div class="story-role">🔴 Администратор / Руководитель</div>
+        <div class="story-text">Управлять справочником моделей оборудования (создать, редактировать, деактивировать)</div>
+        <div class="story-uc">UC-1009</div>
+      </div>
       <div class="story role-manager">
         <div class="story-role">🔵 Руководитель / Менеджер</div>
         <div class="story-text">Добавить единицу оборудования клиента</div>
@@ -550,12 +596,17 @@ body {
       <div class="story role-manager">
         <div class="story-role">🔵 Руководитель</div>
         <div class="story-text">Просмотреть паспорт оборудования (S/N, гарантия)</div>
-        <div class="story-uc">UC-1002</div>
+        <div class="story-uc">UC-1001</div>
       </div>
       <div class="story role-manager">
         <div class="story-role">🔵 Руководитель</div>
         <div class="story-text">Просмотреть историю ремонтов оборудования</div>
-        <div class="story-uc">UC-1003</div>
+        <div class="story-uc">UC-1002</div>
+      </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель</div>
+        <div class="story-text">Оформить первичную передачу оборудования клиенту с прикреплением акта</div>
+        <div class="story-uc">UC-1008</div>
       </div>
       <div class="story role-manager">
         <div class="story-role">🔵 Руководитель</div>
@@ -565,11 +616,11 @@ body {
       <div class="story role-system">
         <div class="story-role">🟣 Система</div>
         <div class="story-text">Автоматически менять статус оборудования при смене статуса заявки</div>
-        <div class="story-uc">UC-1007</div>
+        <div class="story-uc">UC-1003</div>
       </div>
     </div>
 
-    <!-- ACT 4: Создание заявки -->
+    <!-- ACT 5: Создание заявки -->
     <div class="release-col">
       <div class="story role-manager">
         <div class="story-role">🔵 Руководитель</div>
@@ -603,7 +654,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 5: Назначение -->
+    <!-- ACT 6: Назначение -->
     <div class="release-col">
       <div class="story role-manager">
         <div class="story-role">🔵 Руководитель</div>
@@ -627,7 +678,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 6: Выполнение работ -->
+    <!-- ACT 7: Выполнение работ -->
     <div class="release-col">
       <div class="story role-engineer">
         <div class="story-role">🟢 Инженер</div>
@@ -656,7 +707,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 7: Коммуникация -->
+    <!-- ACT 8: Коммуникация -->
     <div class="release-col">
       <div class="story role-engineer">
         <div class="story-role">🟢 Инженер / Руководитель</div>
@@ -685,17 +736,22 @@ body {
       </div>
     </div>
 
-    <!-- ACT 8: Закрытие -->
+    <!-- ACT 9: Закрытие -->
     <div class="release-col">
       <div class="story role-manager">
         <div class="story-role">🔵 Руководитель</div>
         <div class="story-text">Закрыть заявку (акт обязателен — BR-R-004)</div>
         <div class="story-uc">UC-903 · BR-R-004</div>
       </div>
+      <div class="story role-manager">
+        <div class="story-role">🔵 Руководитель / Администратор</div>
+        <div class="story-text">Отменить заявку с указанием причины (SLA-таймер останавливается)</div>
+        <div class="story-uc">UC-912</div>
+      </div>
       <div class="story role-system">
         <div class="story-role">🟣 Система</div>
-        <div class="story-text">Вернуть оборудование в статус «Активно» при закрытии</div>
-        <div class="story-uc">UC-903 · UC-1007</div>
+        <div class="story-text">Вернуть оборудование в статус «Активно» при закрытии или отмене</div>
+        <div class="story-uc">UC-903 · UC-912 · UC-1003</div>
       </div>
       <div class="story role-system">
         <div class="story-role">🟣 Система</div>
@@ -751,7 +807,21 @@ body {
       </div>
     </div>
 
-    <!-- ACT 3 -->
+    <!-- ACT 3: CRM Release 2 -->
+    <div class="release-col">
+      <div class="story role-client">
+        <div class="story-role">🟠 Клиент</div>
+        <div class="story-text">Зарегистрироваться на портале по ссылке-приглашению и установить пароль</div>
+        <div class="story-uc">UC-301 · UC-901 АП</div>
+      </div>
+      <div class="story role-sales">
+        <div class="story-role">🩵 Менеджер продаж</div>
+        <div class="story-text">Назначить «основной контакт» организации (один на клиента)</div>
+        <div class="story-uc">UC-301 АП-1</div>
+      </div>
+    </div>
+
+    <!-- ACT 4: Оборудование R2 -->
     <div class="release-col">
       <div class="story role-manager">
         <div class="story-role">🔵 Руководитель</div>
@@ -785,7 +855,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 4 -->
+    <!-- ACT 4 (was 4 before) → now ACT 5 -->
     <div class="release-col">
       <div class="story role-client">
         <div class="story-role">🟠 Клиент</div>
@@ -799,7 +869,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 5 -->
+    <!-- ACT 6 -->
     <div class="release-col">
       <div class="story role-system">
         <div class="story-role">🟣 Система</div>
@@ -812,7 +882,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 6 -->
+    <!-- ACT 7 -->
     <div class="release-col">
       <div class="story role-manager">
         <div class="story-role">🔵 Руководитель / Администратор</div>
@@ -831,7 +901,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 7 -->
+    <!-- ACT 8 -->
     <div class="release-col">
       <div class="story role-client">
         <div class="story-role">🟠 Клиент</div>
@@ -860,7 +930,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 8 -->
+    <!-- ACT 9 -->
     <div class="release-col">
       <div class="story role-manager">
         <div class="story-role">🔵 Директор / Руководитель</div>
@@ -913,7 +983,16 @@ body {
       </div>
     </div>
 
-    <!-- ACT 3 -->
+    <!-- ACT 3: CRM Backlog -->
+    <div class="release-col">
+      <div class="story role-client">
+        <div class="story-role">🟠 Клиент-администратор</div>
+        <div class="story-text">Самостоятельно управлять другими контактами своей организации на портале (portal_role = client_admin)</div>
+        <div class="story-uc">UC-301 · Примечания</div>
+      </div>
+    </div>
+
+    <!-- ACT 4 -->
     <div class="release-col">
       <div class="story role-system">
         <div class="story-role">🟣 Система</div>
@@ -925,7 +1004,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 4 -->
+    <!-- ACT 5 -->
     <div class="release-col">
       <div class="story role-client">
         <div class="story-role">🟠 Клиент</div>
@@ -938,7 +1017,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 5 -->
+    <!-- ACT 6 -->
     <div class="release-col">
       <div class="story role-manager">
         <div class="story-role">🔵 Руководитель</div>
@@ -950,7 +1029,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 6 -->
+    <!-- ACT 7 -->
     <div class="release-col">
       <div class="story role-client">
         <div class="story-role">🟠 Клиент</div>
@@ -962,7 +1041,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 7 -->
+    <!-- ACT 8 -->
     <div class="release-col">
       <div class="story role-client">
         <div class="story-role">🟠 Клиент</div>
@@ -974,7 +1053,7 @@ body {
       </div>
     </div>
 
-    <!-- ACT 8 -->
+    <!-- ACT 9 -->
     <div class="release-col">
       <div class="story role-manager">
         <div class="story-role">🔵 Директор</div>
@@ -998,25 +1077,25 @@ body {
     <div style="font-size:28px;">🗺️</div>
     <div>
       <div class="stat-label">Активности<br>(backbone)</div>
-      <div class="stat-num" style="font-size:20px;">8</div>
+      <div class="stat-num" style="font-size:20px;">9</div>
     </div>
   </div>
   <div class="stat-card">
-    <div class="stat-num" style="color:#155724;">27</div>
+    <div class="stat-num" style="color:#155724;">33</div>
     <div>
       <div class="stat-label">Stories в MVP</div>
       <div class="stat-sub">Phase 2–4 · Must-приоритет</div>
     </div>
   </div>
   <div class="stat-card">
-    <div class="stat-num" style="color:#0c5460;">25</div>
+    <div class="stat-num" style="color:#0c5460;">27</div>
     <div>
       <div class="stat-label">Stories в Release 2</div>
       <div class="stat-sub">Phase 5 · Should/Could</div>
     </div>
   </div>
   <div class="stat-card">
-    <div class="stat-num" style="color:#3d4a5c;">16</div>
+    <div class="stat-num" style="color:#3d4a5c;">17</div>
     <div>
       <div class="stat-label">Stories в Backlog</div>
       <div class="stat-sub">Phase 6+ · Could/Won't (пока)</div>
@@ -1041,6 +1120,13 @@ body {
     <div>
       <div class="stat-label">Клиент</div>
       <div class="stat-sub">Портал в MVP, мобайл в Release 2</div>
+    </div>
+  </div>
+  <div class="stat-card" style="border-left:3px solid #16a085;">
+    <div class="stat-num" style="color:#16a085;">🩵</div>
+    <div>
+      <div class="stat-label">Менеджер продаж</div>
+      <div class="stat-sub">CRM — клиенты и контакты</div>
     </div>
   </div>
   <div class="stat-card" style="border-left:3px solid #8e44ad;">

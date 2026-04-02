@@ -20,8 +20,8 @@ _ADMIN = ("admin",)
 def list_work_templates(
     equipment_model_id: Optional[int] = Query(None),
     equipment_model: Optional[str] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=200),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -33,8 +33,10 @@ def list_work_templates(
         q = q.join(EquipmentModel, WorkTemplate.equipment_model_id == EquipmentModel.id)
         q = q.filter(EquipmentModel.name.ilike(f"%{equipment_model}%"))
     total = q.count()
-    items = q.order_by(WorkTemplate.name).offset(skip).limit(limit).all()
-    return PaginatedResponse(items=items, total=total, skip=skip, limit=limit, has_more=(skip + limit) < total)
+    skip = (page - 1) * size
+    items = q.order_by(WorkTemplate.name).offset(skip).limit(size).all()
+    pages = max(1, (total + size - 1) // size)
+    return PaginatedResponse(items=items, total=total, page=page, size=size, pages=pages)
 
 
 @router.post("", response_model=WorkTemplateResponse, status_code=status.HTTP_201_CREATED)

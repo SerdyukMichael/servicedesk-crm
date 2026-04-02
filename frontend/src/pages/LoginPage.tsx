@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -15,10 +15,12 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login, token } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname ?? '/tickets'
+  // Sanitise `from` — never redirect back to /login (infinite loop)
+  const rawFrom = (location.state as { from?: { pathname?: string } })?.from?.pathname
+  const from = rawFrom && rawFrom !== '/login' ? rawFrom : '/tickets'
 
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -28,6 +30,13 @@ export default function LoginPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) })
+
+  // Already authenticated: skip the form entirely.
+  // This prevents LoginPage from rendering on top of the authenticated layout
+  // during React 18 concurrent transitions after a successful login.
+  if (token) {
+    return <Navigate to={from} replace />
+  }
 
   const onSubmit = async (data: FormData) => {
     setError(null)
@@ -46,6 +55,7 @@ export default function LoginPage() {
         full_name: resp.user.full_name,
         roles,
       })
+      setLoading(false)
       navigate(from, { replace: true })
     } catch (err) {
       const axiosErr = err as AxiosError<{ detail: unknown }>
@@ -62,6 +72,8 @@ export default function LoginPage() {
         setError('Ошибка соединения с сервером')
       }
     } finally {
+      // setLoading(false) is also called on success before navigate(),
+      // so this only fires on error paths.
       setLoading(false)
     }
   }

@@ -57,6 +57,12 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     return {
         "access_token": token,
         "token_type": "bearer",
+        # top-level fields expected by tests and frontend
+        "user_id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "roles": user.roles,
+        # nested object kept for backwards compat
         "user": {
             "id": user.id,
             "email": user.email,

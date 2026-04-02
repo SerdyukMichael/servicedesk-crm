@@ -1,6 +1,14 @@
 # ER: Модель данных — ServiceDesk CRM
 
-**Версия:** 1.0 | **Дата:** 27.03.2026 | **Статус:** Актуально
+**Версия:** 1.1 | **Дата:** 31.03.2026 | **Статус:** Актуально
+
+> **v1.1 (аудит документации 31.03.2026):**
+> - `users`: добавлены поля `position`, `department` (П-4)
+> - `equipment.client_id`: изменён на nullable, SET NULL (П-1, UC-1008)
+> - `tickets`: добавлены поля отмены `cancellation_reason`, `cancelled_by`, `cancelled_at` (UC-912)
+> - `equipment_history`: поле `return_date` → `event_date`; добавлено `act_number` (П-2, UC-1007/1008)
+> - `equipment_documents`: добавлено поле `history_id` (UC-1008)
+> - `equipment_models`: добавлено поле `warranty_months_default` (UC-1009)
 
 > Сводная схема всех сущностей MVP (Модули 8, 9, 10, 14).
 > Поля собраны из раздела «Ключевые данные» каждого UC и RTM.
@@ -32,6 +40,8 @@
 | id | integer | PK, NN, autoincrement | Первичный ключ |
 | email | varchar(128) | NN, UQ, index | Email (логин в систему) |
 | full_name | varchar(128) | NN | ФИО |
+| position | varchar(100) | | Должность (UC-801) |
+| department | varchar(100) | | Подразделение (UC-801) |
 | password_hash | varchar(255) | NN | bcrypt |
 | roles | JSON | NN, default `["engineer"]` | Массив ролей: `["admin","svc_mgr"...]` — union прав (BR-F-801) |
 | phone | varchar(32) | | Рабочий телефон |
@@ -146,9 +156,10 @@
 | --- | --- | --- | --- |
 | id | integer | PK, NN, autoincrement | |
 | name | varchar(255) | NN | Наименование модели |
-| manufacturer | varchar(128) | | |
+| manufacturer | varchar(128) | | Производитель |
 | category | enum | NN, default `other` | `atm` / `card_printer` / `pos_terminal` / `other` |
 | description | text | | |
+| warranty_months_default | integer | | Срок гарантии по умолчанию в месяцах (UC-1009) |
 | is_active | boolean | NN, default true | |
 
 ---
@@ -179,7 +190,7 @@
 | Поле | Тип | Ограничения | Описание |
 | --- | --- | --- | --- |
 | id | integer | PK, NN, autoincrement | |
-| client_id | integer | FK → clients.id, NN, RESTRICT | Текущий владелец |
+| client_id | integer | FK → clients.id, nullable, SET NULL | Текущий владелец; NULL = оборудование не закреплено за клиентом (UC-1008) |
 | model_id | integer | FK → equipment_models.id, NN, RESTRICT | |
 | serial_number | varchar(128) | NN, UQ | Глобально уникален (BR-R-008) |
 | location | text | | Адрес/место установки |
@@ -199,6 +210,7 @@
 | --- | --- | --- | --- |
 | id | bigint | PK, NN | |
 | equipment_id | bigint | FK → equipment.id, NN | |
+| history_id | bigint | FK → equipment_history.id, nullable | Привязка к записи истории передач (UC-1008); NULL для общих документов |
 | doc_type | enum | NN | `passport` / `warranty` / `manual` / `act` / `other` |
 | file_name | varchar(255) | NN | |
 | file_url | varchar(500) | NN | Ссылка на файловое хранилище |
@@ -222,8 +234,9 @@
 | from_client_id | bigint | FK → clients.id | Клиент до события (NULL при первоначальном назначении) |
 | to_client_id | bigint | FK → clients.id | Клиент после (NULL при возврате без нового клиента) |
 | return_type | enum | | `warranty_replacement` / `buyback` (только при event_type=return) |
-| return_date | date | | |
-| reason | text | | Обязательно при event_type=return |
+| event_date | date | | Дата события (переименовано из `return_date` v1.1) |
+| act_number | varchar(64) | | Номер акта приёма-передачи (UC-1008) |
+| reason | text | | Обязательно при event_type=return; опционально для остальных |
 | claim_created | boolean | | Создана ли рекламация вендору (Модуль 11) |
 | recorded_by | bigint | FK → users.id, NN | |
 | recorded_at | timestamp | NN | |
@@ -286,6 +299,9 @@
 | sla_deadline | timestamp | | Авто: created_at + SLA_HOURS[priority] |
 | work_template_id | integer | FK → work_templates.id, SET NULL | Применённый шаблон |
 | closed_at | timestamp | | |
+| cancellation_reason | text | | Причина отмены; обязательна при status=cancelled (UC-912) |
+| cancelled_by | integer | FK → users.id, SET NULL | Кто отменил (UC-912) |
+| cancelled_at | timestamp | | Дата и время отмены (UC-912) |
 | is_deleted | boolean | NN, default false, SOFT | |
 | created_at | timestamp | NN | |
 | updated_at | timestamp | NN | |

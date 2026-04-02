@@ -16,11 +16,44 @@ export function useEquipmentItem(id: number) {
   })
 }
 
-export function useEquipmentModels() {
+export function useEquipmentModels(includeInactive = false) {
   return useQuery({
-    queryKey: ['equipment-models'],
-    queryFn: api.getEquipmentModels,
+    queryKey: ['equipment-models', includeInactive],
+    queryFn: () => api.getEquipmentModels(includeInactive),
     staleTime: 60_000,
+  })
+}
+
+export function useCreateEquipmentModel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createEquipmentModel,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['equipment-models'] }),
+  })
+}
+
+export function useUpdateEquipmentModel(id: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Parameters<typeof api.updateEquipmentModel>[1]) =>
+      api.updateEquipmentModel(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['equipment-models'] }),
+  })
+}
+
+export function useDeactivateEquipmentModel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.deactivateEquipmentModel,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['equipment-models'] }),
+  })
+}
+
+export function useActivateEquipmentModel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.activateEquipmentModel,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['equipment-models'] }),
   })
 }
 
