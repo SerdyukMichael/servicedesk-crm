@@ -98,10 +98,11 @@ export default function TicketDetailPage() {
     isPast(parseISO(ticket.sla_deadline)) &&
     !['completed', 'closed', 'cancelled'].includes(ticket.status)
 
+  const isClientUser = hasRole('client_user')
   const canAssign = hasRole('admin', 'svc_mgr')
   const canChangeStatus = hasRole('admin', 'svc_mgr', 'engineer')
   const canCreateAct = hasRole('engineer', 'svc_mgr', 'admin')
-  const canSignAct = hasRole('svc_mgr', 'admin')
+  const canSignAct = hasRole('svc_mgr', 'admin', 'client_user')
 
   const handleAssign = () => {
     if (!selectedEngineer) {
@@ -406,6 +407,11 @@ export default function TicketDetailPage() {
                         <div className="comment-meta">
                           <span className="comment-author">
                             {c.author?.full_name ?? 'Пользователь'}
+                            {c.author?.email && (
+                              <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>
+                                {c.author.email}
+                              </span>
+                            )}
                           </span>
                           {c.is_internal && (
                             <span className="badge badge-assigned" style={{ fontSize: 10 }}>
@@ -444,23 +450,27 @@ export default function TicketDetailPage() {
                     gap: 10,
                   }}
                 >
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontSize: 13,
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isInternal}
-                      onChange={e => setIsInternal(e.target.checked)}
-                    />
-                    Внутренний комментарий
-                  </label>
+                  {!isClientUser ? (
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontSize: 13,
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isInternal}
+                        onChange={e => setIsInternal(e.target.checked)}
+                      />
+                      Внутренний комментарий
+                    </label>
+                  ) : (
+                    <span />
+                  )}
                   <button
                     className="btn btn-primary btn-sm"
                     onClick={handleAddComment}

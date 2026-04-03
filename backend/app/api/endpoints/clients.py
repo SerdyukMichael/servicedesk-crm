@@ -175,7 +175,13 @@ def get_client(
     client_id: int,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
+    if client_scope is not None and client_id != client_scope:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Клиент не найден"},
+        )
     client = (
         db.query(Client)
         .options(joinedload(Client.manager))

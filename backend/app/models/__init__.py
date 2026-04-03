@@ -252,11 +252,12 @@ class TicketStatusHistory(Base):
 class TicketComment(Base):
     __tablename__ = "ticket_comments"
 
-    id:         Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
-    ticket_id:  Mapped[int]      = mapped_column(ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False)
-    user_id:    Mapped[int]      = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
-    text:       Mapped[str]      = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    id:          Mapped[int]  = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticket_id:   Mapped[int]  = mapped_column(ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False)
+    user_id:     Mapped[int]  = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    text:        Mapped[str]  = mapped_column(Text, nullable=False)
+    is_internal: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at:  Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
 
     ticket: Mapped["Ticket"] = relationship("Ticket", back_populates="comments")
     user:   Mapped["User"]   = relationship("User", back_populates="ticket_comments")

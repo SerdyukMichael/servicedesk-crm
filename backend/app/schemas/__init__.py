@@ -445,6 +445,15 @@ class TicketStatusHistoryResponse(BaseModel):
 
 class CommentCreate(BaseModel):
     text: str = Field(..., min_length=1)
+    is_internal: bool = False
+
+
+class CommentAuthorResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    full_name: str
+    email: str
 
 
 class CommentResponse(BaseModel):
@@ -454,6 +463,8 @@ class CommentResponse(BaseModel):
     ticket_id: int
     user_id: int
     text: str
+    is_internal: bool
+    author: Optional[CommentAuthorResponse] = Field(None, validation_alias="user")
     created_at: datetime
 
 

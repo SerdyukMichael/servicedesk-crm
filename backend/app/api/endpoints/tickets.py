@@ -152,13 +152,16 @@ def get_ticket(
     ticket_id: int,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    ticket = (
+    q = (
         db.query(Ticket)
         .options(joinedload(Ticket.client), joinedload(Ticket.assignee), joinedload(Ticket.creator), joinedload(Ticket.equipment).joinedload(Equipment.model))
         .filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False))
-        .first()
     )
+    if client_scope is not None:
+        q = q.filter(Ticket.client_id == client_scope)
+    ticket = q.first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -312,10 +315,9 @@ def get_status_history(
     ticket_id: int,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False)).first()
-    if not ticket:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "NOT_FOUND", "message": "Заявка не найдена"})
+    ticket = _require_ticket(db, ticket_id, client_scope)
     return (
         db.query(TicketStatusHistory)
         .options(joinedload(TicketStatusHistory.changer))
@@ -331,15 +333,19 @@ def get_status_history(
 def list_comments(
     ticket_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    _require_ticket(db, ticket_id)
-    return (
+    _require_ticket(db, ticket_id, client_scope)
+    q = (
         db.query(TicketComment)
+        .options(joinedload(TicketComment.user))
         .filter(TicketComment.ticket_id == ticket_id)
-        .order_by(TicketComment.created_at)
-        .all()
     )
+    # client_user does not see internal comments
+    if client_scope is not None:
+        q = q.filter(TicketComment.is_internal.is_(False))
+    return q.order_by(TicketComment.created_at).all()
 
 
 @router.post("/{ticket_id}/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
@@ -348,12 +354,19 @@ def add_comment(
     data: CommentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    _require_ticket(db, ticket_id)
-    comment = TicketComment(ticket_id=ticket_id, user_id=current_user.id, text=data.text)
+    _require_ticket(db, ticket_id, client_scope)
+    comment = TicketComment(
+        ticket_id=ticket_id,
+        user_id=current_user.id,
+        text=data.text,
+        is_internal=data.is_internal,
+    )
     db.add(comment)
     db.commit()
     db.refresh(comment)
+    db.refresh(comment, attribute_names=["user"])
     return comment
 
 
@@ -365,8 +378,9 @@ async def upload_attachment(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    _require_ticket(db, ticket_id)
+    _require_ticket(db, ticket_id, client_scope)
     max_bytes = settings.max_file_size_mb * 1024 * 1024
     data = await file.read()
     if len(data) > max_bytes:
@@ -406,8 +420,9 @@ def list_attachments(
     ticket_id: int,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    _require_ticket(db, ticket_id)
+    _require_ticket(db, ticket_id, client_scope)
     files = (
         db.query(TicketFile)
         .filter(TicketFile.ticket_id == ticket_id)
@@ -516,7 +531,9 @@ def get_work_act(
     ticket_id: int,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
+    _require_ticket(db, ticket_id, client_scope)
     act = db.query(WorkAct).filter(WorkAct.ticket_id == ticket_id).first()
     if not act:
         raise HTTPException(
@@ -531,8 +548,21 @@ def sign_work_act(
     ticket_id: int,
     act_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles("svc_mgr", "admin")),
+    current_user: User = Depends(require_roles("svc_mgr", "admin", "client_user")),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
+    # row-level: client_user may only sign acts for their own org's tickets
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False)).first()
+    if not ticket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Заявка не найдена"},
+        )
+    if client_scope is not None and ticket.client_id != client_scope:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "FORBIDDEN", "message": "Нет доступа к этой заявке"},
+        )
     act = db.query(WorkAct).filter(WorkAct.id == act_id, WorkAct.ticket_id == ticket_id).first()
     if not act:
         raise HTTPException(
@@ -559,8 +589,12 @@ def sign_work_act(
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
-def _require_ticket(db: Session, ticket_id: int) -> Ticket:
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False)).first()
+def _require_ticket(db: Session, ticket_id: int,
+                    client_scope: Optional[int] = None) -> Ticket:
+    q = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False))
+    if client_scope is not None:
+        q = q.filter(Ticket.client_id == client_scope)
+    ticket = q.first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -177,13 +177,16 @@ def get_equipment(
     equipment_id: int,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    eq = (
+    q = (
         db.query(Equipment)
         .options(joinedload(Equipment.client), joinedload(Equipment.model))
         .filter(Equipment.id == equipment_id, Equipment.is_deleted.is_(False))
-        .first()
     )
+    if client_scope is not None:
+        q = q.filter(Equipment.client_id == client_scope)
+    eq = q.first()
     if not eq:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -250,8 +253,12 @@ def get_equipment_history(
     work_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    eq = db.query(Equipment).filter(Equipment.id == equipment_id, Equipment.is_deleted.is_(False)).first()
+    q = db.query(Equipment).filter(Equipment.id == equipment_id, Equipment.is_deleted.is_(False))
+    if client_scope is not None:
+        q = q.filter(Equipment.client_id == client_scope)
+    eq = q.first()
     if not eq:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
