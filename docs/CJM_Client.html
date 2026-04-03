@@ -73,7 +73,7 @@ body {
 }
 .cjm {
   display: grid;
-  grid-template-columns: 130px repeat(8, 1fr);
+  grid-template-columns: 130px repeat(9, 1fr);
   min-width: 1200px;
   border-radius: 8px;
   overflow: hidden;
@@ -116,6 +116,8 @@ body {
 }
 
 /* Colors per stage */
+.s0 { border-color: #00897b; background: #f0fffe; }
+.s0 .stage-num { color: #00897b; }
 .s1 { border-color: #e74c3c; background: #fff5f5; }
 .s1 .stage-num { color: #e74c3c; }
 .s2 { border-color: #e67e22; background: #fff8f0; }
@@ -347,7 +349,7 @@ body {
   <div>
     <h1>Customer Journey Map — Роль: Клиент</h1>
     <div class="meta">
-      ServiceDesk CRM &nbsp;·&nbsp; Версия 1.0 &nbsp;·&nbsp; 27.03.2026<br>
+      ServiceDesk CRM &nbsp;·&nbsp; Версия 1.1 &nbsp;·&nbsp; 03.04.2026<br>
       Охватывает UC-901, UC-903, UC-904, UC-906, UC-907 &nbsp;·&nbsp; BR-F-910 (уведомления)
     </div>
   </div>
@@ -383,6 +385,10 @@ body {
   <!-- ══ STAGE HEADERS ══ -->
   <div class="row-label first" style="background:#0f1724;font-size:11px;color:#8899bb;letter-spacing:0;text-transform:none;font-weight:400;">Этапы →</div>
 
+  <div class="stage-header s0">
+    <div class="stage-num">00</div>
+    <div class="stage-name">Получение<br>доступа</div>
+  </div>
   <div class="stage-header s1">
     <div class="stage-num">01</div>
     <div class="stage-name">Обнаружение<br>проблемы</div>
@@ -419,6 +425,14 @@ body {
   <!-- ══ ROW: ACTIONS ══ -->
   <div class="row-label row-actions">Действия<br>клиента</div>
 
+  <div class="cell row-actions s0">
+    <ul class="cell-actions">
+      <li>Получает email с временным паролем от менеджера банка</li>
+      <li>Переходит по ссылке на портал</li>
+      <li>Вводит email и временный пароль</li>
+      <li>Меняет пароль при первом входе</li>
+    </ul>
+  </div>
   <div class="cell row-actions s1">
     <ul class="cell-actions">
       <li>Замечает неисправность оборудования</li>
@@ -486,6 +500,10 @@ body {
   <!-- ══ ROW: THOUGHTS ══ -->
   <div class="row-label row-thoughts">Мысли<br>и ожидания</div>
 
+  <div class="cell row-thoughts s0">
+    <div class="thought">«Что это за система? Надо разобраться.»</div>
+    <div class="thought">«Надеюсь, войти будет просто.»</div>
+  </div>
   <div class="cell row-thoughts s1">
     <div class="thought">«Банкомат не работает — очередь растёт. Надо срочно сообщить.»</div>
     <div class="thought">«Как быстро они смогут приехать?»</div>
@@ -522,6 +540,12 @@ body {
   <!-- ══ ROW: EMOTION (individual) ══ -->
   <div class="row-label row-emotion" style="background:#fff;">Эмоция</div>
 
+  <div class="emotion-row row-emotion s0">
+    <div>
+      <div class="emoji" style="text-align:center;">🙂</div>
+      <div class="emo-label">Любопытство<br>Лёгкая тревога</div>
+    </div>
+  </div>
   <div class="emotion-row row-emotion s1">
     <div>
       <div class="emoji" style="text-align:center;">😤</div>
@@ -575,29 +599,30 @@ body {
   <div class="row-label" style="background:#fff8f0; border-bottom:1px solid #edf0f5;">Кривая<br>эмоций</div>
   <div style="grid-column: 2 / -1; background:#fff8f0; padding: 10px 20px 14px; border-bottom: 1px solid #edf0f5; position: relative;">
     <div style="display:flex; justify-content:space-between; font-size:9px; color:#aaa; margin-bottom:3px; padding:0 4%;">
-      <span>01</span><span>02</span><span>03</span><span>04</span><span>05</span><span>06</span><span>07</span><span>08</span>
+      <span>00</span><span>01</span><span>02</span><span>03</span><span>04</span><span>05</span><span>06</span><span>07</span><span>08</span>
     </div>
     <div style="position:relative; height:56px; margin:0 2%;">
-      <svg viewBox="0 0 700 56" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;overflow:visible;">
+      <svg viewBox="0 0 800 56" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;overflow:visible;">
         <!-- Grid lines -->
-        <line x1="0" y1="28" x2="700" y2="28" stroke="#e0e5ed" stroke-width="1" stroke-dasharray="4,3"/>
-        <line x1="0" y1="4"  x2="700" y2="4"  stroke="#e0e5ed" stroke-width=".5"/>
-        <line x1="0" y1="52" x2="700" y2="52" stroke="#e0e5ed" stroke-width=".5"/>
+        <line x1="0" y1="28" x2="800" y2="28" stroke="#e0e5ed" stroke-width="1" stroke-dasharray="4,3"/>
+        <line x1="0" y1="4"  x2="800" y2="4"  stroke="#e0e5ed" stroke-width=".5"/>
+        <line x1="0" y1="52" x2="800" y2="52" stroke="#e0e5ed" stroke-width=".5"/>
         <!-- Curve fill -->
-        <path d="M0,44 C50,44 80,48 100,44 C130,38 145,46 200,50 C240,53 250,48 300,34 C340,22 350,52 400,52 C440,52 460,18 500,12 C540,6 580,8 600,6 C620,4 660,8 700,10 L700,56 L0,56 Z"
+        <path d="M0,30 C30,30 60,32 100,34 C130,38 145,46 200,44 C250,42 270,48 300,50 C340,53 350,48 400,34 C440,22 450,52 500,52 C540,52 560,18 600,12 C640,6 680,8 700,6 C720,4 760,8 800,10 L800,56 L0,56 Z"
               fill="url(#curveGrad)" opacity="0.25"/>
         <!-- Curve line -->
-        <path d="M0,44 C50,44 80,48 100,44 C130,38 145,46 200,50 C240,53 250,48 300,34 C340,22 350,52 400,52 C440,52 460,18 500,12 C540,6 580,8 600,6 C620,4 660,8 700,10"
+        <path d="M0,30 C30,30 60,32 100,34 C130,38 145,46 200,44 C250,42 270,48 300,50 C340,53 350,48 400,34 C440,22 450,52 500,52 C540,52 560,18 600,12 C640,6 680,8 700,6 C720,4 760,8 800,10"
               fill="none" stroke="#e67e22" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
         <!-- Points -->
-        <circle cx="0"   cy="44" r="4" fill="#e74c3c"/>
-        <circle cx="100" cy="44" r="4" fill="#e67e22"/>
-        <circle cx="200" cy="50" r="4" fill="#f1c40f"/>
-        <circle cx="300" cy="34" r="4" fill="#27ae60"/>
-        <circle cx="400" cy="52" r="4" fill="#2980b9"/>
-        <circle cx="500" cy="12" r="4" fill="#8e44ad"/>
-        <circle cx="600" cy="6"  r="4" fill="#16a085"/>
-        <circle cx="700" cy="10" r="4" fill="#2c3e50"/>
+        <circle cx="0"   cy="30" r="4" fill="#00897b"/>
+        <circle cx="100" cy="34" r="4" fill="#e74c3c"/>
+        <circle cx="200" cy="44" r="4" fill="#e67e22"/>
+        <circle cx="300" cy="50" r="4" fill="#f1c40f"/>
+        <circle cx="400" cy="34" r="4" fill="#27ae60"/>
+        <circle cx="500" cy="52" r="4" fill="#2980b9"/>
+        <circle cx="600" cy="12" r="4" fill="#8e44ad"/>
+        <circle cx="700" cy="6"  r="4" fill="#16a085"/>
+        <circle cx="800" cy="10" r="4" fill="#2c3e50"/>
         <!-- Defs -->
         <defs>
           <linearGradient id="curveGrad" x1="0" y1="0" x2="0" y2="1">
@@ -618,6 +643,12 @@ body {
   <!-- ══ ROW: TOUCHPOINTS ══ -->
   <div class="row-label row-tp">Точки<br>касания</div>
 
+  <div class="cell row-tp s0">
+    <div class="tp-list">
+      <span class="tp tp-email">✉ Email с временным паролем</span>
+      <span class="tp tp-portal">🌐 Страница входа в портал</span>
+    </div>
+  </div>
   <div class="cell row-tp s1">
     <div class="tp-list">
       <span class="tp tp-portal">🌐 Веб-портал</span>
@@ -677,6 +708,11 @@ body {
   <!-- ══ ROW: PAIN POINTS ══ -->
   <div class="row-label row-pain" style="color:#c0392b;">Болевые<br>точки</div>
 
+  <div class="cell row-pain s0">
+    <div class="pain">Временный пароль приходит в произвольном письме — неочевидно</div>
+    <div class="pain">Нет подсказки «смените пароль» после первого входа</div>
+    <div class="pain">Неясно, что можно делать в системе — нет онбординга</div>
+  </div>
   <div class="cell row-pain s1">
     <div class="pain">Не знает, есть ли портал — возможно, будет звонить</div>
     <div class="pain">Нет чёткого SLA: «через сколько приедут?»</div>
@@ -714,6 +750,11 @@ body {
   <!-- ══ ROW: OPPORTUNITIES ══ -->
   <div class="row-label row-opp" style="color:#1a4d30;">Возможности<br>улучшения</div>
 
+  <div class="cell row-opp s0">
+    <div class="opp">Приветственное письмо с инструкцией + ссылкой на портал</div>
+    <div class="opp">Принудительная смена пароля при первом входе</div>
+    <div class="opp">Краткий онбординг (3 шага): заявки → оборудование → контакты</div>
+  </div>
   <div class="cell row-opp s1">
     <div class="opp">QR-код на оборудовании → мгновенная подача заявки</div>
     <div class="opp">Показывать SLA-обещание (например, «4 часа») при открытии заявки</div>
@@ -750,6 +791,10 @@ body {
   <!-- ══ ROW: KPI ══ -->
   <div class="row-label row-kpi last-row">Метрики<br>этапа</div>
 
+  <div class="cell row-kpi s0 last-row">
+    <div class="kpi"><strong>≤ 5 мин</strong>первый успешный вход</div>
+    <div class="kpi"><strong>% сменивших</strong>временный пароль в 1й день</div>
+  </div>
   <div class="cell row-kpi s1 last-row">
     <div class="kpi"><strong>— мин</strong>до открытия портала</div>
   </div>
