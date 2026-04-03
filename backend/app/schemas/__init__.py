@@ -91,10 +91,25 @@ class UserResponse(BaseModel):
 
 class ClientContactCreate(BaseModel):
     name: str
+    position: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
-    position: Optional[str] = None
+    is_primary: bool = False
     is_active: bool = True
+
+
+class ClientContactUpdate(BaseModel):
+    name: Optional[str] = None
+    position: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    is_primary: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+class ClientContactPortalAccess(BaseModel):
+    email: Optional[str] = None          # переопределить email для портала
+    portal_role: str = "client_user"     # client_user | client_admin
 
 
 class ClientContactResponse(BaseModel):
@@ -103,10 +118,22 @@ class ClientContactResponse(BaseModel):
     id: int
     client_id: int
     name: str
+    position: Optional[str]
     phone: Optional[str]
     email: Optional[str]
-    position: Optional[str]
+    is_primary: bool
     is_active: bool
+    portal_access: bool
+    portal_role: Optional[str]
+    portal_user_id: Optional[int]
+    created_by: Optional[int]
+    created_at: datetime
+    updated_at: datetime
+
+
+class ClientContactPortalGrantResponse(ClientContactResponse):
+    """Extended response after portal access grant — includes one-time password."""
+    temporary_password: Optional[str] = None
 
 
 # ── Clients ───────────────────────────────────────────────────────────────────

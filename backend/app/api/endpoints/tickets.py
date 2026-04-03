@@ -21,7 +21,7 @@ _TICKET_TYPE_TO_WORK_TYPE = {
     "installation": "installation",
     "diagnostics":  "unplanned_repair",
 }
-from app.api.deps import get_current_user, require_roles, _get_user_roles
+from app.api.deps import get_current_user, require_roles, _get_user_roles, get_client_scope
 from app.schemas import (
     TicketCreate, TicketUpdate, TicketResponse, TicketAssign,
     TicketStatusChange, CommentCreate, CommentResponse,
@@ -31,7 +31,7 @@ from app.schemas import (
 
 router = APIRouter()
 
-_MANAGE_ROLES = ("admin", "svc_mgr")
+_MANAGE_ROLES = ("admin", "svc_mgr", "client_user")
 _ADMIN = ("admin",)
 
 # SLA hours by priority
@@ -75,12 +75,16 @@ def list_tickets(
     size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
     user_roles = _get_user_roles(current_user)
     q = db.query(Ticket).options(joinedload(Ticket.client), joinedload(Ticket.assignee), joinedload(Ticket.creator), joinedload(Ticket.equipment).joinedload(Equipment.model)).filter(Ticket.is_deleted.is_(False))
 
+    # client_user sees only their organisation's tickets
+    if client_scope is not None:
+        q = q.filter(Ticket.client_id == client_scope)
     # Engineers see only their own tickets
-    if not any(r in user_roles for r in ("admin", "svc_mgr", "director")):
+    elif not any(r in user_roles for r in ("admin", "svc_mgr", "director", "manager", "sales_mgr")):
         q = q.filter(Ticket.assigned_to == current_user.id)
 
     if ticket_status:
@@ -108,7 +112,14 @@ def create_ticket(
     data: TicketCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(*_MANAGE_ROLES)),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
+    # client_user can only create tickets for their own organisation
+    if client_scope is not None and data.client_id != client_scope:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "FORBIDDEN", "message": "Можно создавать заявки только для своей организации"},
+        )
     now = datetime.utcnow()
     ticket = Ticket(
         number=_next_ticket_number(db),

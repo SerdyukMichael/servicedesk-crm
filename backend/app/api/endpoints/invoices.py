@@ -7,12 +7,12 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models import Invoice, InvoiceItem, User
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import get_current_user, require_roles, get_client_scope
 from app.schemas import InvoiceCreate, InvoiceUpdate, InvoiceResponse, PaginatedResponse
 
 router = APIRouter()
 
-_READ_ROLES = ("admin", "accountant", "director", "svc_mgr")
+_READ_ROLES = ("admin", "accountant", "director", "svc_mgr", "client_user")
 _WRITE_ROLES = ("admin", "accountant", "svc_mgr")
 _ADMIN = ("admin",)
 
@@ -38,11 +38,13 @@ def list_invoices(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_READ_ROLES)),
+    current_user: User = Depends(require_roles(*_READ_ROLES)),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
     q = db.query(Invoice)
-    if client_id:
-        q = q.filter(Invoice.client_id == client_id)
+    effective_client_id = client_scope if client_scope is not None else client_id
+    if effective_client_id:
+        q = q.filter(Invoice.client_id == effective_client_id)
     if inv_status:
         q = q.filter(Invoice.status == inv_status)
     total = q.count()

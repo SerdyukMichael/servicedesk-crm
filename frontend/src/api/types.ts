@@ -1,6 +1,6 @@
 // ===== Enums / literals =====
 
-export type UserRole = 'admin' | 'engineer' | 'manager' | 'svc_mgr' | 'director' | 'sales_mgr'
+export type UserRole = 'admin' | 'engineer' | 'manager' | 'svc_mgr' | 'director' | 'sales_mgr' | 'client_user'
 
 export type TicketStatus =
   | 'new'
@@ -31,6 +31,7 @@ export interface User {
   phone?: string
   roles: UserRole[]
   is_active: boolean
+  client_id?: number
   last_login?: string
   last_login_at?: string
   created_at: string
@@ -52,6 +53,8 @@ export interface Client {
   contacts?: ClientContact[]
 }
 
+export type ContactPortalRole = 'client_user' | 'client_admin'
+
 export interface ClientContact {
   id: number
   client_id: number
@@ -60,6 +63,12 @@ export interface ClientContact {
   phone?: string
   email?: string
   is_primary: boolean
+  is_active: boolean
+  portal_access: boolean
+  portal_role?: ContactPortalRole
+  created_by?: number
+  created_at: string
+  updated_at: string
 }
 
 export interface EquipmentModel {

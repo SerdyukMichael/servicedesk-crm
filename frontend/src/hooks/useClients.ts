@@ -53,3 +53,46 @@ export function useCreateClientContact(clientId: number) {
       qc.invalidateQueries({ queryKey: ['client-contacts', clientId] }),
   })
 }
+
+export function useUpdateClientContact(clientId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ contactId, data }: { contactId: number; data: Parameters<typeof api.updateClientContact>[2] }) =>
+      api.updateClientContact(clientId, contactId, data),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['client-contacts', clientId] }),
+  })
+}
+
+export function useDeactivateClientContact(clientId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (contactId: number) => api.deactivateClientContact(clientId, contactId),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['client-contacts', clientId] }),
+  })
+}
+
+export function useGrantPortalAccess(clientId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      contactId,
+      data,
+    }: {
+      contactId: number
+      data: Parameters<typeof api.grantPortalAccess>[2]
+    }) => api.grantPortalAccess(clientId, contactId, data),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['client-contacts', clientId] }),
+  })
+}
+
+export function useRevokePortalAccess(clientId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (contactId: number) => api.revokePortalAccess(clientId, contactId),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['client-contacts', clientId] }),
+  })
+}

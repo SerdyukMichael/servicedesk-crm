@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.models import Equipment, EquipmentModel, RepairHistory, User, Ticket
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import get_current_user, require_roles, get_client_scope
 from app.schemas import (
     EquipmentCreate, EquipmentUpdate, EquipmentResponse,
     EquipmentModelCreate, EquipmentModelUpdate, EquipmentModelResponse,
@@ -124,10 +124,13 @@ def list_equipment(
     size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
     q = db.query(Equipment).options(joinedload(Equipment.client), joinedload(Equipment.model)).filter(Equipment.is_deleted.is_(False))
-    if client_id is not None:
-        q = q.filter(Equipment.client_id == client_id)
+    # client_user sees only their organisation's equipment
+    effective_client_id = client_scope if client_scope is not None else client_id
+    if effective_client_id is not None:
+        q = q.filter(Equipment.client_id == effective_client_id)
     if eq_status:
         q = q.filter(Equipment.status == eq_status)
     total = q.count()

@@ -44,6 +44,7 @@
 | department | varchar(100) | | Подразделение (UC-801) |
 | password_hash | varchar(255) | NN | bcrypt |
 | roles | JSON | NN, default `["engineer"]` | Массив ролей: `["admin","svc_mgr"...]` — union прав (BR-F-801) |
+| client_id | integer | FK → clients.id, SET NULL, nullable | Заполняется только для роли `client_user` — организация клиента |
 | phone | varchar(32) | | Рабочий телефон |
 | telegram_chat_id | varchar(64) | | Telegram chat ID для уведомлений |
 | is_active | boolean | NN, default true | Активна ли учётная запись |
@@ -52,7 +53,7 @@
 | created_at | timestamp | NN | |
 | updated_at | timestamp | NN | |
 
-> **Допустимые роли:** `admin`, `sales_mgr`, `svc_mgr`, `engineer`, `manager`, `warehouse`, `accountant`, `director`
+> **Допустимые роли:** `admin`, `sales_mgr`, `svc_mgr`, `engineer`, `manager`, `warehouse`, `accountant`, `director`, `client_user`
 > Один сотрудник может иметь несколько ролей. Права = union всех ролей.
 
 **Связи:** `engineer_competencies(engineer_id)`, `absences(user_id)`, `tickets(assigned_engineer_id)`, `tickets(created_by_user_id)`, `work_acts(via ticket)`, `audit_log(user_id)`
@@ -146,7 +147,14 @@
 | phone | varchar(32) | | |
 | email | varchar(128) | | |
 | position | varchar(128) | | Должность |
+| is_primary | boolean | NN, default false | Основной контакт организации |
 | is_active | boolean | NN, default true | |
+| portal_access | boolean | NN, default false | Есть ли доступ к порталу |
+| portal_role | enum | nullable | `client_user` / `client_admin` |
+| portal_user_id | integer | FK → users.id, SET NULL, nullable | Учётная запись в `users` (создаётся при выдаче доступа) |
+| created_by | integer | FK → users.id, SET NULL | Кто создал |
+| created_at | timestamp | NN | |
+| updated_at | timestamp | NN | |
 
 ---
 

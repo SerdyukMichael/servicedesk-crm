@@ -6,24 +6,31 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import hash_password
 from app.models import User
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import get_current_user, require_roles, get_client_scope
 from app.schemas import UserCreate, UserUpdate, UserResponse, PaginatedResponse
 
 router = APIRouter()
 
-_READ_ROLES = ("admin", "svc_mgr", "director")
+_READ_ROLES = ("admin", "svc_mgr", "director", "client_user")
 _ADMIN = ("admin",)
 
 
 @router.get("", response_model=PaginatedResponse[UserResponse])
 def list_users(
     role: Optional[str] = Query(None),
+    is_active: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_READ_ROLES)),
+    current_user: User = Depends(require_roles(*_READ_ROLES)),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
     q = db.query(User).filter(User.is_deleted.is_(False))
+    # client_user sees only other users of the same organisation
+    if client_scope is not None:
+        q = q.filter(User.client_id == client_scope)
+    if is_active is not None:
+        q = q.filter(User.is_active.is_(is_active))
     if role:
         q = q.filter(User.roles.contains(role))
     total = q.count()

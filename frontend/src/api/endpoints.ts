@@ -65,14 +65,40 @@ export const updateClient = (id: number, data: Partial<Client>): Promise<Client>
 export const deleteClient = (id: number): Promise<void> =>
   api.delete(`/clients/${id}`).then(() => undefined)
 
-export const getClientContacts = (clientId: number): Promise<ClientContact[]> =>
-  api.get<ClientContact[]>(`/clients/${clientId}/contacts`).then(r => r.data)
+export const getClientContacts = (clientId: number, includeInactive = false): Promise<ClientContact[]> =>
+  api
+    .get<ClientContact[]>(`/clients/${clientId}/contacts`, { params: { include_inactive: includeInactive } })
+    .then(r => r.data)
 
 export const createClientContact = (
   clientId: number,
   data: Partial<ClientContact>
 ): Promise<ClientContact> =>
   api.post<ClientContact>(`/clients/${clientId}/contacts`, data).then(r => r.data)
+
+export const updateClientContact = (
+  clientId: number,
+  contactId: number,
+  data: Partial<ClientContact>
+): Promise<ClientContact> =>
+  api.put<ClientContact>(`/clients/${clientId}/contacts/${contactId}`, data).then(r => r.data)
+
+export const deactivateClientContact = (clientId: number, contactId: number): Promise<void> =>
+  api.delete(`/clients/${clientId}/contacts/${contactId}`).then(() => undefined)
+
+export const grantPortalAccess = (
+  clientId: number,
+  contactId: number,
+  data: { email?: string; portal_role: string }
+): Promise<ClientContact> =>
+  api
+    .post<ClientContact>(`/clients/${clientId}/contacts/${contactId}/portal-access`, data)
+    .then(r => r.data)
+
+export const revokePortalAccess = (clientId: number, contactId: number): Promise<ClientContact> =>
+  api
+    .delete<ClientContact>(`/clients/${clientId}/contacts/${contactId}/portal-access`)
+    .then(r => r.data)
 
 // ===== Equipment =====
 

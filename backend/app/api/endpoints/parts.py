@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models import SparePart, User
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import get_current_user, require_roles, get_client_scope
 from app.schemas import SparePartCreate, SparePartUpdate, SparePartResponse, StockAdjust, PaginatedResponse
 
 router = APIRouter()
@@ -22,7 +22,13 @@ def list_parts(
     size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
+    if client_scope is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "FORBIDDEN", "message": "Нет доступа к складу запчастей"},
+        )
     q = db.query(SparePart).filter(SparePart.is_active.is_(True))
     if category:
         q = q.filter(SparePart.category == category)
@@ -58,7 +64,13 @@ def get_part(
     part_id: int,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
+    if client_scope is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "FORBIDDEN", "message": "Нет доступа к складу запчастей"},
+        )
     part = db.query(SparePart).filter(SparePart.id == part_id).first()
     if not part:
         raise HTTPException(

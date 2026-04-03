@@ -5,14 +5,23 @@ import { ru } from 'date-fns/locale'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useClient, useClientContacts, useUpdateClient } from '../hooks/useClients'
+import {
+  useClient,
+  useClientContacts,
+  useCreateClientContact,
+  useUpdateClientContact,
+  useDeactivateClientContact,
+  useGrantPortalAccess,
+  useRevokePortalAccess,
+  useUpdateClient,
+} from '../hooks/useClients'
 import { useClientEquipment } from '../hooks/useEquipment'
 import { useClientTickets } from '../hooks/useTickets'
 import { useUsers } from '../hooks/useUsers'
 import { useAuth } from '../context/AuthContext'
 import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
-import type { ContractType } from '../api/types'
+import type { ClientContact, ContractType } from '../api/types'
 
 const editSchema = z.object({
   name: z.string().min(2, 'Введите название организации'),
@@ -30,6 +39,21 @@ type EditFormData = z.infer<typeof editSchema>
 
 type Tab = 'info' | 'contacts' | 'equipment' | 'tickets'
 
+const contactSchema = z.object({
+  name: z.string().min(1, 'Введите ФИО'),
+  position: z.preprocess(v => (v === '' ? undefined : v), z.string().optional()),
+  phone: z.preprocess(v => (v === '' ? undefined : v), z.string().optional()),
+  email: z.preprocess(v => (v === '' ? undefined : v), z.string().email('Некорректный email').optional()),
+  is_primary: z.boolean().default(false),
+})
+type ContactFormData = z.infer<typeof contactSchema>
+
+const portalSchema = z.object({
+  email: z.preprocess(v => (v === '' ? undefined : v), z.string().email('Некорректный email').optional()),
+  portal_role: z.enum(['client_user', 'client_admin']).default('client_user'),
+})
+type PortalFormData = z.infer<typeof portalSchema>
+
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
   full_service: 'Полное обслуживание',
   partial: 'Частичное',
@@ -46,11 +70,23 @@ export default function ClientDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('info')
   const [showEditModal, setShowEditModal] = useState(false)
 
+  // contact modals
+  const [showContactModal, setShowContactModal] = useState(false)
+  const [editingContact, setEditingContact] = useState<ClientContact | null>(null)
+  const [showPortalModal, setShowPortalModal] = useState(false)
+  const [portalContact, setPortalContact] = useState<ClientContact | null>(null)
+  const [deactivateTarget, setDeactivateTarget] = useState<ClientContact | null>(null)
+
   const { data: client, isLoading, isError } = useClient(clientId)
   const { data: contacts } = useClientContacts(clientId)
   const { data: equipment } = useClientEquipment(clientId)
   const { data: tickets } = useClientTickets(clientId)
   const updateClient = useUpdateClient(clientId)
+  const createContact = useCreateClientContact(clientId)
+  const updateContact = useUpdateClientContact(clientId)
+  const deactivateContact = useDeactivateClientContact(clientId)
+  const grantPortal = useGrantPortalAccess(clientId)
+  const revokePortal = useRevokePortalAccess(clientId)
   const { data: usersData } = useUsers({ size: 200, is_active: true })
 
   const canEdit = hasRole('admin', 'sales_mgr', 'svc_mgr')
@@ -61,6 +97,20 @@ export default function ClientDetailPage() {
     reset: resetEdit,
     formState: { errors: editErrors },
   } = useForm<EditFormData>({ resolver: zodResolver(editSchema) })
+
+  const {
+    register: regContact,
+    handleSubmit: handleContactSubmit,
+    reset: resetContact,
+    formState: { errors: contactErrors },
+  } = useForm<ContactFormData>({ resolver: zodResolver(contactSchema) })
+
+  const {
+    register: regPortal,
+    handleSubmit: handlePortalSubmit,
+    reset: resetPortal,
+    formState: { errors: portalErrors },
+  } = useForm<PortalFormData>({ resolver: zodResolver(portalSchema) })
 
   const openEdit = () => {
     resetEdit({
@@ -83,6 +133,55 @@ export default function ClientDetailPage() {
       contract_type: data.contract_type as ContractType | undefined,
     })
     setShowEditModal(false)
+  }
+
+  const openAddContact = () => {
+    setEditingContact(null)
+    resetContact({ name: '', position: '', phone: '', email: '', is_primary: false })
+    setShowContactModal(true)
+  }
+
+  const openEditContact = (c: ClientContact) => {
+    setEditingContact(c)
+    resetContact({
+      name: c.name,
+      position: c.position ?? '',
+      phone: c.phone ?? '',
+      email: c.email ?? '',
+      is_primary: c.is_primary,
+    })
+    setShowContactModal(true)
+  }
+
+  const onContactSubmit = async (data: ContactFormData) => {
+    if (editingContact) {
+      await updateContact.mutateAsync({ contactId: editingContact.id, data })
+    } else {
+      await createContact.mutateAsync(data)
+    }
+    setShowContactModal(false)
+  }
+
+  const onDeactivate = async () => {
+    if (!deactivateTarget) return
+    await deactivateContact.mutateAsync(deactivateTarget.id)
+    setDeactivateTarget(null)
+  }
+
+  const openPortalModal = (c: ClientContact) => {
+    setPortalContact(c)
+    resetPortal({ email: c.email ?? '', portal_role: c.portal_role ?? 'client_user' })
+    setShowPortalModal(true)
+  }
+
+  const onPortalSubmit = async (data: PortalFormData) => {
+    if (!portalContact) return
+    await grantPortal.mutateAsync({ contactId: portalContact.id, data })
+    setShowPortalModal(false)
+  }
+
+  const onRevokePortal = async (c: ClientContact) => {
+    await revokePortal.mutateAsync(c.id)
   }
 
   if (isLoading)
@@ -202,37 +301,265 @@ export default function ClientDetailPage() {
       )}
 
       {activeTab === 'contacts' && (
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Имя</th>
-                <th>Должность</th>
-                <th>Телефон</th>
-                <th>Email</th>
-                <th>Основной</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(!contacts || contacts.length === 0) && (
+        <>
+          {canEdit && (
+            <div style={{ marginBottom: 12 }}>
+              <button className="btn btn-primary" onClick={openAddContact}>
+                + Добавить контакт
+              </button>
+            </div>
+          )}
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                    Контакты не добавлены
-                  </td>
+                  <th>ФИО</th>
+                  <th>Должность</th>
+                  <th>Телефон</th>
+                  <th>Email</th>
+                  <th>Статус</th>
+                  <th>Портал</th>
+                  {canEdit && <th>Действия</th>}
                 </tr>
-              )}
-              {contacts?.map(c => (
-                <tr key={c.id}>
-                  <td style={{ fontWeight: 500 }}>{c.name}</td>
-                  <td>{c.position ?? '—'}</td>
-                  <td>{c.phone ?? '—'}</td>
-                  <td>{c.email ?? '—'}</td>
-                  <td>{c.is_primary ? '✓' : ''}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {(!contacts || contacts.length === 0) && (
+                  <tr>
+                    <td colSpan={canEdit ? 7 : 6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                      Контакты не добавлены
+                    </td>
+                  </tr>
+                )}
+                {contacts?.map(c => (
+                  <tr key={c.id} style={{ opacity: c.is_active ? 1 : 0.5 }}>
+                    <td style={{ fontWeight: 500 }}>
+                      {c.name}
+                      {c.is_primary && (
+                        <span
+                          style={{
+                            marginLeft: 6,
+                            fontSize: 10,
+                            background: 'var(--primary)',
+                            color: '#fff',
+                            borderRadius: 4,
+                            padding: '1px 5px',
+                            verticalAlign: 'middle',
+                          }}
+                        >
+                          основной
+                        </span>
+                      )}
+                    </td>
+                    <td>{c.position ?? '—'}</td>
+                    <td>{c.phone ?? '—'}</td>
+                    <td>{c.email ?? '—'}</td>
+                    <td>
+                      <span style={{ color: c.is_active ? 'var(--success)' : 'var(--text-muted)', fontSize: 12 }}>
+                        {c.is_active ? 'Активен' : 'Деактивирован'}
+                      </span>
+                    </td>
+                    <td>
+                      {c.portal_access ? (
+                        <span style={{ color: 'var(--success)', fontSize: 12 }}>
+                          Доступ выдан
+                          {c.portal_role === 'client_admin' ? ' (admin)' : ''}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Нет</span>
+                      )}
+                    </td>
+                    {canEdit && (
+                      <td>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ padding: '2px 8px', fontSize: 12 }}
+                            onClick={() => openEditContact(c)}
+                          >
+                            Редактировать
+                          </button>
+                          {c.is_active && (
+                            <>
+                              {c.portal_access ? (
+                                <button
+                                  className="btn btn-secondary"
+                                  style={{ padding: '2px 8px', fontSize: 12 }}
+                                  onClick={() => onRevokePortal(c)}
+                                  disabled={revokePortal.isPending}
+                                >
+                                  Отозвать портал
+                                </button>
+                              ) : (
+                                <button
+                                  className="btn btn-secondary"
+                                  style={{ padding: '2px 8px', fontSize: 12 }}
+                                  onClick={() => openPortalModal(c)}
+                                  disabled={!c.email}
+                                  title={!c.email ? 'Для выдачи доступа укажите email контакта' : undefined}
+                                >
+                                  Выдать доступ к порталу
+                                </button>
+                              )}
+                              <button
+                                className="btn btn-danger"
+                                style={{ padding: '2px 8px', fontSize: 12 }}
+                                onClick={() => setDeactivateTarget(c)}
+                              >
+                                Деактивировать
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Модал создания/редактирования контакта */}
+          {showContactModal && (
+            <div className="modal-overlay" onClick={() => setShowContactModal(false)}>
+              <div className="modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h3>{editingContact ? 'Редактировать контакт' : 'Добавить контакт'}</h3>
+                  <button className="modal-close" onClick={() => setShowContactModal(false)}>×</button>
+                </div>
+                <form onSubmit={handleContactSubmit(onContactSubmit)}>
+                  <div className="modal-body">
+                    <div className="form-group">
+                      <label className="form-label">ФИО <span className="required">*</span></label>
+                      <input
+                        type="text"
+                        className={`form-input${contactErrors.name ? ' error' : ''}`}
+                        {...regContact('name')}
+                      />
+                      {contactErrors.name && <span className="form-error">{contactErrors.name.message}</span>}
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Должность</label>
+                      <input type="text" className="form-input" {...regContact('position')} />
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">Телефон</label>
+                        <input type="text" className="form-input" {...regContact('phone')} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Email</label>
+                        <input
+                          type="email"
+                          className={`form-input${contactErrors.email ? ' error' : ''}`}
+                          {...regContact('email')}
+                        />
+                        {contactErrors.email && <span className="form-error">{contactErrors.email.message}</span>}
+                      </div>
+                    </div>
+                    <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input type="checkbox" id="is_primary" {...regContact('is_primary')} />
+                      <label htmlFor="is_primary" style={{ margin: 0 }}>
+                        Основной контакт организации
+                      </label>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowContactModal(false)}>
+                      Отмена
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={createContact.isPending || updateContact.isPending}
+                    >
+                      {createContact.isPending || updateContact.isPending ? 'Сохранение...' : 'Сохранить'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Модал выдачи доступа к порталу */}
+          {showPortalModal && portalContact && (
+            <div className="modal-overlay" onClick={() => setShowPortalModal(false)}>
+              <div className="modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h3>Выдать доступ к порталу</h3>
+                  <button className="modal-close" onClick={() => setShowPortalModal(false)}>×</button>
+                </div>
+                <form onSubmit={handlePortalSubmit(onPortalSubmit)}>
+                  <div className="modal-body">
+                    <p style={{ marginBottom: 12, color: 'var(--text-muted)' }}>
+                      Контакт: <strong>{portalContact.name}</strong>
+                    </p>
+                    <div className="form-group">
+                      <label className="form-label">Email для портала</label>
+                      <input
+                        type="email"
+                        className={`form-input${portalErrors.email ? ' error' : ''}`}
+                        {...regPortal('email')}
+                      />
+                      {portalErrors.email && <span className="form-error">{portalErrors.email.message}</span>}
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Роль на портале</label>
+                      <select className="form-select" {...regPortal('portal_role')}>
+                        <option value="client_user">Пользователь (client_user)</option>
+                        <option value="client_admin">Администратор (client_admin)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowPortalModal(false)}>
+                      Отмена
+                    </button>
+                    <button type="submit" className="btn btn-primary" disabled={grantPortal.isPending}>
+                      {grantPortal.isPending ? 'Выдаю...' : 'Выдать доступ'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Подтверждение деактивации */}
+          {deactivateTarget && (
+            <div className="modal-overlay" onClick={() => setDeactivateTarget(null)}>
+              <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+                <div className="modal-header">
+                  <h3>Деактивировать контакт</h3>
+                  <button className="modal-close" onClick={() => setDeactivateTarget(null)}>×</button>
+                </div>
+                <div className="modal-body">
+                  <p>
+                    Деактивировать контакт <strong>{deactivateTarget.name}</strong>?
+                  </p>
+                  {deactivateTarget.portal_access && (
+                    <p style={{ color: 'var(--warning)', marginTop: 8, fontSize: 13 }}>
+                      Контакт имеет доступ к порталу — после деактивации доступ будет отозван.
+                    </p>
+                  )}
+                  {deactivateTarget.is_primary && (
+                    <p style={{ color: 'var(--warning)', marginTop: 8, fontSize: 13 }}>
+                      {deactivateTarget.name} является основным контактом организации. После деактивации назначьте другой основной контакт.
+                    </p>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-secondary" onClick={() => setDeactivateTarget(null)}>Отмена</button>
+                  <button
+                    className="btn btn-danger"
+                    onClick={onDeactivate}
+                    disabled={deactivateContact.isPending}
+                  >
+                    {deactivateContact.isPending ? 'Деактивирую...' : 'Деактивировать'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {activeTab === 'equipment' && (

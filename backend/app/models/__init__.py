@@ -30,6 +30,7 @@ class User(Base):
     telegram_chat_id: Mapped[Optional[str]]  = mapped_column(String(64))
     is_active:        Mapped[bool]           = mapped_column(Boolean, default=True, nullable=False)
     is_deleted:       Mapped[bool]           = mapped_column(Boolean, default=False, nullable=False)
+    client_id:        Mapped[Optional[int]]  = mapped_column(ForeignKey("clients.id", ondelete="SET NULL"), nullable=True)
     last_login_at:    Mapped[Optional[datetime]] = mapped_column(DateTime)
     created_at:       Mapped[datetime]       = mapped_column(DateTime, default=func.now(), nullable=False)
     updated_at:       Mapped[datetime]       = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
@@ -81,15 +82,27 @@ class Client(Base):
 class ClientContact(Base):
     __tablename__ = "client_contacts"
 
-    id:        Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
-    client_id: Mapped[int]           = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
-    name:      Mapped[str]           = mapped_column(String(128), nullable=False)
-    phone:     Mapped[Optional[str]] = mapped_column(String(32))
-    email:     Mapped[Optional[str]] = mapped_column(String(128))
-    position:  Mapped[Optional[str]] = mapped_column(String(128))
-    is_active: Mapped[bool]          = mapped_column(Boolean, default=True, nullable=False)
+    id:            Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
+    client_id:     Mapped[int]           = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
+    name:          Mapped[str]           = mapped_column(String(128), nullable=False)
+    phone:         Mapped[Optional[str]] = mapped_column(String(32))
+    email:         Mapped[Optional[str]] = mapped_column(String(128))
+    position:      Mapped[Optional[str]] = mapped_column(String(128))
+    is_primary:    Mapped[bool]          = mapped_column(Boolean, default=False, nullable=False)
+    is_active:     Mapped[bool]          = mapped_column(Boolean, default=True, nullable=False)
+    portal_access: Mapped[bool]          = mapped_column(Boolean, default=False, nullable=False)
+    portal_role:   Mapped[Optional[str]] = mapped_column(
+        Enum("client_user", "client_admin", name="contact_portal_role_enum"),
+        nullable=True,
+    )
+    portal_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by:    Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at:    Mapped[datetime]      = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at:    Mapped[datetime]      = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
-    client: Mapped["Client"] = relationship("Client", back_populates="contacts")
+    client:      Mapped["Client"]        = relationship("Client", back_populates="contacts")
+    portal_user: Mapped[Optional["User"]] = relationship("User", foreign_keys=[portal_user_id])
+    creator:     Mapped[Optional["User"]] = relationship("User", foreign_keys=[created_by])
 
 
 # ── Equipment Models ──────────────────────────────────────────────────────────

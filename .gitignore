@@ -15,7 +15,7 @@ build/
 # Test / E2E output
 frontend/e2e-report/
 frontend/test-results/
-tests/
+frontend/tests/
 
 # Archives
 *.zip

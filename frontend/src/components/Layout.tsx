@@ -19,6 +19,7 @@ const ROLE_LABELS: Record<string, string> = {
   svc_mgr: 'Руководитель сервиса',
   director: 'Директор',
   sales_mgr: 'Менеджер продаж',
+  client_user: 'Пользователь клиента',
 }
 
 export default function Layout() {
@@ -26,7 +27,8 @@ export default function Layout() {
   const { data: unreadData } = useUnreadCount()
   const unreadCount = unreadData?.count ?? 0
 
-  const showUsers = hasRole('admin', 'svc_mgr', 'director')
+  const isClientUser = hasRole('client_user')
+  const showUsers = hasRole('admin', 'svc_mgr', 'director', 'client_user')
 
   const initials = user?.full_name
     ? user.full_name
@@ -54,7 +56,7 @@ export default function Layout() {
         </div>
 
         <nav className="sidebar-nav">
-          {NAV_ITEMS.map(item => (
+          {NAV_ITEMS.filter(item => !(isClientUser && item.to === '/parts')).map(item => (
             <NavLink
               key={item.to}
               to={item.to}

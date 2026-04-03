@@ -57,7 +57,7 @@ export default function App() {
           <Route
             path="equipment-models"
             element={
-              <PrivateRoute roles={['admin', 'svc_mgr', 'engineer', 'director', 'sales_mgr', 'manager']}>
+              <PrivateRoute roles={['admin', 'svc_mgr', 'engineer', 'director', 'sales_mgr', 'manager', 'client_user']}>
                 <EquipmentModelsPage />
               </PrivateRoute>
             }
@@ -67,7 +67,7 @@ export default function App() {
           <Route
             path="users"
             element={
-              <PrivateRoute roles={['admin', 'svc_mgr', 'director']}>
+              <PrivateRoute roles={['admin', 'svc_mgr', 'director', 'client_user']}>
                 <UsersPage />
               </PrivateRoute>
             }

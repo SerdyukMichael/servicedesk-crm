@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import json
 
 from app.core.database import get_db
@@ -61,3 +61,15 @@ def require_roles(*roles: str):
         return current_user
 
     return _check
+
+
+def get_client_scope(current_user: User = Depends(get_current_user)) -> Optional[int]:
+    """Return client_id if the current user is a client_user, else None.
+
+    Endpoints use this to enforce row-level filtering: when not None, only
+    records belonging to that client_id are visible.
+    """
+    user_roles = _get_user_roles(current_user)
+    if "client_user" in user_roles:
+        return current_user.client_id
+    return None
