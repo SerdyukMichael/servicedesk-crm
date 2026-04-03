@@ -176,13 +176,9 @@ def update_ticket(
     data: TicketUpdate,
     db: Session = Depends(get_db),
     _: User = Depends(require_roles(*_MANAGE_ROLES)),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False)).first()
-    if not ticket:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "NOT_FOUND", "message": "Заявка не найдена"},
-        )
+    ticket = _require_ticket(db, ticket_id, client_scope)
     for k, v in data.model_dump(exclude_none=True).items():
         setattr(ticket, k, v)
     db.commit()
@@ -212,14 +208,10 @@ def assign_ticket(
     ticket_id: int,
     data: TicketAssign,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_MANAGE_ROLES)),
+    _: User = Depends(require_roles("admin", "svc_mgr")),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False)).first()
-    if not ticket:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "NOT_FOUND", "message": "Заявка не найдена"},
-        )
+    ticket = _require_ticket(db, ticket_id, client_scope)
     engineer = db.query(User).filter(User.id == data.engineer_id, User.is_deleted.is_(False)).first()
     if not engineer:
         raise HTTPException(
@@ -240,20 +232,18 @@ def assign_ticket(
     return ticket
 
 
+_STATUS_ROLES = ("admin", "svc_mgr", "engineer", "client_user")
+
 @router.patch("/{ticket_id}/status", response_model=TicketResponse)
 @router.post("/{ticket_id}/status", response_model=TicketResponse)
 def change_ticket_status(
     ticket_id: int,
     data: TicketStatusChange,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(*_STATUS_ROLES)),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False)).first()
-    if not ticket:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "NOT_FOUND", "message": "Заявка не найдена"},
-        )
+    ticket = _require_ticket(db, ticket_id, client_scope)
     allowed = _TRANSITIONS.get(ticket.status, [])
     if data.status not in allowed:
         raise HTTPException(
@@ -475,8 +465,11 @@ def download_attachment_direct(
     ticket_id: int,
     file_id: int,
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    """Download endpoint without JWT auth — accessible via direct browser link."""
+    """Download attachment. Requires authentication."""
+    _require_ticket(db, ticket_id, client_scope)
     f = db.query(TicketFile).filter(TicketFile.id == file_id, TicketFile.ticket_id == ticket_id).first()
     if not f:
         raise HTTPException(

@@ -8,17 +8,17 @@ import app.models  # noqa: F401 — ensure all models are registered with SQLAlc
 app = FastAPI(
     title=settings.app_name,
     version="2.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
     redirect_slashes=False,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # в продакшене заменить на конкретные домены
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 

@@ -1,0 +1,34 @@
+# Оверрайд для ЛОКАЛЬНОЙ РАЗРАБОТКИ.
+# Docker Compose подхватывает этот файл автоматически (docker compose up).
+# На продакшен-сервере этот файл НЕ должен присутствовать.
+
+services:
+
+  mysql:
+    ports:
+      - "3306:3306"   # доступ к БД из IDE/DBeaver на localhost
+
+  redis:
+    ports:
+      - "6379:6379"   # доступ из redis-cli на localhost
+    command: redis-server  # без пароля для удобства локальной разработки
+
+  backend:
+    ports:
+      - "8000:8000"   # прямой доступ к Swagger UI на localhost:8000
+    volumes:
+      - ./backend:/app  # hot-reload: изменения кода сразу видны без пересборки
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  celery_worker:
+    volumes:
+      - ./backend:/app
+
+  celery_beat:
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    ports:
+      - "80:80"
+    volumes: []  # SSL не нужен локально

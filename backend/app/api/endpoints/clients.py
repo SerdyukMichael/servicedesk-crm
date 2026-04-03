@@ -249,7 +249,13 @@ def list_contacts(
     include_inactive: bool = Query(False),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
+    if client_scope is not None and client_id != client_scope:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Клиент не найден"},
+        )
     _get_active_client(db, client_id)
     q = db.query(ClientContact).filter(ClientContact.client_id == client_id)
     if not include_inactive:
@@ -503,7 +509,13 @@ def list_client_equipment(
     client_id: int,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
+    if client_scope is not None and client_id != client_scope:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Клиент не найден"},
+        )
     _get_active_client(db, client_id)
     return (
         db.query(Equipment)
@@ -518,7 +530,13 @@ def list_client_tickets(
     client_id: int,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
+    if client_scope is not None and client_id != client_scope:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Клиент не найден"},
+        )
     _get_active_client(db, client_id)
     return (
         db.query(Ticket)

@@ -446,7 +446,7 @@ class TestTicketFilesDownload:
     def test_download_text_returns_inline(self, client, db):
         ticket, svc_hdrs = self._ticket_and_headers(client, db)
         url = self._upload_and_get_url(client, svc_hdrs, ticket["id"], "note.txt", b"hello", "text/plain")
-        res = client.get(url)
+        res = client.get(url, headers=svc_hdrs)
         assert res.status_code == 200
         assert "text/plain" in res.headers["content-type"]
         assert res.headers["content-disposition"].startswith("inline")
@@ -455,7 +455,7 @@ class TestTicketFilesDownload:
         ticket, svc_hdrs = self._ticket_and_headers(client, db)
         jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 50
         url = self._upload_and_get_url(client, svc_hdrs, ticket["id"], "photo.jpg", jpeg, "image/jpeg")
-        res = client.get(url)
+        res = client.get(url, headers=svc_hdrs)
         assert res.status_code == 200
         assert res.headers["content-type"] == "image/jpeg"
         assert res.headers["content-disposition"].startswith("inline")
@@ -464,7 +464,7 @@ class TestTicketFilesDownload:
         ticket, svc_hdrs = self._ticket_and_headers(client, db)
         png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 50
         url = self._upload_and_get_url(client, svc_hdrs, ticket["id"], "img.png", png, "image/png")
-        res = client.get(url)
+        res = client.get(url, headers=svc_hdrs)
         assert res.status_code == 200
         assert res.headers["content-disposition"].startswith("inline")
 
@@ -473,7 +473,7 @@ class TestTicketFilesDownload:
         url = self._upload_and_get_url(
             client, svc_hdrs, ticket["id"], "dump.bin", b"\x00\x01", "application/octet-stream"
         )
-        res = client.get(url)
+        res = client.get(url, headers=svc_hdrs)
         assert res.status_code == 200
         assert res.headers["content-disposition"].startswith("attachment")
 
@@ -484,7 +484,7 @@ class TestTicketFilesDownload:
         url = self._upload_and_get_url(
             client, svc_hdrs, ticket["id"], "Вертикальная зима 3.jpg", jpeg, "image/jpeg"
         )
-        res = client.get(url)
+        res = client.get(url, headers=svc_hdrs)
         assert res.status_code == 200
 
     def test_download_cyrillic_filename_uses_rfc5987(self, client, db):
@@ -493,7 +493,7 @@ class TestTicketFilesDownload:
         url = self._upload_and_get_url(
             client, svc_hdrs, ticket["id"], "Акт выполненных работ.txt", b"text", "text/plain"
         )
-        res = client.get(url)
+        res = client.get(url, headers=svc_hdrs)
         assert res.status_code == 200
         cd = res.headers["content-disposition"]
         assert "filename*=UTF-8''" in cd
@@ -507,13 +507,16 @@ class TestTicketFilesDownload:
         url = self._upload_and_get_url(
             client, svc_hdrs, ticket["id"], "check.txt", payload, "text/plain"
         )
-        res = client.get(url)
+        res = client.get(url, headers=svc_hdrs)
         assert res.status_code == 200
         assert res.content == payload
 
     def test_download_nonexistent_file_returns_404(self, client, db):
         ticket, svc_hdrs = self._ticket_and_headers(client, db)
-        res = client.get(f"/api/v1/tickets/{ticket['id']}/attachments/999999/download")
+        res = client.get(
+            f"/api/v1/tickets/{ticket['id']}/attachments/999999/download",
+            headers=svc_hdrs,
+        )
         assert res.status_code == 404
 
     def test_download_file_wrong_ticket_returns_404(self, client, db):
@@ -522,7 +525,10 @@ class TestTicketFilesDownload:
         url = self._upload_and_get_url(client, svc_hdrs, ticket["id"], "f.txt", b"x", "text/plain")
         file_id = url.split("/")[-2]
         # Запрашиваем тот же file_id через другой ticket_id
-        res = client.get(f"/api/v1/tickets/999999/attachments/{file_id}/download")
+        res = client.get(
+            f"/api/v1/tickets/999999/attachments/{file_id}/download",
+            headers=svc_hdrs,
+        )
         assert res.status_code == 404
 
 

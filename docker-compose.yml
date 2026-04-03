@@ -7,17 +7,16 @@ services:
     container_name: servicedesk_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-servicedesk}
       MYSQL_USER: ${MYSQL_USER:-sduser}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-sdpass}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     command: >
       --max-allowed-packet=26214400
       --innodb-buffer-pool-size=268435456
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
-    ports:
-      - "3306:3306"
+    # ports НЕ пробрасываются наружу: MySQL доступен только внутри Docker-сети
     volumes:
       - mysql_data:/var/lib/mysql
       - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -31,10 +30,10 @@ services:
     image: redis:7-alpine
     container_name: servicedesk_redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    # ports НЕ пробрасываются наружу: Redis доступен только внутри Docker-сети
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,15 +43,14 @@ services:
     container_name: servicedesk_api
     restart: unless-stopped
     env_file: ./backend/.env
-    ports:
-      - "8000:8000"
+    # port 8000 НЕ пробрасывается наружу: API доступен через Nginx
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
+    # volumes с исходным кодом НЕ монтируются в продакшене
+    # код уже запечён в образ через Dockerfile
 
   celery_worker:
     build: ./backend
@@ -65,8 +63,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
+    # volumes с исходным кодом НЕ монтируются в продакшене
 
   celery_beat:
     build: ./backend
@@ -79,8 +76,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
+    # volumes с исходным кодом НЕ монтируются в продакшене
 
   frontend:
     build: ./frontend
@@ -88,6 +84,9 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./ssl:/etc/ssl/servicedesk:ro   # сертификаты Let's Encrypt
     depends_on:
       - backend
 

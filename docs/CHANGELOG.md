@@ -1,5 +1,85 @@
 # CHANGELOG
 
+## [0.6.0] — 2026-04-03
+
+**Security hardening** — закрыты критические и высокие уязвимости перед выкладкой на внешний сервер.
+
+**Ключевые изменения:**
+
+- Инфраструктура: порты MySQL, Redis и backend-API закрыты от внешнего доступа; исходный код больше не монтируется в production-контейнер
+- CORS: `allow_origins=["*"]` заменён на список разрешённых доменов через переменную окружения `ALLOWED_ORIGINS`
+- HTTPS: готовый `nginx.prod.conf` с TLS 1.2/1.3, HSTS, OCSP stapling, полным набором security headers и HTTP→HTTPS redirect
+- Rate limiting: 5 попыток входа в минуту на `/auth/login` через nginx
+- Swagger UI (`/docs`, `/redoc`) отключён в production через флаг `DEBUG`
+- Download endpoint файлов вложений защищён JWT-аутентификацией и row-level фильтрацией
+- `client_user` не может редактировать заявки чужой организации (S-05)
+- `client_user` не может просматривать контакты, оборудование и заявки через `/clients/{id}/contacts|equipment|tickets` чужой организации (S-06)
+- `assign_ticket` закрыт для роли `client_user` (только `admin`, `svc_mgr`)
+- `change_ticket_status` требует явной роли (`admin`, `svc_mgr`, `engineer`, `client_user`) и соблюдает row-level фильтрацию
+- 20 новых тестов безопасности (345 всего)
+
+### Инфраструктура
+
+#### docker-compose.yml
+
+- Порты `3306`, `6379`, `8000` больше не пробрасываются на хост — сервисы доступны только внутри Docker-сети
+- Volume-mount исходного кода (`./backend:/app`) убран из production-конфига
+- Redis теперь требует пароль (`${REDIS_PASSWORD}`)
+- Дефолтные значения паролей убраны из compose-файла
+
+#### docker-compose.override.yml (новый)
+
+- Dev-оверрайд: Docker Compose подхватывает автоматически на localhost
+- Возвращает dev-порты, volume-mount'ы и `--reload` только для локальной разработки
+- На продакшен-сервере этот файл не должен присутствовать
+
+#### frontend/nginx.conf
+
+- `limit_req_zone` + `limit_req` на `/api/v1/auth/login`: 5 req/min, burst=3
+- Security headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`
+
+#### frontend/nginx.prod.conf (новый)
+
+- HTTP→HTTPS redirect (port 80 → 443)
+- TLS 1.2/1.3, современные cipher suites, OCSP stapling, session cache
+- `Strict-Transport-Security` (HSTS, 1 год)
+- `Content-Security-Policy`, `Permissions-Policy`, полный набор security headers
+- Пути к сертификатам Let's Encrypt: `./ssl/fullchain.pem`, `./ssl/privkey.pem`
+
+### Backend
+
+#### CORS (S-02)
+
+- `backend/app/core/config.py` — добавлена настройка `allowed_origins: List[str]` с разумными dev-дефолтами
+- `backend/app/main.py` — `allow_origins` берётся из `settings.allowed_origins`; `allow_methods` и `allow_headers` сужены до необходимых; Swagger отключён при `DEBUG=false`
+
+#### Аутентификация на download endpoint (S-04)
+
+- `GET /tickets/{id}/attachments/{fid}/download` — добавлены `Depends(get_current_user)` и `client_scope`; анонимный доступ возвращает 401; `client_user` получает 404 при попытке скачать файл чужой организации
+
+#### Row-level security: tickets (S-05, S-11)
+
+- `PUT /tickets/{id}` — добавлен `client_scope`; `client_user` получает 404 при попытке изменить чужую заявку
+- `PATCH /tickets/{id}/assign` — роль `client_user` удалена из разрешённых; только `admin`, `svc_mgr`
+- `PATCH /tickets/{id}/status` — добавлены `require_roles("admin","svc_mgr","engineer","client_user")` и `client_scope`
+
+#### Row-level security: client sub-resources (S-06)
+
+- `GET /clients/{id}/contacts` — добавлен `client_scope`; 404 при попытке просмотреть контакты чужой организации
+- `GET /clients/{id}/equipment` — аналогично
+- `GET /clients/{id}/tickets` — аналогично
+
+### Документация
+
+- `docs/security-audit.md` — отчёт аудита безопасности (19 уязвимостей, оценки, рекомендации)
+
+### Тесты
+
+- `backend/tests/test_security_fixes.py` — 20 тестов: S-04 (download auth), S-05 (update/assign row-level), S-06 (sub-resource row-level), S-11 (status change roles)
+- `backend/tests/test_tickets.py` — обновлён `TestTicketFilesDownload`: все вызовы download с auth headers
+
+---
+
 ## [0.5.0] — 2026-04-03
 
 **Портал самообслуживания клиента (UC-301)** — роль `client_user`, изоляция данных по организации, управление комментариями и подпись актов.

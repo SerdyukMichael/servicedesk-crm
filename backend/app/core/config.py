@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, List
 
 
 class Settings(BaseSettings):
@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     smtp_password: Optional[str] = None
     telegram_bot_token: Optional[str] = None
     max_file_size_mb: int = 20
+    # CORS: укажите реальный домен фронтенда в .env, например:
+    # ALLOWED_ORIGINS=https://crm.example.com
+    # Для локальной разработки: ALLOWED_ORIGINS=http://localhost,http://localhost:5173
+    allowed_origins: List[str] = ["http://localhost", "http://localhost:5173", "http://localhost:80"]
 
     class Config:
         env_file = ".env"
