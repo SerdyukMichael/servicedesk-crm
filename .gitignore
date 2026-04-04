@@ -30,3 +30,7 @@ Thumbs.db
 
 # Claude Code memory
 .claude/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key

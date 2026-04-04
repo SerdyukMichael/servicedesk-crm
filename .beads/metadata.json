@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "servicedesk_crm",
+  "project_id": "dff3581c-6781-4439-980a-673b79db97a8"
+}
