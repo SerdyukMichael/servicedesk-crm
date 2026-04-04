@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 from urllib.parse import quote
 
+import magic as _magic
+
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
@@ -13,6 +15,50 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.config import settings
 from app.core.database import get_db
 from app.models import Ticket, TicketComment, TicketFile, WorkAct, User, RepairHistory, Equipment, EquipmentModel, TicketStatusHistory
+
+# MIME-типы, запрещённые к загрузке (хранимый XSS через SVG/HTML/JS)
+_BLOCKED_MIME_TYPES = frozenset({
+    "text/html",
+    "image/svg+xml",
+    "application/javascript",
+    "text/javascript",
+    "application/x-javascript",
+    "application/xhtml+xml",
+})
+
+# MIME-типы, которые браузер открывает inline (остальные — attachment)
+_SAFE_INLINE_TYPES = frozenset({
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "application/pdf",
+})
+
+
+def _validate_and_detect_mime(data: bytes) -> str:
+    """Определить реальный MIME по содержимому файла. Отклонить опасные типы."""
+    detected = _magic.from_buffer(data, mime=True) or "application/octet-stream"
+    if detected in _BLOCKED_MIME_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "VALIDATION_ERROR",
+                "message": "Тип файла не разрешён для загрузки",
+            },
+        )
+    # Дополнительная проверка: блокировать SVG/скриптовый контент в текстовых файлах
+    if detected.startswith("text/"):
+        sample = data[:2048].lower()
+        if b"<svg" in sample or b"<script" in sample or b"<!doctype html" in sample:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "VALIDATION_ERROR",
+                    "message": "Тип файла не разрешён для загрузки",
+                },
+            )
+    return detected
+
 
 # Ticket type → repair history work_type
 _TICKET_TYPE_TO_WORK_TYPE = {
@@ -381,11 +427,12 @@ async def upload_attachment(
                 "message": f"Файл превышает максимальный размер {settings.max_file_size_mb} МБ",
             },
         )
+    detected_mime = _validate_and_detect_mime(data)
     attachment = TicketFile(
         ticket_id=ticket_id,
         uploaded_by=current_user.id,
         file_name=file.filename or "file",
-        file_type=file.content_type,
+        file_type=detected_mime,
         file_size=len(data),
         file_data=data,
     )
@@ -450,8 +497,7 @@ def download_attachment(
             detail={"error": "NOT_FOUND", "message": "Файл не найден"},
         )
     mime = f.file_type or "application/octet-stream"
-    inline_types = ("image/", "text/")
-    disposition = "inline" if any(mime.startswith(t) for t in inline_types) else "attachment"
+    disposition = "inline" if mime in _SAFE_INLINE_TYPES else "attachment"
     encoded_name = quote(f.file_name, safe="")
     return Response(
         content=f.file_data,
@@ -477,9 +523,8 @@ def download_attachment_direct(
             detail={"error": "NOT_FOUND", "message": "Файл не найден"},
         )
     mime = f.file_type or "application/octet-stream"
-    # Images and text open inline in the browser tab; other types are downloaded
-    inline_types = ("image/", "text/")
-    disposition = "inline" if any(mime.startswith(t) for t in inline_types) else "attachment"
+    # Только явно безопасные типы открываются inline; всё остальное — attachment
+    disposition = "inline" if mime in _SAFE_INLINE_TYPES else "attachment"
     # RFC 5987: encode non-ASCII filename so Cyrillic/etc. don't crash latin-1 header encoding
     encoded_name = quote(f.file_name, safe="")
     content_disposition = f"{disposition}; filename*=UTF-8''{encoded_name}"

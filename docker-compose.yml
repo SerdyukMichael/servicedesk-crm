@@ -79,7 +79,10 @@ services:
     # volumes с исходным кодом НЕ монтируются в продакшене
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        NGINX_CONF: nginx.prod.conf
     container_name: servicedesk_web
     restart: unless-stopped
     ports:

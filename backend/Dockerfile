@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Зависимости системы (нужны для pymysql/cryptography)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    default-libmysqlclient-dev gcc curl \
+    default-libmysqlclient-dev gcc curl libmagic1t64 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

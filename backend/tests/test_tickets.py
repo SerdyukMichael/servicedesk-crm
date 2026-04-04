@@ -362,7 +362,12 @@ class TestTicketFilesUpload:
 
     def test_upload_png(self, client, db):
         ticket, svc_hdrs = self._ticket(client, db)
-        png_content = b"\x89PNG\r\n\x1a\n" + b"\x00" * 50
+        # Minimal valid 1x1 PNG (libmagic requires full PNG structure)
+        png_content = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00"
+            b"\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
         res = _upload(client, svc_hdrs, ticket["id"], "screenshot.png", png_content, "image/png")
         assert res.status_code == 201
         assert res.json()["file_type"] == "image/png"
@@ -430,6 +435,69 @@ class TestTicketFilesUpload:
         assert res.status_code == 401
 
 
+class TestTicketFilesSecurityS15:
+    """S-15: валидация файлов по magic bytes — блокировка SVG/HTML/JS."""
+
+    def _ticket(self, client, db):
+        _, svc_hdrs, _, cl, eq, _ = _setup(db)
+        ticket = _create_ticket(client, svc_hdrs, cl.id, eq.id)
+        return ticket, svc_hdrs
+
+    def test_upload_html_rejected(self, client, db):
+        """HTML-файл отклоняется даже с маскировкой под text/plain (S-15)."""
+        ticket, svc_hdrs = self._ticket(client, db)
+        html_content = b"<html><body><script>alert(1)</script></body></html>"
+        res = _upload(client, svc_hdrs, ticket["id"], "page.html", html_content, "text/plain")
+        assert res.status_code == 400
+        assert res.json()["error"] == "VALIDATION_ERROR"
+
+    def test_upload_svg_xss_rejected(self, client, db):
+        """SVG с XSS-пейлоадом отклоняется даже под именем image.jpg (S-15)."""
+        ticket, svc_hdrs = self._ticket(client, db)
+        svg_content = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+        res = _upload(client, svc_hdrs, ticket["id"], "image.jpg", svg_content, "image/jpeg")
+        assert res.status_code == 400
+        assert res.json()["error"] == "VALIDATION_ERROR"
+
+    def test_upload_doctype_html_rejected(self, client, db):
+        """DOCTYPE html отклоняется (S-15)."""
+        ticket, svc_hdrs = self._ticket(client, db)
+        html_content = b"<!doctype html><html><body>hack</body></html>"
+        res = _upload(client, svc_hdrs, ticket["id"], "doc.txt", html_content, "text/plain")
+        assert res.status_code == 400
+
+    def test_upload_jpeg_magic_accepted(self, client, db):
+        """JPEG с правильными magic bytes принимается (контроль — не overblock)."""
+        ticket, svc_hdrs = self._ticket(client, db)
+        jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 100
+        res = _upload(client, svc_hdrs, ticket["id"], "photo.jpg", jpeg, "image/jpeg")
+        assert res.status_code == 201
+
+    def test_upload_uses_detected_mime_not_client_mime(self, client, db):
+        """Сохранённый file_type берётся из magic bytes, а не из Content-Type запроса."""
+        ticket, svc_hdrs = self._ticket(client, db)
+        jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 100
+        # Клиент говорит text/plain, но magic bytes — JPEG
+        res = _upload(client, svc_hdrs, ticket["id"], "photo.jpg", jpeg, "text/plain")
+        assert res.status_code == 201
+        assert res.json()["file_type"] == "image/jpeg"
+
+    def test_download_image_inline_pdf_inline(self, client, db):
+        """JPEG и PDF открываются inline; остальные — attachment."""
+        ticket, svc_hdrs = self._ticket(client, db)
+        jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 100
+        url = _upload(client, svc_hdrs, ticket["id"], "img.jpg", jpeg, "image/jpeg").json()["file_url"]
+        res = client.get(url, headers=svc_hdrs)
+        assert res.headers["content-disposition"].startswith("inline")
+
+    def test_download_text_plain_attachment(self, client, db):
+        """text/plain отдаётся как attachment, не inline (S-15)."""
+        ticket, svc_hdrs = self._ticket(client, db)
+        url = _upload(client, svc_hdrs, ticket["id"], "note.txt", b"safe text", "text/plain").json()["file_url"]
+        res = client.get(url, headers=svc_hdrs)
+        assert res.headers["content-disposition"].startswith("attachment")
+
+
 class TestTicketFilesDownload:
     """Download: Content-Disposition, Content-Type, Cyrillic filenames, 404."""
 
@@ -443,13 +511,14 @@ class TestTicketFilesDownload:
         ticket = _create_ticket(client, svc_hdrs, cl.id, eq.id)
         return ticket, svc_hdrs
 
-    def test_download_text_returns_inline(self, client, db):
+    def test_download_text_returns_attachment(self, client, db):
+        """text/plain не открывается inline — только attachment (S-15)."""
         ticket, svc_hdrs = self._ticket_and_headers(client, db)
         url = self._upload_and_get_url(client, svc_hdrs, ticket["id"], "note.txt", b"hello", "text/plain")
         res = client.get(url, headers=svc_hdrs)
         assert res.status_code == 200
         assert "text/plain" in res.headers["content-type"]
-        assert res.headers["content-disposition"].startswith("inline")
+        assert res.headers["content-disposition"].startswith("attachment")
 
     def test_download_jpeg_returns_inline(self, client, db):
         ticket, svc_hdrs = self._ticket_and_headers(client, db)
@@ -462,7 +531,11 @@ class TestTicketFilesDownload:
 
     def test_download_png_returns_inline(self, client, db):
         ticket, svc_hdrs = self._ticket_and_headers(client, db)
-        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 50
+        png = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00"
+            b"\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
         url = self._upload_and_get_url(client, svc_hdrs, ticket["id"], "img.png", png, "image/png")
         res = client.get(url, headers=svc_hdrs)
         assert res.status_code == 200
