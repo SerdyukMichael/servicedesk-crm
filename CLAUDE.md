@@ -4,6 +4,15 @@
 
 ---
 
+## Терминология
+
+| Термин | Значение |
+|--------|---------|
+| Локальный стенд | Docker Compose на машине разработчика — для разработки и тестов |
+| Боевой сервер | Удалённый сервер 188.120.243.122 — production |
+
+---
+
 ## Стек технологий
 
 | Слой | Технология |
@@ -240,6 +249,56 @@ Secrets: `SERVER_HOST`, `SERVER_USER`, `SERVER_SSH_KEY`
 ### Документы по запросу (не обновлять автоматически)
 
 `RTM.md`, `RACI.md`, `CJM_Client.html`, `BRD`, `Appendix` — обновляются только по явной просьбе пользователя (перед демо, ревью, планированием спринта).
+
+---
+
+## Процесс релиза
+
+Полный spec: `docs/superpowers/specs/2026-04-06-release-workflow-design.md`
+
+### 6 шагов релиза
+
+1. **Разработка** — код + тесты (`docker compose exec backend pytest tests/ -v`)
+2. **Проверка** — разработчик проверяет на локальном стенде, фиксируем замечания
+3. **Формирование релиза** (Claude, по команде):
+   - Создать `releases/vX.Y.Z/CHANGES.md` (Frontend / Backend / Database / Инфраструктура / Документы)
+   - Сгенерировать `releases/vX.Y.Z/db_migrations.sql`:
+     ```bash
+     docker compose exec backend alembic upgrade head --sql > releases/vX.Y.Z/db_migrations.sql
+     ```
+   - Показать оба файла разработчику
+4. **Одобрение** — разработчик читает артефакты и даёт ОК
+5. **Git** (Claude, после ОК):
+   ```bash
+   git add .
+   git commit -m "feat: vX.Y.Z — краткое название"
+   git tag vX.Y.Z
+   git push && git push --tags
+   ```
+6. **Деплой на боевой сервер** (Claude):
+   ```bash
+   # SSH на 188.120.243.122 → cd ~/servicedesk-crm
+   git pull origin main
+   docker compose up -d --build
+   docker compose exec backend alembic upgrade head
+   ```
+
+### Версионирование
+
+| Сегмент | Когда меняется |
+|---------|---------------|
+| X (major) | Breaking changes, кардинальная смена архитектуры |
+| Y (minor) | Новая функциональность (UC, модуль) |
+| Z (patch) | Багфиксы без новых фич |
+
+### Структура releases/
+
+```
+releases/
+└── vX.Y.Z/
+    ├── CHANGES.md        # что изменилось по модулям
+    └── db_migrations.sql # SQL-дамп Alembic-миграций для проверки
+```
 
 ---
 
