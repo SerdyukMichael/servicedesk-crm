@@ -127,6 +127,18 @@ export function useCreateWorkAct(ticketId: number) {
   })
 }
 
+export function useUpdateWorkAct(ticketId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Parameters<typeof api.updateWorkAct>[1]) =>
+      api.updateWorkAct(ticketId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['work-act', ticketId] })
+      qc.invalidateQueries({ queryKey: ['ticket', ticketId] })
+    },
+  })
+}
+
 export function useSignWorkAct(ticketId: number) {
   const qc = useQueryClient()
   return useMutation({
