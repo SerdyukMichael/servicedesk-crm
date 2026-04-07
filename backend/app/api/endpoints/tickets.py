@@ -72,7 +72,7 @@ from app.api.deps import get_current_user, require_roles, _get_user_roles, get_c
 from app.schemas import (
     TicketCreate, TicketUpdate, TicketResponse, TicketAssign,
     TicketStatusChange, CommentCreate, CommentResponse,
-    WorkActCreate, WorkActResponse, PaginatedResponse,
+    WorkActCreate, WorkActUpdate, WorkActResponse, PaginatedResponse,
     TicketStatusHistoryResponse,
 )
 
@@ -602,6 +602,61 @@ def get_work_act(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "NOT_FOUND", "message": "Акт выполненных работ не найден"},
         )
+    return act
+
+
+@router.patch("/{ticket_id}/work-act", response_model=WorkActResponse)
+def update_work_act(
+    ticket_id: int,
+    data: WorkActUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("engineer", "svc_mgr", "admin")),
+):
+    _require_ticket(db, ticket_id)
+    act = (
+        db.query(WorkAct)
+        .options(joinedload(WorkAct.items))
+        .filter(WorkAct.ticket_id == ticket_id)
+        .first()
+    )
+    if not act:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Акт выполненных работ не найден"},
+        )
+    if act.signed_by is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "FORBIDDEN", "message": "Акт подписан и не может быть изменён"},
+        )
+
+    if data.work_description is not None:
+        act.work_description = data.work_description
+    if data.total_time_minutes is not None:
+        act.total_time_minutes = data.total_time_minutes
+    if data.parts_used is not None:
+        act.parts_used = data.parts_used
+
+    if data.items is not None:
+        # Full replace: delete all existing items, insert new ones
+        db.query(WorkActItem).filter(WorkActItem.work_act_id == act.id).delete()
+        for i, item_data in enumerate(data.items):
+            total = (item_data.quantity * item_data.unit_price).quantize(Decimal("0.01"))
+            db.add(WorkActItem(
+                work_act_id=act.id,
+                item_type=item_data.item_type,
+                service_id=item_data.service_id,
+                part_id=item_data.part_id,
+                name=item_data.name,
+                quantity=item_data.quantity,
+                unit=item_data.unit,
+                unit_price=item_data.unit_price,
+                total=total,
+                sort_order=item_data.sort_order if item_data.sort_order else i,
+            ))
+
+    db.commit()
+    db.refresh(act)
     return act
 
 

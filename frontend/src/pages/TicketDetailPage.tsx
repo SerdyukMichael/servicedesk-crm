@@ -12,6 +12,7 @@ import {
   useAssignEngineer,
   useChangeTicketStatus,
   useCreateWorkAct,
+  useUpdateWorkAct,
   useSignWorkAct,
   useUploadAttachment,
 } from '../hooks/useTickets'
@@ -88,6 +89,7 @@ export default function TicketDetailPage() {
   const statusMutation = useChangeTicketStatus(ticketId)
   const addComment = useAddComment(ticketId)
   const createWorkAct = useCreateWorkAct(ticketId)
+  const updateWorkAct = useUpdateWorkAct(ticketId)
   const signWorkAct = useSignWorkAct(ticketId)
   const uploadAttachment = useUploadAttachment(ticketId)
 
@@ -98,6 +100,7 @@ export default function TicketDetailPage() {
   const [workActDesc, setWorkActDesc] = useState('')
   const [workActPerformed, setWorkActPerformed] = useState('')
   const [showWorkActForm, setShowWorkActForm] = useState(false)
+  const [isEditingAct, setIsEditingAct] = useState(false)
   const [actItems, setActItems] = useState<WorkActItemCreate[]>([])
   const [invoiceFromActError, setInvoiceFromActError] = useState<string | null>(null)
 
@@ -149,11 +152,43 @@ export default function TicketDetailPage() {
     )
   }
 
-  const handleCreateWorkAct = () => {
-    createWorkAct.mutate(
-      { work_description: workActDesc, work_performed: workActPerformed, items: actItems },
-      { onSuccess: () => { setShowWorkActForm(false); setActItems([]) } }
+  const handleSubmitWorkAct = () => {
+    const onSuccess = () => {
+      setShowWorkActForm(false)
+      setIsEditingAct(false)
+      setActItems([])
+      setWorkActDesc('')
+    }
+    if (isEditingAct) {
+      updateWorkAct.mutate(
+        { work_description: workActDesc, items: actItems },
+        { onSuccess }
+      )
+    } else {
+      createWorkAct.mutate(
+        { work_description: workActDesc, work_performed: workActPerformed, items: actItems },
+        { onSuccess }
+      )
+    }
+  }
+
+  const handleEditWorkAct = () => {
+    if (!workAct) return
+    setWorkActDesc(workAct.work_description ?? '')
+    setActItems(
+      (workAct.items ?? []).map(item => ({
+        item_type: item.item_type as WorkActItemType,
+        service_id: item.service_id ?? undefined,
+        part_id: item.part_id ?? undefined,
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        unit_price: item.unit_price,
+        sort_order: item.sort_order,
+      }))
     )
+    setIsEditingAct(true)
+    setShowWorkActForm(true)
   }
 
   const addActItem = () => {
@@ -328,9 +363,36 @@ export default function TicketDetailPage() {
               {canCreateAct && !workAct && (
                 <button
                   className="btn btn-secondary btn-sm"
-                  onClick={() => setShowWorkActForm(v => !v)}
+                  onClick={() => {
+                    if (showWorkActForm) {
+                      setShowWorkActForm(false)
+                      setIsEditingAct(false)
+                      setActItems([])
+                      setWorkActDesc('')
+                    } else {
+                      setIsEditingAct(false)
+                      setShowWorkActForm(true)
+                    }
+                  }}
                 >
                   {showWorkActForm ? 'Отмена' : '+ Создать акт'}
+                </button>
+              )}
+              {canCreateAct && workAct && !workAct.signed_by && (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    if (showWorkActForm && isEditingAct) {
+                      setShowWorkActForm(false)
+                      setIsEditingAct(false)
+                      setActItems([])
+                      setWorkActDesc('')
+                    } else {
+                      handleEditWorkAct()
+                    }
+                  }}
+                >
+                  {showWorkActForm && isEditingAct ? 'Отмена' : 'Редактировать акт'}
                 </button>
               )}
             </div>
@@ -464,10 +526,12 @@ export default function TicketDetailPage() {
 
                   <button
                     className="btn btn-primary btn-sm"
-                    onClick={handleCreateWorkAct}
-                    disabled={createWorkAct.isPending}
+                    onClick={handleSubmitWorkAct}
+                    disabled={createWorkAct.isPending || updateWorkAct.isPending}
                   >
-                    {createWorkAct.isPending ? 'Создание...' : 'Создать акт'}
+                    {(createWorkAct.isPending || updateWorkAct.isPending)
+                      ? 'Сохранение...'
+                      : isEditingAct ? 'Сохранить изменения' : 'Создать акт'}
                   </button>
                 </div>
               )}
@@ -488,15 +552,9 @@ export default function TicketDetailPage() {
                       </span>
                     </li>
                     <li>
-                      <span className="info-list-label">Подпись инженера</span>
+                      <span className="info-list-label">Подпись</span>
                       <span className="info-list-value">
-                        {workAct.signed_by_engineer ? '✓ Подписан' : 'Не подписан'}
-                      </span>
-                    </li>
-                    <li>
-                      <span className="info-list-label">Подпись клиента</span>
-                      <span className="info-list-value">
-                        {workAct.signed_by_client ? '✓ Подписан' : 'Не подписан'}
+                        {workAct.signed_by ? '✓ Подписан' : 'Не подписан'}
                       </span>
                     </li>
                   </ul>
@@ -553,7 +611,7 @@ export default function TicketDetailPage() {
                   )}
 
                   <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                    {canSignAct && !workAct.signed_by_client && (
+                    {canSignAct && !workAct.signed_by && (
                       <button
                         className="btn btn-success btn-sm"
                         onClick={() => signWorkAct.mutate('client')}

@@ -213,6 +213,12 @@ export const createWorkAct = (
 ): Promise<WorkAct> =>
   api.post<WorkAct>(`/tickets/${ticketId}/work-act`, data).then(r => r.data)
 
+export const updateWorkAct = (
+  ticketId: number,
+  data: { work_description?: string; total_time_minutes?: number; items?: WorkActItemCreate[] }
+): Promise<WorkAct> =>
+  api.patch<WorkAct>(`/tickets/${ticketId}/work-act`, data).then(r => r.data)
+
 export const signWorkAct = (
   ticketId: number,
   role: 'engineer' | 'client'

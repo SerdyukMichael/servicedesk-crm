@@ -199,6 +199,7 @@ export interface WorkActItemCreate {
   quantity: string
   unit: string
   unit_price: string
+  sort_order?: number
 }
 
 export interface WorkAct {
@@ -210,8 +211,7 @@ export interface WorkAct {
   work_performed?: string
   parts_used?: WorkActPart[]
   items?: WorkActItem[]
-  signed_by_engineer?: boolean
-  signed_by_client?: boolean
+  signed_by?: number | null
   signed_at?: string
   created_at: string
 }

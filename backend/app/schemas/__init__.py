@@ -504,6 +504,13 @@ class WorkActCreate(BaseModel):
     items: List[WorkActItemCreate] = []    # новые структурированные позиции
 
 
+class WorkActUpdate(BaseModel):
+    work_description: Optional[str] = None
+    parts_used: Optional[Any] = None
+    total_time_minutes: Optional[int] = None
+    items: Optional[List[WorkActItemCreate]] = None  # None = не менять, [] = удалить все
+
+
 class WorkActResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
