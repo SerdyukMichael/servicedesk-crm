@@ -20,7 +20,7 @@ os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 from sqlalchemy import text  # noqa: E402
 from app.core.database import Base, get_db  # noqa: E402
 from app.main import app                    # noqa: E402
-from app.models import User, Client, Equipment, EquipmentModel, Ticket, SparePart, Vendor, WorkTemplate, WorkTemplateStep, NotificationSetting  # noqa: E402
+from app.models import User, Client, Equipment, EquipmentModel, Ticket, SparePart, Vendor, WorkTemplate, WorkTemplateStep, NotificationSetting, ServiceCatalog  # noqa: E402
 from app.core.security import hash_password, create_access_token  # noqa: E402
 
 # ── In-memory SQLite engine ───────────────────────────────────────────────────
@@ -185,6 +185,22 @@ def make_spare_part(db, sku="SKU-001", quantity=10, min_quantity=2):
     db.commit()
     db.refresh(p)
     return p
+
+
+def make_service_catalog_item(db, code="SRV-001", name="Диагностика", unit_price=1500.00, category="diagnostics"):
+    item = ServiceCatalog(
+        code=code,
+        name=name,
+        category=category,
+        unit="pcs",
+        unit_price=unit_price,
+        currency="RUB",
+        is_active=True,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
 
 
 def make_vendor(db, name="Test Vendor"):

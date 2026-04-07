@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/equipment', icon: '💻', label: 'Оборудование' },
   { to: '/equipment-models', icon: '📋', label: 'Модели' },
   { to: '/parts', icon: '📦', label: 'Склад' },
+  { to: '/service-catalog', icon: '💰', label: 'Прайс-лист' },
   { to: '/invoices', icon: '📄', label: 'Счета' },
   { to: '/notifications', icon: '🔔', label: 'Уведомления', badge: true },
 ]

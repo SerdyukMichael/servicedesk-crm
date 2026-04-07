@@ -10,6 +10,7 @@ from app.api.endpoints import (
     vendors,
     invoices,
     notifications,
+    service_catalog,
 )
 
 api_router = APIRouter()
@@ -23,4 +24,5 @@ api_router.include_router(work_templates.router, prefix="/work-templates", tags=
 api_router.include_router(parts.router,          prefix="/parts",          tags=["Склад"])
 api_router.include_router(vendors.router,        prefix="/vendors",        tags=["Вендоры"])
 api_router.include_router(invoices.router,       prefix="/invoices",       tags=["Счета"])
-api_router.include_router(notifications.router,  prefix="/notifications",  tags=["Уведомления"])
+api_router.include_router(notifications.router,   prefix="/notifications",   tags=["Уведомления"])
+api_router.include_router(service_catalog.router, prefix="/service-catalog", tags=["Прайс-лист услуг"])

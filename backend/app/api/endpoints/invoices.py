@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models import Invoice, InvoiceItem, User
+from app.models import Invoice, InvoiceItem, User, Ticket, WorkAct, WorkActItem
 from app.api.deps import get_current_user, require_roles, get_client_scope
 from app.schemas import InvoiceCreate, InvoiceUpdate, InvoiceResponse, PaginatedResponse
 
@@ -199,6 +199,69 @@ def pay_invoice(
     db.commit()
     db.refresh(inv)
     return inv
+
+
+@router.post("/from-act/{ticket_id}", response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)
+def create_invoice_from_act(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*_WRITE_ROLES)),
+):
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False)).first()
+    if not ticket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Заявка не найдена"},
+        )
+    work_act = db.query(WorkAct).filter(WorkAct.ticket_id == ticket_id).first()
+    if not work_act:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Акт выполненных работ не найден. Сначала сохраните акт"},
+        )
+
+    invoice = Invoice(
+        number=_next_invoice_number(db),
+        client_id=ticket.client_id,
+        ticket_id=ticket_id,
+        type="mixed",
+        issue_date=date.today(),
+        vat_rate=Decimal("20.00"),
+        created_by=current_user.id,
+        subtotal=Decimal("0"),
+        vat_amount=Decimal("0"),
+        total_amount=Decimal("0"),
+    )
+    db.add(invoice)
+    db.flush()
+
+    act_items = (
+        db.query(WorkActItem)
+        .filter(WorkActItem.work_act_id == work_act.id)
+        .order_by(WorkActItem.sort_order)
+        .all()
+    )
+    for i, act_item in enumerate(act_items):
+        inv_item = InvoiceItem(
+            invoice_id=invoice.id,
+            description=act_item.name,
+            quantity=act_item.quantity,
+            unit=act_item.unit,
+            unit_price=act_item.unit_price,
+            total=act_item.total,
+            sort_order=i,
+            item_type=act_item.item_type,
+            service_id=act_item.service_id,
+            part_id=act_item.part_id,
+        )
+        db.add(inv_item)
+
+    db.flush()
+    db.refresh(invoice)
+    _recalculate(invoice)
+    db.commit()
+    db.refresh(invoice)
+    return invoice
 
 
 def _get_or_404(db: Session, invoice_id: int) -> Invoice:

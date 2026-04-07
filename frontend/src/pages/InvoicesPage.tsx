@@ -142,10 +142,10 @@ export default function InvoicesPage() {
                         </span>
                       </td>
                       <td style={{ fontWeight: 500 }}>
-                        {inv.total_amount.toLocaleString('ru-RU')} ₽
+                        {parseFloat(String(inv.total_amount)).toLocaleString('ru-RU')} ₽
                       </td>
                       <td>
-                        {format(parseISO(inv.issued_date), 'dd.MM.yyyy', { locale: ru })}
+                        {format(parseISO(inv.issue_date), 'dd.MM.yyyy', { locale: ru })}
                       </td>
                       <td>
                         {inv.due_date ? (

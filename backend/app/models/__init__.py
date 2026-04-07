@@ -297,6 +297,57 @@ class WorkAct(Base):
     ticket:   Mapped["Ticket"]          = relationship("Ticket", back_populates="work_act")
     engineer: Mapped["User"]            = relationship("User", foreign_keys=[engineer_id], back_populates="work_acts_engineer")
     signer:   Mapped[Optional["User"]]  = relationship("User", foreign_keys=[signed_by], back_populates="work_acts_signed")
+    items:    Mapped[List["WorkActItem"]] = relationship("WorkActItem", back_populates="work_act", cascade="all, delete-orphan", order_by="WorkActItem.sort_order")
+
+
+# ── Service Catalog ───────────────────────────────────────────────────────────
+class ServiceCatalog(Base):
+    __tablename__ = "service_catalog"
+
+    id:          Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code:        Mapped[str]           = mapped_column(String(32), unique=True, nullable=False, index=True)
+    name:        Mapped[str]           = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    category:    Mapped[str]           = mapped_column(
+        Enum("repair", "maintenance", "diagnostics", "visit", "other",
+             name="service_category_enum"),
+        default="other", nullable=False
+    )
+    unit:        Mapped[str]           = mapped_column(
+        Enum("pcs", "hour", "visit", "kit", name="service_unit_enum"),
+        default="pcs", nullable=False
+    )
+    unit_price:  Mapped[Decimal]       = mapped_column(DECIMAL(12, 2), nullable=False, default=0)
+    currency:    Mapped[str]           = mapped_column(String(3), default="RUB", nullable=False)
+    is_active:   Mapped[bool]          = mapped_column(Boolean, default=True, nullable=False)
+    created_at:  Mapped[datetime]      = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at:  Mapped[datetime]      = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    work_act_items: Mapped[List["WorkActItem"]] = relationship("WorkActItem", back_populates="service")
+
+
+# ── Work Act Items ────────────────────────────────────────────────────────────
+class WorkActItem(Base):
+    __tablename__ = "work_act_items"
+
+    id:          Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
+    work_act_id: Mapped[int]           = mapped_column(ForeignKey("work_acts.id", ondelete="CASCADE"), nullable=False)
+    item_type:   Mapped[str]           = mapped_column(
+        Enum("service", "part", name="work_act_item_type_enum"),
+        nullable=False
+    )
+    service_id:  Mapped[Optional[int]] = mapped_column(ForeignKey("service_catalog.id", ondelete="RESTRICT"), nullable=True)
+    part_id:     Mapped[Optional[int]] = mapped_column(ForeignKey("spare_parts.id", ondelete="RESTRICT"), nullable=True)
+    name:        Mapped[str]           = mapped_column(String(255), nullable=False)
+    quantity:    Mapped[Decimal]       = mapped_column(DECIMAL(10, 3), nullable=False, default=1)
+    unit:        Mapped[str]           = mapped_column(String(16), nullable=False, default="шт")
+    unit_price:  Mapped[Decimal]       = mapped_column(DECIMAL(12, 2), nullable=False, default=0)
+    total:       Mapped[Decimal]       = mapped_column(DECIMAL(14, 2), nullable=False, default=0)
+    sort_order:  Mapped[int]           = mapped_column(Integer, default=0, nullable=False)
+
+    work_act: Mapped["WorkAct"]                  = relationship("WorkAct", back_populates="items")
+    service:  Mapped[Optional["ServiceCatalog"]] = relationship("ServiceCatalog", back_populates="work_act_items")
+    part:     Mapped[Optional["SparePart"]]      = relationship("SparePart")
 
 
 # ── Vendors ───────────────────────────────────────────────────────────────────
@@ -373,14 +424,20 @@ class Invoice(Base):
 class InvoiceItem(Base):
     __tablename__ = "invoice_items"
 
-    id:          Mapped[int]     = mapped_column(Integer, primary_key=True, autoincrement=True)
-    invoice_id:  Mapped[int]     = mapped_column(ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False)
-    description: Mapped[str]     = mapped_column(String(512), nullable=False)
-    quantity:    Mapped[Decimal] = mapped_column(DECIMAL(10, 3), default=1, nullable=False)
-    unit:        Mapped[str]     = mapped_column(String(16), default="шт", nullable=False)
-    unit_price:  Mapped[Decimal] = mapped_column(DECIMAL(12, 2), nullable=False)
-    total:       Mapped[Decimal] = mapped_column(DECIMAL(14, 2), nullable=False)
-    sort_order:  Mapped[int]     = mapped_column(Integer, default=0, nullable=False)
+    id:          Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
+    invoice_id:  Mapped[int]           = mapped_column(ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False)
+    description: Mapped[str]           = mapped_column(String(512), nullable=False)
+    quantity:    Mapped[Decimal]       = mapped_column(DECIMAL(10, 3), default=1, nullable=False)
+    unit:        Mapped[str]           = mapped_column(String(16), default="шт", nullable=False)
+    unit_price:  Mapped[Decimal]       = mapped_column(DECIMAL(12, 2), nullable=False)
+    total:       Mapped[Decimal]       = mapped_column(DECIMAL(14, 2), nullable=False)
+    sort_order:  Mapped[int]           = mapped_column(Integer, default=0, nullable=False)
+    item_type:   Mapped[Optional[str]] = mapped_column(
+        Enum("service", "part", "manual", name="invoice_item_type_enum"),
+        nullable=True
+    )
+    service_id:  Mapped[Optional[int]] = mapped_column(ForeignKey("service_catalog.id", ondelete="RESTRICT"), nullable=True)
+    part_id:     Mapped[Optional[int]] = mapped_column(ForeignKey("spare_parts.id", ondelete="RESTRICT"), nullable=True)
 
     invoice: Mapped["Invoice"] = relationship("Invoice", back_populates="items")
 
@@ -470,6 +527,8 @@ __all__ = [
     "TicketComment",
     "TicketFile",
     "WorkAct",
+    "ServiceCatalog",
+    "WorkActItem",
     "Vendor",
     "SparePart",
     "Invoice",

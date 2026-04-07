@@ -17,9 +17,13 @@ import {
 } from '../hooks/useTickets'
 import { useUsers } from '../hooks/useUsers'
 import { useAuth } from '../context/AuthContext'
+import { useServiceCatalog } from '../hooks/useServiceCatalog'
+import { useParts } from '../hooks/useParts'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { createInvoiceFromAct } from '../api/endpoints'
 import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
-import type { TicketStatus } from '../api/types'
+import type { TicketStatus, WorkActItemCreate, WorkActItemType } from '../api/types'
 
 const STATUS_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   new: ['cancelled'],
@@ -63,6 +67,22 @@ export default function TicketDetailPage() {
   const { data: statusHistory } = useTicketStatusHistory(ticketId)
   const { data: workAct } = useWorkAct(ticketId)
   const { data: usersData } = useUsers({ role: 'engineer', size: 100 })
+  const { data: serviceCatalog } = useServiceCatalog({ size: 200 })
+  const { data: partsData } = useParts({ size: 200 })
+  const qc = useQueryClient()
+  const createInvoiceFromActMutation = useMutation({
+    mutationFn: () => createInvoiceFromAct(ticketId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      setInvoiceFromActError(null)
+    },
+    onError: (err: unknown) => {
+      const detail = (err as { response?: { data?: { detail?: { message?: string } | string } } })
+        ?.response?.data?.detail
+      const msg = typeof detail === 'object' ? detail?.message : detail
+      setInvoiceFromActError(msg ?? 'Ошибка создания счёта')
+    },
+  })
 
   const assignMutation = useAssignEngineer(ticketId)
   const statusMutation = useChangeTicketStatus(ticketId)
@@ -78,6 +98,8 @@ export default function TicketDetailPage() {
   const [workActDesc, setWorkActDesc] = useState('')
   const [workActPerformed, setWorkActPerformed] = useState('')
   const [showWorkActForm, setShowWorkActForm] = useState(false)
+  const [actItems, setActItems] = useState<WorkActItemCreate[]>([])
+  const [invoiceFromActError, setInvoiceFromActError] = useState<string | null>(null)
 
   if (isLoading)
     return (
@@ -129,9 +151,51 @@ export default function TicketDetailPage() {
 
   const handleCreateWorkAct = () => {
     createWorkAct.mutate(
-      { description: workActDesc, work_performed: workActPerformed },
-      { onSuccess: () => setShowWorkActForm(false) }
+      { work_description: workActDesc, work_performed: workActPerformed, items: actItems },
+      { onSuccess: () => { setShowWorkActForm(false); setActItems([]) } }
     )
+  }
+
+  const addActItem = () => {
+    setActItems(prev => [...prev, {
+      item_type: 'service' as WorkActItemType,
+      name: '',
+      quantity: '1',
+      unit: 'шт',
+      unit_price: '0',
+    }])
+  }
+
+  const removeActItem = (idx: number) => {
+    setActItems(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const updateActItem = (idx: number, patch: Partial<WorkActItemCreate>) => {
+    setActItems(prev => prev.map((item, i) => i === idx ? { ...item, ...patch } : item))
+  }
+
+  const selectServiceForItem = (idx: number, serviceId: number) => {
+    const svc = serviceCatalog?.items.find(s => s.id === serviceId)
+    if (!svc) return
+    updateActItem(idx, {
+      service_id: serviceId,
+      part_id: undefined,
+      name: svc.name,
+      unit: svc.unit === 'pcs' ? 'шт' : svc.unit === 'hour' ? 'час' : svc.unit === 'visit' ? 'визит' : 'компл.',
+      unit_price: svc.unit_price,
+    })
+  }
+
+  const selectPartForItem = (idx: number, partId: number) => {
+    const part = partsData?.items.find(p => p.id === partId)
+    if (!part) return
+    updateActItem(idx, {
+      part_id: partId,
+      service_id: undefined,
+      name: part.name,
+      unit: 'шт',
+      unit_price: String(part.price),
+    })
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -291,6 +355,113 @@ export default function TicketDetailPage() {
                       placeholder="Детали выполненных работ..."
                     />
                   </div>
+
+                  {/* Act items */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <label className="form-label" style={{ margin: 0 }}>Позиции акта</label>
+                      <button className="btn btn-secondary btn-sm" type="button" onClick={addActItem}>
+                        + Добавить позицию
+                      </button>
+                    </div>
+                    {actItems.length > 0 && (
+                      <div style={{ border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+                        {actItems.map((item, idx) => (
+                          <div key={idx} style={{ padding: 10, borderBottom: idx < actItems.length - 1 ? '1px solid var(--border)' : 'none', background: idx % 2 === 0 ? 'var(--surface)' : 'transparent' }}>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                              <select
+                                className="form-select"
+                                style={{ width: 110, flex: 'none' }}
+                                value={item.item_type}
+                                onChange={e => updateActItem(idx, { item_type: e.target.value as WorkActItemType, service_id: undefined, part_id: undefined, name: '' })}
+                              >
+                                <option value="service">Услуга</option>
+                                <option value="part">Запчасть</option>
+                              </select>
+
+                              {item.item_type === 'service' ? (
+                                <select
+                                  className="form-select"
+                                  style={{ flex: 1, minWidth: 160 }}
+                                  value={item.service_id ?? ''}
+                                  onChange={e => e.target.value ? selectServiceForItem(idx, parseInt(e.target.value)) : updateActItem(idx, { service_id: undefined, name: '' })}
+                                >
+                                  <option value="">— выбрать услугу —</option>
+                                  {serviceCatalog?.items.filter(s => s.is_active).map(s => (
+                                    <option key={s.id} value={s.id}>{s.name} ({parseFloat(s.unit_price).toLocaleString('ru-RU')} ₽)</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <select
+                                  className="form-select"
+                                  style={{ flex: 1, minWidth: 160 }}
+                                  value={item.part_id ?? ''}
+                                  onChange={e => e.target.value ? selectPartForItem(idx, parseInt(e.target.value)) : updateActItem(idx, { part_id: undefined, name: '' })}
+                                >
+                                  <option value="">— выбрать запчасть —</option>
+                                  {partsData?.items.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name} (SKU: {p.sku}, {p.quantity} шт)</option>
+                                  ))}
+                                </select>
+                              )}
+
+                              <input
+                                type="text"
+                                className="form-input"
+                                style={{ width: 130 }}
+                                placeholder="Название"
+                                value={item.name}
+                                onChange={e => updateActItem(idx, { name: e.target.value })}
+                              />
+                              <input
+                                type="number"
+                                className="form-input"
+                                style={{ width: 70 }}
+                                placeholder="Кол-во"
+                                min="0"
+                                step="0.001"
+                                value={item.quantity}
+                                onChange={e => updateActItem(idx, { quantity: e.target.value })}
+                              />
+                              <input
+                                type="text"
+                                className="form-input"
+                                style={{ width: 60 }}
+                                placeholder="Ед."
+                                value={item.unit}
+                                onChange={e => updateActItem(idx, { unit: e.target.value })}
+                              />
+                              <input
+                                type="number"
+                                className="form-input"
+                                style={{ width: 90 }}
+                                placeholder="Цена"
+                                min="0"
+                                step="0.01"
+                                value={item.unit_price}
+                                onChange={e => updateActItem(idx, { unit_price: e.target.value })}
+                              />
+                              <span style={{ fontSize: 13, color: 'var(--text-muted)', alignSelf: 'center', whiteSpace: 'nowrap' }}>
+                                = {(parseFloat(item.quantity || '0') * parseFloat(item.unit_price || '0')).toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽
+                              </span>
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                style={{ flex: 'none' }}
+                                onClick={() => removeActItem(idx)}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <div style={{ padding: '8px 12px', background: 'var(--surface-alt, var(--surface))', fontSize: 13, fontWeight: 600, textAlign: 'right' }}>
+                          Итого: {actItems.reduce((s, i) => s + parseFloat(i.quantity || '0') * parseFloat(i.unit_price || '0'), 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <button
                     className="btn btn-primary btn-sm"
                     onClick={handleCreateWorkAct}
@@ -332,15 +503,85 @@ export default function TicketDetailPage() {
                   {workAct.description && (
                     <p style={{ fontSize: 13, marginTop: 12 }}>{workAct.description}</p>
                   )}
-                  {canSignAct && !workAct.signed_by_client && (
-                    <button
-                      className="btn btn-success btn-sm"
-                      style={{ marginTop: 12 }}
-                      onClick={() => signWorkAct.mutate('client')}
-                      disabled={signWorkAct.isPending}
-                    >
-                      Подписать акт
-                    </button>
+                  {workAct.work_description && (
+                    <p style={{ fontSize: 13, marginTop: 12 }}>{workAct.work_description}</p>
+                  )}
+
+                  {/* Act items table */}
+                  {workAct.items && workAct.items.length > 0 && (
+                    <div style={{ marginTop: 16 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Позиции акта</div>
+                      <div className="table-wrap" style={{ marginBottom: 0 }}>
+                        <table className="table" style={{ fontSize: 12 }}>
+                          <thead>
+                            <tr>
+                              <th>Тип</th>
+                              <th>Название</th>
+                              <th>Кол-во</th>
+                              <th>Ед.</th>
+                              <th>Цена</th>
+                              <th>Сумма</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {workAct.items.map(item => (
+                              <tr key={item.id}>
+                                <td>
+                                  <span className="badge" style={{ fontSize: 10 }}>
+                                    {item.item_type === 'service' ? 'Услуга' : 'Запчасть'}
+                                  </span>
+                                </td>
+                                <td>{item.name}</td>
+                                <td>{parseFloat(item.quantity)}</td>
+                                <td>{item.unit}</td>
+                                <td>{parseFloat(item.unit_price).toLocaleString('ru-RU')} ₽</td>
+                                <td style={{ fontWeight: 600 }}>{parseFloat(item.total).toLocaleString('ru-RU')} ₽</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr>
+                              <td colSpan={5} style={{ textAlign: 'right', fontWeight: 600, fontSize: 13 }}>Итого:</td>
+                              <td style={{ fontWeight: 700 }}>
+                                {workAct.items.reduce((s, i) => s + parseFloat(i.total), 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                    {canSignAct && !workAct.signed_by_client && (
+                      <button
+                        className="btn btn-success btn-sm"
+                        onClick={() => signWorkAct.mutate('client')}
+                        disabled={signWorkAct.isPending}
+                      >
+                        Подписать акт
+                      </button>
+                    )}
+                    {hasRole('admin', 'accountant', 'svc_mgr') && (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => createInvoiceFromActMutation.mutate()}
+                        disabled={createInvoiceFromActMutation.isPending}
+                        title="Создать счёт на основе позиций акта"
+                      >
+                        {createInvoiceFromActMutation.isPending ? 'Создание...' : '📄 Создать счёт из акта'}
+                      </button>
+                    )}
+                  </div>
+                  {createInvoiceFromActMutation.isSuccess && (
+                    <div className="alert alert-success" style={{ marginTop: 8, fontSize: 13 }}>
+                      Счёт создан. <a href="/invoices" style={{ textDecoration: 'underline' }}>Перейти к счетам</a>
+                    </div>
+                  )}
+                  {invoiceFromActError && (
+                    <div className="alert alert-error" style={{ marginTop: 8, fontSize: 13 }}>
+                      {invoiceFromActError}
+                    </div>
                   )}
                 </div>
               ) : (

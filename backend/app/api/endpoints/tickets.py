@@ -3,6 +3,7 @@ Ticket management endpoint — full CRUD + sub-resources.
 """
 
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Optional
 from urllib.parse import quote
 
@@ -14,7 +15,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models import Ticket, TicketComment, TicketFile, WorkAct, User, RepairHistory, Equipment, EquipmentModel, TicketStatusHistory
+from app.models import Ticket, TicketComment, TicketFile, WorkAct, WorkActItem, User, RepairHistory, Equipment, EquipmentModel, TicketStatusHistory
 
 # MIME-типы, запрещённые к загрузке (хранимый XSS через SVG/HTML/JS)
 _BLOCKED_MIME_TYPES = frozenset({
@@ -559,6 +560,24 @@ def create_work_act(
         total_time_minutes=data.total_time_minutes,
     )
     db.add(act)
+    db.flush()
+
+    for i, item_data in enumerate(data.items):
+        total = (item_data.quantity * item_data.unit_price).quantize(Decimal("0.01"))
+        act_item = WorkActItem(
+            work_act_id=act.id,
+            item_type=item_data.item_type,
+            service_id=item_data.service_id,
+            part_id=item_data.part_id,
+            name=item_data.name,
+            quantity=item_data.quantity,
+            unit=item_data.unit,
+            unit_price=item_data.unit_price,
+            total=total,
+            sort_order=item_data.sort_order if item_data.sort_order else i,
+        )
+        db.add(act_item)
+
     db.commit()
     db.refresh(act)
     return act
@@ -572,7 +591,12 @@ def get_work_act(
     client_scope: Optional[int] = Depends(get_client_scope),
 ):
     _require_ticket(db, ticket_id, client_scope)
-    act = db.query(WorkAct).filter(WorkAct.ticket_id == ticket_id).first()
+    act = (
+        db.query(WorkAct)
+        .options(joinedload(WorkAct.items))
+        .filter(WorkAct.ticket_id == ticket_id)
+        .first()
+    )
     if not act:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

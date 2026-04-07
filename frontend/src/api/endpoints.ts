@@ -11,10 +11,12 @@ import type {
   TicketComment,
   TicketAttachment,
   WorkAct,
+  WorkActItemCreate,
   WorkTemplate,
   SparePart,
   Vendor,
   Invoice,
+  ServiceCatalogItem,
   Notification,
   NotificationSetting,
   PaginatedResponse,
@@ -207,7 +209,7 @@ export const getWorkAct = (ticketId: number): Promise<WorkAct> =>
 
 export const createWorkAct = (
   ticketId: number,
-  data: Partial<WorkAct>
+  data: { work_description?: string; description?: string; work_performed?: string; items?: WorkActItemCreate[] }
 ): Promise<WorkAct> =>
   api.post<WorkAct>(`/tickets/${ticketId}/work-act`, data).then(r => r.data)
 
@@ -280,6 +282,26 @@ export const createInvoice = (data: Partial<Invoice>): Promise<Invoice> =>
 
 export const updateInvoice = (id: number, data: Partial<Invoice>): Promise<Invoice> =>
   api.put<Invoice>(`/invoices/${id}`, data).then(r => r.data)
+
+export const createInvoiceFromAct = (ticketId: number): Promise<Invoice> =>
+  api.post<Invoice>(`/invoices/from-act/${ticketId}`).then(r => r.data)
+
+// ===== Service Catalog =====
+
+export const getServiceCatalog = (params?: Record<string, unknown>): Promise<PaginatedResponse<ServiceCatalogItem>> =>
+  api.get<PaginatedResponse<ServiceCatalogItem>>('/service-catalog', { params }).then(r => r.data)
+
+export const getServiceCatalogItem = (id: number): Promise<ServiceCatalogItem> =>
+  api.get<ServiceCatalogItem>(`/service-catalog/${id}`).then(r => r.data)
+
+export const createServiceCatalogItem = (data: Partial<ServiceCatalogItem>): Promise<ServiceCatalogItem> =>
+  api.post<ServiceCatalogItem>('/service-catalog', data).then(r => r.data)
+
+export const updateServiceCatalogItem = (id: number, data: Partial<ServiceCatalogItem>): Promise<ServiceCatalogItem> =>
+  api.patch<ServiceCatalogItem>(`/service-catalog/${id}`, data).then(r => r.data)
+
+export const deleteServiceCatalogItem = (id: number): Promise<void> =>
+  api.delete(`/service-catalog/${id}`).then(() => undefined)
 
 // ===== Notifications =====
 

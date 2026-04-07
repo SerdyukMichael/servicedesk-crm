@@ -470,10 +470,38 @@ class CommentResponse(BaseModel):
 
 # ── Work Acts ─────────────────────────────────────────────────────────────────
 
+class WorkActItemCreate(BaseModel):
+    item_type: str  # "service" | "part"
+    service_id: Optional[int] = None
+    part_id: Optional[int] = None
+    name: str
+    quantity: Decimal = Decimal("1")
+    unit: str = "шт"
+    unit_price: Decimal = Decimal("0")
+    sort_order: int = 0
+
+
+class WorkActItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    work_act_id: int
+    item_type: str
+    service_id: Optional[int]
+    part_id: Optional[int]
+    name: str
+    quantity: Decimal
+    unit: str
+    unit_price: Decimal
+    total: Decimal
+    sort_order: int
+
+
 class WorkActCreate(BaseModel):
     work_description: Optional[str] = None
-    parts_used: Optional[Any] = None
+    parts_used: Optional[Any] = None       # оставить для совместимости
     total_time_minutes: Optional[int] = None
+    items: List[WorkActItemCreate] = []    # новые структурированные позиции
 
 
 class WorkActResponse(BaseModel):
@@ -488,6 +516,7 @@ class WorkActResponse(BaseModel):
     signed_by: Optional[int]
     signed_at: Optional[datetime]
     created_at: datetime
+    items: List[WorkActItemResponse] = []
 
 
 # ── Spare Parts ───────────────────────────────────────────────────────────────
@@ -595,6 +624,9 @@ class InvoiceItemCreate(BaseModel):
     unit: str = "шт"
     unit_price: Decimal
     sort_order: int = 0
+    item_type: Optional[str] = None   # "service" | "part" | "manual"
+    service_id: Optional[int] = None
+    part_id: Optional[int] = None
 
 
 class InvoiceItemResponse(BaseModel):
@@ -608,6 +640,9 @@ class InvoiceItemResponse(BaseModel):
     unit_price: Decimal
     total: Decimal
     sort_order: int
+    item_type: Optional[str] = None
+    service_id: Optional[int] = None
+    part_id: Optional[int] = None
 
 
 class InvoiceCreate(BaseModel):
@@ -723,3 +758,42 @@ class RepairHistoryResponse(BaseModel):
         # drop the ORM object so it doesn't appear in output
         self.ticket = None
         return self
+
+
+# ── Service Catalog ───────────────────────────────────────────────────────────
+
+class ServiceCatalogCreate(BaseModel):
+    code: str
+    name: str
+    description: Optional[str] = None
+    category: str = "other"
+    unit: str = "pcs"
+    unit_price: Decimal = Decimal("0")
+    currency: str = "RUB"
+    is_active: bool = True
+
+
+class ServiceCatalogUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    unit: Optional[str] = None
+    unit_price: Optional[Decimal] = None
+    currency: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ServiceCatalogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    code: str
+    name: str
+    description: Optional[str]
+    category: str
+    unit: str
+    unit_price: Decimal
+    currency: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime

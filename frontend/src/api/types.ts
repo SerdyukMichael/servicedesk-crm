@@ -19,7 +19,10 @@ export type EquipmentStatus = 'active' | 'inactive' | 'decommissioned' | 'in_rep
 export type WarrantyStatus = 'on_warranty' | 'expiring' | 'expired' | 'unknown'
 export type ContractType = 'full_service' | 'partial' | 'time_and_material' | 'warranty'
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
-export type InvoiceType = 'service' | 'parts' | 'combined'
+export type InvoiceType = 'service' | 'parts' | 'combined' | 'mixed'
+export type ServiceCategory = 'repair' | 'maintenance' | 'diagnostics' | 'visit' | 'other'
+export type ServiceUnit = 'pcs' | 'hour' | 'visit' | 'kit'
+export type WorkActItemType = 'service' | 'part'
 export type NotificationChannel = 'in_app' | 'email' | 'telegram'
 
 // ===== Core models =====
@@ -160,13 +163,53 @@ export interface TicketAttachment {
   created_at: string
 }
 
+export interface ServiceCatalogItem {
+  id: number
+  code: string
+  name: string
+  description?: string
+  category: ServiceCategory
+  unit: ServiceUnit
+  unit_price: string
+  currency: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface WorkActItem {
+  id: number
+  work_act_id: number
+  item_type: WorkActItemType
+  service_id?: number
+  part_id?: number
+  name: string
+  quantity: string
+  unit: string
+  unit_price: string
+  total: string
+  sort_order: number
+}
+
+export interface WorkActItemCreate {
+  item_type: WorkActItemType
+  service_id?: number
+  part_id?: number
+  name: string
+  quantity: string
+  unit: string
+  unit_price: string
+}
+
 export interface WorkAct {
   id: number
   ticket_id: number
   act_number?: string
   description?: string
+  work_description?: string
   work_performed?: string
   parts_used?: WorkActPart[]
+  items?: WorkActItem[]
   signed_by_engineer?: boolean
   signed_by_client?: boolean
   signed_at?: string
@@ -223,6 +266,20 @@ export interface Vendor {
   created_at: string
 }
 
+export interface InvoiceItem {
+  id: number
+  invoice_id: number
+  description: string
+  quantity: string
+  unit: string
+  unit_price: string
+  total: string
+  sort_order: number
+  item_type?: WorkActItemType | 'manual'
+  service_id?: number
+  part_id?: number
+}
+
 export interface Invoice {
   id: number
   number: string
@@ -231,11 +288,15 @@ export interface Invoice {
   ticket_id?: number
   type: InvoiceType
   status: InvoiceStatus
-  total_amount: number
-  issued_date: string
+  subtotal: string
+  vat_rate: string
+  vat_amount: string
+  total_amount: string
+  issue_date: string
   due_date?: string
-  paid_date?: string
+  paid_at?: string
   notes?: string
+  items: InvoiceItem[]
   created_at: string
 }
 

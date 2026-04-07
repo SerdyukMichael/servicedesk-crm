@@ -16,6 +16,7 @@ import PartsPage from './pages/PartsPage'
 import InvoicesPage from './pages/InvoicesPage'
 import NotificationsPage from './pages/NotificationsPage'
 import EquipmentModelsPage from './pages/EquipmentModelsPage'
+import ServiceCatalogPage from './pages/ServiceCatalogPage'
 
 function NotFoundPage() {
   return (
@@ -75,6 +76,9 @@ export default function App() {
 
           {/* Parts */}
           <Route path="parts" element={<PartsPage />} />
+
+          {/* Service Catalog */}
+          <Route path="service-catalog" element={<ServiceCatalogPage />} />
 
           {/* Invoices */}
           <Route path="invoices" element={<InvoicesPage />} />
