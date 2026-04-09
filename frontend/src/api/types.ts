@@ -298,6 +298,7 @@ export interface Invoice {
   notes?: string
   items: InvoiceItem[]
   created_at: string
+  is_paid: boolean
 }
 
 export interface Notification {

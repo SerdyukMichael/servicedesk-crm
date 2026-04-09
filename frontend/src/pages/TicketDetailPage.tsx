@@ -20,8 +20,8 @@ import { useUsers } from '../hooks/useUsers'
 import { useAuth } from '../context/AuthContext'
 import { useServiceCatalog } from '../hooks/useServiceCatalog'
 import { useParts } from '../hooks/useParts'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { createInvoiceFromAct } from '../api/endpoints'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createInvoiceFromAct, getInvoicesByTicket } from '../api/endpoints'
 import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
 import type { TicketStatus, WorkActItemCreate, WorkActItemType } from '../api/types'
@@ -67,6 +67,12 @@ export default function TicketDetailPage() {
   const { data: attachments } = useTicketAttachments(ticketId)
   const { data: statusHistory } = useTicketStatusHistory(ticketId)
   const { data: workAct } = useWorkAct(ticketId)
+  const { data: ticketInvoices } = useQuery({
+    queryKey: ['invoices', 'by-ticket', ticketId],
+    queryFn: () => getInvoicesByTicket(ticketId),
+    enabled: !!ticketId,
+  })
+  const ticketInvoice = ticketInvoices?.[0] ?? null
   const { data: usersData } = useUsers({ role: 'engineer', size: 100 })
   const { data: serviceCatalog } = useServiceCatalog({ size: 200 })
   const { data: partsData } = useParts({ size: 200 })
@@ -75,6 +81,7 @@ export default function TicketDetailPage() {
     mutationFn: () => createInvoiceFromAct(ticketId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoices', 'by-ticket', ticketId] })
       setInvoiceFromActError(null)
     },
     onError: (err: unknown) => {
@@ -127,7 +134,7 @@ export default function TicketDetailPage() {
   const canAssign = hasRole('admin', 'svc_mgr')
   const canChangeStatus = hasRole('admin', 'svc_mgr', 'engineer')
   const canCreateAct = hasRole('engineer', 'svc_mgr', 'admin')
-  const canSignAct = hasRole('svc_mgr', 'admin', 'client_user')
+  const canSignAct = hasRole('client_user')
 
   const handleAssign = () => {
     if (!selectedEngineer) {
@@ -552,11 +559,30 @@ export default function TicketDetailPage() {
                       </span>
                     </li>
                     <li>
-                      <span className="info-list-label">Подпись</span>
-                      <span className="info-list-value">
+                      <span className="info-list-label">Подпись клиента</span>
+                      <span className="info-list-value" style={{ color: workAct.signed_by ? 'var(--color-success, #22c55e)' : undefined }}>
                         {workAct.signed_by ? '✓ Подписан' : 'Не подписан'}
+                        {workAct.signed_at && (
+                          <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: 11 }}>
+                            {format(parseISO(workAct.signed_at), 'dd.MM.yyyy', { locale: ru })}
+                          </span>
+                        )}
                       </span>
                     </li>
+                    {ticketInvoice && (
+                      <li>
+                        <span className="info-list-label">Счёт</span>
+                        <span className="info-list-value">
+                          <a href={`/invoices`} style={{ textDecoration: 'underline' }}>
+                            {ticketInvoice.number}
+                          </a>
+                          {' '}
+                          <span className={`badge badge-${ticketInvoice.is_paid ? 'active' : 'draft'}`} style={{ fontSize: 10 }}>
+                            {ticketInvoice.is_paid ? '✓ Оплачен' : ticketInvoice.status === 'sent' ? 'Выставлен' : ticketInvoice.status}
+                          </span>
+                        </span>
+                      </li>
+                    )}
                   </ul>
                   {workAct.description && (
                     <p style={{ fontSize: 13, marginTop: 12 }}>{workAct.description}</p>
@@ -620,12 +646,12 @@ export default function TicketDetailPage() {
                         Подписать акт
                       </button>
                     )}
-                    {hasRole('admin', 'accountant', 'svc_mgr') && (
+                    {hasRole('admin', 'accountant', 'svc_mgr') && !ticketInvoice && (
                       <button
                         className="btn btn-primary btn-sm"
                         onClick={() => createInvoiceFromActMutation.mutate()}
-                        disabled={createInvoiceFromActMutation.isPending}
-                        title="Создать счёт на основе позиций акта"
+                        disabled={createInvoiceFromActMutation.isPending || !(workAct.items && workAct.items.length > 0)}
+                        title={!(workAct.items && workAct.items.length > 0) ? 'Добавьте позиции в акт перед созданием счёта' : 'Создать счёт на основе позиций акта'}
                       >
                         {createInvoiceFromActMutation.isPending ? 'Создание...' : '📄 Создать счёт из акта'}
                       </button>
