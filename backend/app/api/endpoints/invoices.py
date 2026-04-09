@@ -35,6 +35,7 @@ def _recalculate(invoice: Invoice) -> None:
 def list_invoices(
     client_id: Optional[int] = Query(None),
     inv_status: Optional[str] = Query(None, alias="status"),
+    ticket_id: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -47,6 +48,8 @@ def list_invoices(
         q = q.filter(Invoice.client_id == effective_client_id)
     if inv_status:
         q = q.filter(Invoice.status == inv_status)
+    if ticket_id is not None:
+        q = q.filter(Invoice.ticket_id == ticket_id)
     total = q.count()
     skip = (page - 1) * size
     items = q.order_by(Invoice.issue_date.desc()).offset(skip).limit(size).all()

@@ -292,6 +292,10 @@ export const updateInvoice = (id: number, data: Partial<Invoice>): Promise<Invoi
 export const createInvoiceFromAct = (ticketId: number): Promise<Invoice> =>
   api.post<Invoice>(`/invoices/from-act/${ticketId}`).then(r => r.data)
 
+export const getInvoicesByTicket = (ticketId: number): Promise<Invoice[]> =>
+  api.get<PaginatedResponse<Invoice>>('/invoices', { params: { ticket_id: ticketId, size: 10 } })
+    .then(r => r.data.items)
+
 // ===== Service Catalog =====
 
 export const getServiceCatalog = (params?: Record<string, unknown>): Promise<PaginatedResponse<ServiceCatalogItem>> =>

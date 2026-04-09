@@ -101,6 +101,7 @@ export default function InvoicesPage() {
                   <th>Клиент</th>
                   <th>Тип</th>
                   <th>Статус</th>
+                  <th>Оплачен</th>
                   <th>Сумма</th>
                   <th>Выставлен</th>
                   <th>Срок оплаты</th>
@@ -109,7 +110,7 @@ export default function InvoicesPage() {
               <tbody>
                 {data.items.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                       Счета не найдены
                     </td>
                   </tr>
@@ -125,7 +126,7 @@ export default function InvoicesPage() {
                       <td>
                         <span style={{ fontWeight: 500 }}>{inv.number}</span>
                       </td>
-                      <td>{inv.client?.name ?? '—'}</td>
+                      <td>{inv.client?.name ?? clients.find(c => c.id === inv.client_id)?.name ?? '—'}</td>
                       <td>
                         {inv.type === 'service'
                           ? 'Услуги'
@@ -140,6 +141,12 @@ export default function InvoicesPage() {
                         >
                           {STATUS_LABELS[inv.status]}
                         </span>
+                      </td>
+                      <td>
+                        {inv.is_paid
+                          ? <span style={{ color: '#166534', fontWeight: 600 }}>✓ Да</span>
+                          : <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        }
                       </td>
                       <td style={{ fontWeight: 500 }}>
                         {parseFloat(String(inv.total_amount)).toLocaleString('ru-RU')} ₽

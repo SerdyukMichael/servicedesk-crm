@@ -696,6 +696,12 @@ class InvoiceResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     items: List[InvoiceItemResponse]
+    is_paid: bool = False
+
+    @model_validator(mode="after")
+    def compute_is_paid(self) -> "InvoiceResponse":
+        self.is_paid = self.status == "paid"
+        return self
 
 
 # ── Notifications ─────────────────────────────────────────────────────────────

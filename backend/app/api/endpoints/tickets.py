@@ -660,15 +660,54 @@ def update_work_act(
     return act
 
 
+@router.post("/{ticket_id}/work-act/sign", response_model=WorkActResponse)
+def sign_work_act_by_ticket(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("client_user")),
+    client_scope: Optional[int] = Depends(get_client_scope),
+):
+    """BR-F-116: подписание акта по ticket_id (без явного act_id)."""
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False)).first()
+    if not ticket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Заявка не найдена"},
+        )
+    if client_scope is not None and ticket.client_id != client_scope:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "FORBIDDEN", "message": "Нет доступа к этой заявке"},
+        )
+    act = db.query(WorkAct).filter(WorkAct.ticket_id == ticket_id).first()
+    if not act:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Акт не найден"},
+        )
+    if act.signed_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "BR_VIOLATION", "message": "Акт уже подписан"},
+        )
+    act.signed_by = current_user.id
+    act.signed_at = datetime.utcnow()
+    if ticket.status == "in_progress":
+        ticket.status = "on_review"
+    db.commit()
+    db.refresh(act)
+    return act
+
+
 @router.post("/{ticket_id}/work-act/{act_id}/sign", response_model=WorkActResponse)
 def sign_work_act(
     ticket_id: int,
     act_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles("svc_mgr", "admin", "client_user")),
+    current_user: User = Depends(require_roles("client_user")),
     client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    # row-level: client_user may only sign acts for their own org's tickets
+    # row-level: client_user may only sign acts for their own org's tickets (BR-F-116)
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False)).first()
     if not ticket:
         raise HTTPException(

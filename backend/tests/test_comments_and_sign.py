@@ -208,7 +208,8 @@ class TestWorkActSigningByClientUser:
         )
         assert resp.status_code == 403
 
-    def test_svc_mgr_can_still_sign_act(self, client, db):
+    def test_svc_mgr_cannot_sign_act(self, client, db):
+        """BR-F-116: подписание акта доступно только client_user"""
         admin, eng, org, ticket, cu = _setup_basic(db)
         act = make_work_act(db, ticket.id, eng.id)
         mgr = make_user(db, email="mgr@test.com", roles=["svc_mgr"])
@@ -217,7 +218,7 @@ class TestWorkActSigningByClientUser:
             f"/api/v1/tickets/{ticket.id}/work-act/{act.id}/sign",
             headers=auth_headers(mgr.id, mgr.roles),
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 403
 
     def test_double_sign_returns_400(self, client, db):
         admin, eng, org, ticket, cu = _setup_basic(db)
