@@ -75,6 +75,6 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             docker compose build backend
-            docker compose up -d --force-recreate --no-deps backend
-            sleep 5
+            docker compose up -d backend
+            sleep 10
             docker compose exec -T backend alembic upgrade head
