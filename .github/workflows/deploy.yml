@@ -74,10 +74,12 @@ jobs:
             cd /opt/servicedesk-crm
             git fetch origin main
             git reset --hard origin/main
-            docker compose up -d --no-deps --build backend
+            docker compose stop backend
+            docker compose rm -f backend
+            docker compose up -d --no-deps backend
             # Ждём healthy бэкенда (до 60 сек)
             for i in $(seq 1 12); do
-              STATUS=$(docker inspect --format='{{.State.Health.Status}}' servicedesk_api 2>/dev/null)
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' servicedesk_api 2>/dev/null || echo "starting")
               echo "Health: $STATUS ($i/12)"
               [ "$STATUS" = "healthy" ] && break
               sleep 5

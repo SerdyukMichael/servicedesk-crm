@@ -17,7 +17,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS equipment_models (
-    id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id                      INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name                    VARCHAR(200) NOT NULL,
     manufacturer            VARCHAR(200),
     warranty_period_months  INT UNSIGNED NOT NULL DEFAULT 12,
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS equipment_models (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS clients (
-    id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id                      INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name                    VARCHAR(200) NOT NULL,
     contract_type           ENUM('premium','standard','none') NOT NULL DEFAULT 'none',
     contract_number         VARCHAR(100),
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS clients (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS spare_parts (
-    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id          INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
     article     VARCHAR(100) NOT NULL,
     name        VARCHAR(200) NOT NULL,
     unit        VARCHAR(20) NOT NULL DEFAULT 'шт.',
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS spare_parts (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS users (
-    id               BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id               INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
     full_name        VARCHAR(200) NOT NULL,
     position         VARCHAR(100) NOT NULL,
     department       VARCHAR(100) NOT NULL,
@@ -73,8 +73,8 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS client_contacts (
-    id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    client_id     BIGINT UNSIGNED NOT NULL,
+    id            INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    client_id     INTEGER NOT NULL,
     name          VARCHAR(200) NOT NULL,
     phone         VARCHAR(20),
     email         VARCHAR(150),
@@ -90,9 +90,9 @@ CREATE TABLE IF NOT EXISTS client_contacts (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS engineer_competencies (
-    id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    engineer_id             BIGINT UNSIGNED NOT NULL,
-    equipment_model_id      BIGINT UNSIGNED NOT NULL,
+    id                      INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    engineer_id             INTEGER NOT NULL,
+    equipment_model_id      INTEGER NOT NULL,
     certificate_number      VARCHAR(100),
     certificate_valid_until DATE,
     last_training_date      DATE,
@@ -103,13 +103,13 @@ CREATE TABLE IF NOT EXISTS engineer_competencies (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS absences (
-    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id     BIGINT UNSIGNED NOT NULL,
+    id          INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id     INTEGER NOT NULL,
     type        ENUM('vacation','sick_leave','other') NOT NULL,
     start_date  DATE NOT NULL,
     end_date    DATE NOT NULL,
     notes       TEXT,
-    created_by  BIGINT UNSIGNED NOT NULL,
+    created_by  INTEGER NOT NULL,
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CHECK (end_date >= start_date),
     FOREIGN KEY (user_id) REFERENCES users(id),
@@ -117,11 +117,11 @@ CREATE TABLE IF NOT EXISTS absences (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS audit_log (
-    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id     BIGINT UNSIGNED COMMENT 'NULL = системное действие (Celery)',
+    id          INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id     INTEGER COMMENT 'NULL = системное действие (Celery)',
     action      VARCHAR(100) NOT NULL,
     entity      VARCHAR(100) NOT NULL,
-    entity_id   BIGINT UNSIGNED NOT NULL,
+    entity_id   INTEGER NOT NULL,
     old_value   JSON,
     new_value   JSON,
     ip_address  VARCHAR(45),
@@ -137,12 +137,12 @@ CREATE TABLE IF NOT EXISTS audit_log (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS equipment (
-    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    model_id            BIGINT UNSIGNED NOT NULL,
+    id                  INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    model_id            INTEGER NOT NULL,
     serial_number       VARCHAR(100) NOT NULL,
     manufacture_date    DATE,
     sale_date           DATE NOT NULL,
-    client_id           BIGINT UNSIGNED NOT NULL,
+    client_id           INTEGER NOT NULL,
     install_address     VARCHAR(500) NOT NULL,
     warranty_start      DATE NOT NULL,
     warranty_end        DATE NOT NULL,
@@ -164,14 +164,14 @@ CREATE TABLE IF NOT EXISTS equipment (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS equipment_documents (
-    id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    equipment_id BIGINT UNSIGNED NOT NULL,
+    id           INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    equipment_id INTEGER NOT NULL,
     doc_type     ENUM('passport','warranty','manual','act','other') NOT NULL,
     file_name    VARCHAR(255) NOT NULL,
     file_data    LONGBLOB NOT NULL COMMENT 'Файл хранится как BLOB (ADR-001). Лимит 20 МБ валидируется в FileService.',
     file_size_kb INT UNSIGNED NOT NULL,
     mime_type    VARCHAR(100) NOT NULL,
-    uploaded_by  BIGINT UNSIGNED NOT NULL,
+    uploaded_by  INTEGER NOT NULL,
     uploaded_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted   TINYINT(1) NOT NULL DEFAULT 0,
     FOREIGN KEY (equipment_id) REFERENCES equipment(id),
@@ -180,16 +180,16 @@ CREATE TABLE IF NOT EXISTS equipment_documents (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS equipment_history (
-    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    equipment_id    BIGINT UNSIGNED NOT NULL,
+    id              INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    equipment_id    INTEGER NOT NULL,
     event_type      ENUM('initial_assignment','transfer','return','write_off') NOT NULL,
-    from_client_id  BIGINT UNSIGNED,
-    to_client_id    BIGINT UNSIGNED,
+    from_client_id  INTEGER,
+    to_client_id    INTEGER,
     return_type     ENUM('warranty_replacement','buyback'),
     return_date     DATE,
     reason          TEXT,
     claim_created   TINYINT(1) NOT NULL DEFAULT 0,
-    recorded_by     BIGINT UNSIGNED NOT NULL,
+    recorded_by     INTEGER NOT NULL,
     recorded_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (equipment_id) REFERENCES equipment(id),
     FOREIGN KEY (from_client_id) REFERENCES clients(id),
@@ -198,14 +198,14 @@ CREATE TABLE IF NOT EXISTS equipment_history (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS maintenance_schedules (
-    id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    equipment_id            BIGINT UNSIGNED NOT NULL,
+    id                      INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    equipment_id            INTEGER NOT NULL,
     interval_months         INT UNSIGNED NOT NULL,
     first_maintenance_date  DATE NOT NULL,
     next_maintenance_date   DATE NOT NULL,
     last_ticket_created_at  DATE,
     is_active               TINYINT(1) NOT NULL DEFAULT 1,
-    created_by              BIGINT UNSIGNED NOT NULL,
+    created_by              INTEGER NOT NULL,
     updated_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_maintenance_equipment (equipment_id),
     FOREIGN KEY (equipment_id) REFERENCES equipment(id),
@@ -213,12 +213,12 @@ CREATE TABLE IF NOT EXISTS maintenance_schedules (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS repair_history (
-    id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    equipment_id BIGINT UNSIGNED NOT NULL,
-    ticket_id    BIGINT UNSIGNED COMMENT 'NULL при ручном вводе истории',
+    id           INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    equipment_id INTEGER NOT NULL,
+    ticket_id    INTEGER COMMENT 'NULL при ручном вводе истории',
     work_type    ENUM('warranty_repair','planned_maintenance','unplanned_repair','installation') NOT NULL,
     work_date    DATE NOT NULL,
-    engineer_id  BIGINT UNSIGNED,
+    engineer_id  INTEGER,
     parts_used   JSON COMMENT '[{part_id, name, qty}] — денормализованный снапшот на момент записи',
     description  TEXT,
     created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -233,12 +233,12 @@ CREATE TABLE IF NOT EXISTS repair_history (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS work_templates (
-    id                 BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id                 INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name               VARCHAR(200) NOT NULL,
-    equipment_model_id BIGINT UNSIGNED NOT NULL,
+    equipment_model_id INTEGER NOT NULL,
     work_items         JSON NOT NULL COMMENT '[{"seq":1,"description":"..."}] — минимум 1 элемент (UC-911)',
     parts              JSON COMMENT '[{"part_id":1,"qty":2}]',
-    created_by         BIGINT UNSIGNED NOT NULL,
+    created_by         INTEGER NOT NULL,
     is_deleted         TINYINT(1) NOT NULL DEFAULT 0,
     created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (equipment_model_id) REFERENCES equipment_models(id),
@@ -246,26 +246,26 @@ CREATE TABLE IF NOT EXISTS work_templates (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS tickets (
-    id                       BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id                       INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
     ticket_number            VARCHAR(20) NOT NULL,
-    client_id                BIGINT UNSIGNED NOT NULL,
-    equipment_id             BIGINT UNSIGNED NOT NULL,
+    client_id                INTEGER NOT NULL,
+    equipment_id             INTEGER NOT NULL,
     work_type                ENUM('warranty_repair','planned_maintenance','unplanned_repair','installation') NOT NULL,
     description              TEXT,
     priority                 ENUM('critical','high','medium','low') NOT NULL,
     priority_override_reason VARCHAR(500),
     is_warranty              TINYINT(1) NOT NULL DEFAULT 0,
     status                   ENUM('new','assigned','in_progress','waiting_part','completed','on_review','closed') NOT NULL DEFAULT 'new',
-    assigned_engineer_id     BIGINT UNSIGNED,
+    assigned_engineer_id     INTEGER,
     sla_reaction_deadline    DATETIME NOT NULL,
     sla_resolution_deadline  DATETIME NOT NULL,
     sla_reaction_violated    TINYINT(1) NOT NULL DEFAULT 0,
     sla_resolution_violated  TINYINT(1) NOT NULL DEFAULT 0,
-    template_id              BIGINT UNSIGNED,
+    template_id              INTEGER,
     initiator_type           ENUM('client','engineer','system') NOT NULL,
-    initiator_id             BIGINT UNSIGNED NOT NULL,
+    initiator_id             INTEGER NOT NULL,
     channel                  ENUM('phone','messenger','web_form','mobile_app') NOT NULL,
-    created_by_user_id       BIGINT UNSIGNED NOT NULL,
+    created_by_user_id       INTEGER NOT NULL,
     client_contact_name      VARCHAR(200),
     client_contact_phone     VARCHAR(20),
     client_desired_deadline  DATE,
@@ -291,14 +291,14 @@ ALTER TABLE repair_history
     ADD CONSTRAINT fk_repair_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id);
 
 CREATE TABLE IF NOT EXISTS ticket_attachments (
-    id               BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    ticket_id        BIGINT UNSIGNED NOT NULL,
+    id               INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    ticket_id        INTEGER NOT NULL,
     file_name        VARCHAR(255) NOT NULL,
     file_data        LONGBLOB NOT NULL COMMENT 'BLOB хранение (ADR-001). Лимит 20 МБ валидируется в FileService.',
     file_size_kb     INT UNSIGNED NOT NULL,
     mime_type        VARCHAR(100) NOT NULL,
     uploaded_by_type ENUM('client','engineer','operator') NOT NULL,
-    uploaded_by_id   BIGINT UNSIGNED,
+    uploaded_by_id   INTEGER,
     uploaded_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted       TINYINT(1) NOT NULL DEFAULT 0,
     FOREIGN KEY (ticket_id) REFERENCES tickets(id),
@@ -306,8 +306,8 @@ CREATE TABLE IF NOT EXISTS ticket_attachments (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS work_acts (
-    id                       BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    ticket_id                BIGINT UNSIGNED NOT NULL,
+    id                       INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    ticket_id                INTEGER NOT NULL,
     work_description         TEXT NOT NULL,
     work_date                DATE NOT NULL,
     travel_time_minutes      INT UNSIGNED,
@@ -325,9 +325,9 @@ CREATE TABLE IF NOT EXISTS work_acts (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS work_act_parts (
-    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    work_act_id BIGINT UNSIGNED NOT NULL,
-    part_id     BIGINT UNSIGNED NOT NULL,
+    id          INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    work_act_id INTEGER NOT NULL,
+    part_id     INTEGER NOT NULL,
     qty         INT UNSIGNED NOT NULL,
     source      ENUM('main','engineer_mobile') NOT NULL DEFAULT 'main',
     FOREIGN KEY (work_act_id) REFERENCES work_acts(id),
@@ -335,11 +335,11 @@ CREATE TABLE IF NOT EXISTS work_act_parts (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS comments (
-    id               BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    ticket_id        BIGINT UNSIGNED NOT NULL,
+    id               INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    ticket_id        INTEGER NOT NULL,
     author_type      ENUM('employee','client') NOT NULL,
-    author_id        BIGINT UNSIGNED COMMENT 'NULL если author_type=client',
-    author_client_id BIGINT UNSIGNED COMMENT 'NULL если author_type=employee',
+    author_id        INTEGER COMMENT 'NULL если author_type=client',
+    author_client_id INTEGER COMMENT 'NULL если author_type=employee',
     body             TEXT NOT NULL,
     type             ENUM('internal','external') NOT NULL,
     created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -356,8 +356,8 @@ CREATE TABLE IF NOT EXISTS comments (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS notification_settings (
-    id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id    BIGINT UNSIGNED NOT NULL,
+    id         INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id    INTEGER NOT NULL,
     event_type ENUM(
                    'ticket_assigned_to_me',
                    'ticket_status_changed',
@@ -377,8 +377,8 @@ CREATE TABLE IF NOT EXISTS notification_settings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS notifications (
-    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id     BIGINT UNSIGNED NOT NULL,
+    id          INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id     INTEGER NOT NULL,
     event_type  ENUM(
                     'ticket_assigned_to_me',
                     'ticket_status_changed',
@@ -391,7 +391,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     title       VARCHAR(200) NOT NULL,
     body        TEXT NOT NULL,
     entity_type VARCHAR(50) COMMENT 'ticket / equipment / ...',
-    entity_id   BIGINT UNSIGNED,
+    entity_id   INTEGER,
     read_at     DATETIME COMMENT 'NULL = не прочитано (ADR-004)',
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
