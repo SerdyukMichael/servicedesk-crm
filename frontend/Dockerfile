@@ -1,21 +1,9 @@
-# Stage 1: Build
-FROM node:20-alpine AS build
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci
-
-COPY . .
-RUN npm run build
-
-# Stage 2: Serve with nginx
+# Serve pre-built dist/ with nginx (build happens on CI)
 FROM nginx:1.27-alpine
 
-# NGINX_CONF=nginx.conf (dev/default) | nginx.prod.conf (production with HTTPS)
 ARG NGINX_CONF=nginx.conf
 
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY dist /usr/share/nginx/html
 COPY ${NGINX_CONF} /etc/nginx/conf.d/default.conf
 
 EXPOSE 80 443
