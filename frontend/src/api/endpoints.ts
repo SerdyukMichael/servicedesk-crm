@@ -17,6 +17,9 @@ import type {
   Vendor,
   Invoice,
   ServiceCatalogItem,
+  ProductCatalogItem,
+  ProductCatalogCreate,
+  ProductCatalogUpdate,
   Notification,
   NotificationSetting,
   PaginatedResponse,
@@ -312,6 +315,25 @@ export const updateServiceCatalogItem = (id: number, data: Partial<ServiceCatalo
 
 export const deleteServiceCatalogItem = (id: number): Promise<void> =>
   api.delete(`/service-catalog/${id}`).then(() => undefined)
+
+// ===== Product Catalog =====
+
+export const productCatalogApi = {
+  list: (params?: { include_inactive?: boolean; category?: string; page?: number; size?: number }) =>
+    api.get<PaginatedResponse<ProductCatalogItem>>('/product-catalog', { params }),
+
+  get: (id: number) =>
+    api.get<ProductCatalogItem>(`/product-catalog/${id}`),
+
+  create: (data: ProductCatalogCreate) =>
+    api.post<ProductCatalogItem>('/product-catalog', data),
+
+  update: (id: number, data: ProductCatalogUpdate) =>
+    api.patch<ProductCatalogItem>(`/product-catalog/${id}`, data),
+
+  delete: (id: number) =>
+    api.delete(`/product-catalog/${id}`),
+}
 
 // ===== Notifications =====
 

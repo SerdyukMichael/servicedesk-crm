@@ -471,9 +471,10 @@ class CommentResponse(BaseModel):
 # ── Work Acts ─────────────────────────────────────────────────────────────────
 
 class WorkActItemCreate(BaseModel):
-    item_type: str  # "service" | "part"
+    item_type: str  # "service" | "part" | "product"
     service_id: Optional[int] = None
     part_id: Optional[int] = None
+    product_id: Optional[int] = None
     name: str
     quantity: Decimal = Decimal("1")
     unit: str = "шт"
@@ -489,6 +490,7 @@ class WorkActItemResponse(BaseModel):
     item_type: str
     service_id: Optional[int]
     part_id: Optional[int]
+    product_id: Optional[int]
     name: str
     quantity: Decimal
     unit: str
@@ -631,9 +633,10 @@ class InvoiceItemCreate(BaseModel):
     unit: str = "шт"
     unit_price: Decimal
     sort_order: int = 0
-    item_type: Optional[str] = None   # "service" | "part" | "manual"
+    item_type: Optional[str] = None   # "service" | "part" | "product" | "manual"
     service_id: Optional[int] = None
     part_id: Optional[int] = None
+    product_id: Optional[int] = None
 
 
 class InvoiceItemResponse(BaseModel):
@@ -650,6 +653,7 @@ class InvoiceItemResponse(BaseModel):
     item_type: Optional[str] = None
     service_id: Optional[int] = None
     part_id: Optional[int] = None
+    product_id: Optional[int] = None
 
 
 class InvoiceCreate(BaseModel):
@@ -797,6 +801,46 @@ class ServiceCatalogUpdate(BaseModel):
 
 
 class ServiceCatalogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    code: str
+    name: str
+    description: Optional[str]
+    category: str
+    unit: str
+    unit_price: Decimal
+    currency: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+# ── Product Catalog ───────────────────────────────────────────────────────────
+
+class ProductCatalogCreate(BaseModel):
+    code: str
+    name: str
+    description: Optional[str] = None
+    category: str = "other"   # "spare_part" | "other"
+    unit: str = "pcs"          # "pcs" | "pack" | "kit"
+    unit_price: Decimal = Decimal("0.00")
+    currency: str = "RUB"
+    is_active: bool = True
+
+
+class ProductCatalogUpdate(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    unit: Optional[str] = None
+    unit_price: Optional[Decimal] = None
+    currency: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ProductCatalogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int

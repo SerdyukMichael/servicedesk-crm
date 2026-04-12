@@ -177,12 +177,53 @@ export interface ServiceCatalogItem {
   updated_at: string
 }
 
+// ── Product Catalog ───────────────────────────────────────────────────────────
+
+export type ProductCategory = 'spare_part' | 'other'
+export type ProductUnit = 'pcs' | 'pack' | 'kit'
+
+export interface ProductCatalogItem {
+  id: number
+  code: string
+  name: string
+  description?: string
+  category: ProductCategory
+  unit: ProductUnit
+  unit_price: string
+  currency: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductCatalogCreate {
+  code: string
+  name: string
+  description?: string
+  category: ProductCategory
+  unit: ProductUnit
+  unit_price: string
+  currency?: string
+}
+
+export interface ProductCatalogUpdate {
+  code?: string
+  name?: string
+  description?: string
+  category?: ProductCategory
+  unit?: ProductUnit
+  unit_price?: string
+  currency?: string
+  is_active?: boolean
+}
+
 export interface WorkActItem {
   id: number
   work_act_id: number
   item_type: WorkActItemType
   service_id?: number
   part_id?: number
+  product_id?: number
   name: string
   quantity: string
   unit: string
@@ -195,6 +236,7 @@ export interface WorkActItemCreate {
   item_type: WorkActItemType
   service_id?: number
   part_id?: number
+  product_id?: number
   name: string
   quantity: string
   unit: string
