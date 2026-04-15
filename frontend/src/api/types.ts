@@ -177,6 +177,26 @@ export interface ServiceCatalogItem {
   updated_at: string
 }
 
+// ── Price History ─────────────────────────────────────────────────────────────
+
+export interface PriceHistoryEntry {
+  id: number
+  entity_type: 'service' | 'spare_part'
+  entity_id: number
+  old_price: string
+  new_price: string
+  currency: string
+  reason: string
+  changed_by: number
+  changed_at: string
+}
+
+export interface SparePartPriceUpdate {
+  new_price: string
+  currency: string
+  reason: string
+}
+
 export interface WorkActItem {
   id: number
   work_act_id: number
@@ -247,7 +267,8 @@ export interface SparePart {
   category?: string
   quantity: number
   min_quantity: number
-  price: number
+  unit_price: string
+  currency: string
   vendor_id?: number
   vendor?: Vendor
   description?: string

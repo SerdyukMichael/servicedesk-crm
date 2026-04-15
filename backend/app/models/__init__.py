@@ -383,8 +383,31 @@ class SparePart(Base):
     vendor_id:    Mapped[Optional[int]]   = mapped_column(ForeignKey("vendors.id", ondelete="SET NULL"))
     description:  Mapped[Optional[str]]   = mapped_column(Text)
     is_active:    Mapped[bool]            = mapped_column(Boolean, default=True, nullable=False)
+    created_by:   Mapped[Optional[int]]   = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at:   Mapped[datetime]        = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at:   Mapped[datetime]        = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
     vendor: Mapped[Optional["Vendor"]] = relationship("Vendor", back_populates="spare_parts")
+
+
+# ── Price History ─────────────────────────────────────────────────────────────
+class PriceHistory(Base):
+    __tablename__ = "price_history"
+
+    id:          Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entity_type: Mapped[str]      = mapped_column(
+        Enum("service", "spare_part", name="price_history_entity_type_enum"),
+        nullable=False
+    )
+    entity_id:   Mapped[int]      = mapped_column(Integer, nullable=False, index=True)
+    old_price:   Mapped[Decimal]  = mapped_column(DECIMAL(12, 2), nullable=False)
+    new_price:   Mapped[Decimal]  = mapped_column(DECIMAL(12, 2), nullable=False)
+    currency:    Mapped[str]      = mapped_column(String(3), default="RUB", nullable=False)
+    reason:      Mapped[str]      = mapped_column(String(512), nullable=False)
+    changed_by:  Mapped[int]      = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    changed_at:  Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+
+    changer: Mapped["User"] = relationship("User")
 
 
 # ── Invoices ──────────────────────────────────────────────────────────────────
@@ -528,6 +551,7 @@ __all__ = [
     "TicketFile",
     "WorkAct",
     "ServiceCatalog",
+    "ProductCatalog",
     "WorkActItem",
     "Vendor",
     "SparePart",

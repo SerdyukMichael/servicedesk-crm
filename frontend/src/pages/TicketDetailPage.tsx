@@ -75,7 +75,7 @@ export default function TicketDetailPage() {
   const ticketInvoice = ticketInvoices?.[0] ?? null
   const { data: usersData } = useUsers({ role: 'engineer', size: 100 })
   const { data: serviceCatalog } = useServiceCatalog({ size: 200 })
-  const { data: partsData } = useParts({ size: 200 })
+  const { data: partsData } = useParts({ size: 200, has_price: true })
   const qc = useQueryClient()
   const createInvoiceFromActMutation = useMutation({
     mutationFn: () => createInvoiceFromAct(ticketId),
@@ -236,7 +236,7 @@ export default function TicketDetailPage() {
       service_id: undefined,
       name: part.name,
       unit: 'шт',
-      unit_price: String(part.price),
+      unit_price: String(part.unit_price ?? 0),
     })
   }
 

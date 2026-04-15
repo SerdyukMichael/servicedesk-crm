@@ -57,6 +57,10 @@ frontend/
 │   │   │   └── ClientDetailPage.tsx
 │   │   ├── Parts/
 │   │   │   └── PartsPage.tsx
+│   │   ├── PriceList/
+│   │   │   ├── PriceListPage.tsx        # вкладки «Услуги» / «Матценности» (UC-101, UC-102)
+│   │   │   ├── ServiceCatalogTab.tsx    # список услуг + управление ценами + история цен
+│   │   │   └── MaterialCatalogTab.tsx   # список spare_parts + установка/изменение цен + история цен (BR-F-121, BR-F-122)
 │   │   ├── WorkTemplates/
 │   │   │   └── WorkTemplatesPage.tsx
 │   │   ├── Reports/
@@ -162,6 +166,7 @@ import EquipmentDetailPage from './pages/Equipment/EquipmentDetailPage'
 import ClientListPage from './pages/Clients/ClientListPage'
 import ClientDetailPage from './pages/Clients/ClientDetailPage'
 import PartsPage from './pages/Parts/PartsPage'
+import PriceListPage from './pages/PriceList/PriceListPage'
 import WorkTemplatesPage from './pages/WorkTemplates/WorkTemplatesPage'
 import ReportsPage from './pages/Reports/ReportsPage'
 import NotificationsPage from './pages/Notifications/NotificationsPage'
@@ -193,6 +198,9 @@ export default function App() {
 
           {/* Склад */}
           <Route path="parts" element={<PartsPage />} />
+
+          {/* Прайс-листы (UC-101, UC-102) */}
+          <Route path="price-list" element={<PriceListPage />} />
 
           {/* Шаблоны работ */}
           <Route path="work-templates" element={<WorkTemplatesPage />} />

@@ -585,6 +585,40 @@ class StockAdjust(BaseModel):
     reason: str
 
 
+class SparePartPriceUpdate(BaseModel):
+    new_price: Decimal
+    currency: str = "RUB"
+    reason: str
+
+    @field_validator("new_price")
+    @classmethod
+    def validate_price(cls, v: Decimal) -> Decimal:
+        if v < 0:
+            raise ValueError("Цена не может быть отрицательной")
+        return v
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, v: str) -> str:
+        if len(v.strip()) < 5:
+            raise ValueError("Причина должна содержать минимум 5 символов")
+        return v
+
+
+class PriceHistoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    entity_type: str
+    entity_id: int
+    old_price: Decimal
+    new_price: Decimal
+    currency: str
+    reason: str
+    changed_by: int
+    changed_at: datetime
+
+
 # ── Vendors ───────────────────────────────────────────────────────────────────
 
 class VendorCreate(BaseModel):
@@ -810,3 +844,5 @@ class ServiceCatalogResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+

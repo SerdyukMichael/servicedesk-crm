@@ -14,6 +14,8 @@ import type {
   WorkActItemCreate,
   WorkTemplate,
   SparePart,
+  SparePartPriceUpdate,
+  PriceHistoryEntry,
   Vendor,
   Invoice,
   ServiceCatalogItem,
@@ -312,6 +314,14 @@ export const updateServiceCatalogItem = (id: number, data: Partial<ServiceCatalo
 
 export const deleteServiceCatalogItem = (id: number): Promise<void> =>
   api.delete(`/service-catalog/${id}`).then(() => undefined)
+
+// ===== Parts Price Management =====
+
+export const setPartPrice = (id: number, data: SparePartPriceUpdate): Promise<SparePart> =>
+  api.patch<SparePart>(`/parts/${id}/price`, data).then(r => r.data)
+
+export const getPartPriceHistory = (id: number): Promise<PriceHistoryEntry[]> =>
+  api.get<PriceHistoryEntry[]>(`/parts/${id}/price-history`).then(r => r.data)
 
 // ===== Notifications =====
 

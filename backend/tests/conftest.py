@@ -203,6 +203,7 @@ def make_service_catalog_item(db, code="SRV-001", name="Диагностика",
     return item
 
 
+
 def make_vendor(db, name="Test Vendor"):
     v = Vendor(name=name, is_active=True)
     db.add(v)

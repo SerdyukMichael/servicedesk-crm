@@ -82,14 +82,14 @@ services:
     build:
       context: ./frontend
       args:
-        NGINX_CONF: nginx.prod.conf
+        NGINX_CONF: ${NGINX_CONF:-nginx.conf}
     container_name: servicedesk_web
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./ssl:/etc/ssl/servicedesk:ro   # сертификаты Let's Encrypt
+      - ./ssl:/etc/ssl/servicedesk:ro   # сертификаты Let's Encrypt (только на prod)
     depends_on:
       - backend
 

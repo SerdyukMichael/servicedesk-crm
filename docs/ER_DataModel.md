@@ -1,6 +1,14 @@
 # ER: Модель данных — ServiceDesk CRM
 
-**Версия:** 1.1 | **Дата:** 31.03.2026 | **Статус:** Актуально
+**Версия:** 1.2 | **Дата:** 14.04.2026 | **Статус:** Актуально
+
+> **v1.2 (14.04.2026 — рефакторинг каталога матценностей):**
+> - `product_catalog` удалена как отдельная сущность; `spare_parts` становится единым каталогом материальных ценностей
+> - `spare_parts`: добавлены `created_by`, `created_at`, `updated_at`; `unit_price` теперь кэш актуальной цены; добавлена связь с `price_history`
+> - `price_history.entity_type`: значение `product` → `spare_part`; таблица покрывает услуги и матценности
+> - Добавлен раздел `work_act_items` (таблица существовала, но не была задокументирована)
+> - `work_act_items.item_type`: удалено значение `product`; удалено поле `product_id`
+> - `invoice_items`: добавлены поля `item_type`, `service_id`, `part_id`; удалено `product_id`; добавлен `BR-F-122` (фильтр «только с ценой»)
 
 > **v1.1 (аудит документации 31.03.2026):**
 > - `users`: добавлены поля `position`, `department` (П-4)
@@ -113,6 +121,62 @@
 
 ---
 
+## Модуль 1 — Прайс-листы
+
+### `service_catalog` — Справочник услуг (BR-F-110, UC-101)
+
+| Поле | Тип | Ограничения | Описание |
+| --- | --- | --- | --- |
+| id | integer | PK, NN, autoincrement | |
+| code | varchar(32) | NN, UQ | Уникальный артикул (SRV-001) |
+| name | varchar(255) | NN | Наименование услуги |
+| description | text | | |
+| category | enum | NN | `repair` / `maintenance` / `diagnostics` / `visit` / `other` |
+| unit | enum | NN, default `pcs` | `pcs` / `hour` / `visit` / `kit` |
+| unit_price | decimal(12,2) | NN | ≥ 0 |
+| currency | varchar(3) | NN, default `RUB` | RUB / PLN / EUR / USD |
+| is_active | boolean | NN, default true | |
+| created_by | integer | FK → users.id, SET NULL | |
+| created_at | timestamp | NN | |
+| updated_at | timestamp | NN | |
+
+**Связи:** `work_act_items(service_id)`, `invoice_items(service_id)`, `price_history(entity_id, entity_type='service')`
+
+---
+
+### `price_history` — История изменения цен (BR-F-104)
+
+| Поле | Тип | Ограничения | Описание |
+| --- | --- | --- | --- |
+| id | integer | PK, NN, autoincrement | |
+| entity_type | enum | NN | `service` / `spare_part` |
+| entity_id | integer | NN | ID записи в `service_catalog` или `spare_parts` |
+| old_price | decimal(12,2) | NN | Цена до изменения |
+| new_price | decimal(12,2) | NN | Цена после изменения |
+| currency | varchar(3) | NN | Валюта на момент изменения (RUB / PLN / EUR / USD) |
+| reason | varchar(512) | NN | Причина изменения (обязательно ≥ 5 символов) |
+| changed_by | integer | FK → users.id, NN | |
+| changed_at | timestamp | NN | |
+
+> Append-only. Записи не редактируются и не удаляются.
+> При изменении цены в `service_catalog` или `spare_parts` сервисный слой автоматически создаёт новую запись в `price_history`.
+
+---
+
+### `exchange_rates` — Курсы валют (BR-F-102)
+
+| Поле | Тип | Ограничения | Описание |
+| --- | --- | --- | --- |
+| id | integer | PK, NN, autoincrement | |
+| currency | varchar(3) | NN | PLN / EUR / USD |
+| rate_to_rub | decimal(10,4) | NN | Курс к RUB |
+| set_by | integer | FK → users.id, NN | Кто установил |
+| set_at | timestamp | NN | Дата установки |
+
+> Последняя запись по каждой валюте считается актуальным курсом.
+
+---
+
 ## Справочники (используются несколькими модулями)
 
 ### `clients` — Клиентские организации
@@ -172,22 +236,32 @@
 
 ---
 
-### `spare_parts` — Номенклатура запчастей (склад)
+### `spare_parts` — Единый каталог материальных ценностей (BR-F-121, UC-102)
+
+Является основным справочником матценностей: хранит как складские остатки, так и прайсовые данные. Это не два разных справочника — это одна сущность с двумя аспектами: учёт наличия и ценообразование.
 
 | Поле | Тип | Ограничения | Описание |
 | --- | --- | --- | --- |
 | id | integer | PK, NN, autoincrement | |
-| sku | varchar(64) | NN, UQ, index | Артикул (SKU) |
+| sku | varchar(64) | NN, UQ, index | Артикул (SKU) — уникальный код позиции |
 | name | varchar(255) | NN | Наименование |
-| category | varchar(64) | | Категория |
+| category | varchar(64) | | Категория (напр. `spare_part`, `consumable`, `other`) |
 | unit | varchar(16) | NN, default `шт` | Единица измерения |
-| quantity | integer | NN, default 0 | Текущий остаток |
+| quantity | integer | NN, default 0 | Текущий остаток на складе |
 | min_quantity | integer | NN, default 0 | Минимальный остаток (порог пополнения) |
-| unit_price | decimal(12,2) | NN, default 0 | Цена за единицу |
-| currency | varchar(3) | NN, default `RUB` | Валюта |
+| unit_price | decimal(12,2) | NN, default 0 | Кэш актуальной цены (0 = цена не установлена); обновляется при записи в `price_history` |
+| currency | varchar(3) | NN, default `RUB` | Валюта актуальной цены |
 | vendor_id | integer | FK → vendors.id, SET NULL | Поставщик |
 | description | text | | |
 | is_active | boolean | NN, default true | |
+| created_by | integer | FK → users.id, SET NULL | Кто добавил позицию |
+| created_at | timestamp | NN | |
+| updated_at | timestamp | NN | |
+
+> **BR-F-122:** В формах акта и счёта отображаются только позиции с `unit_price > 0` (т.е. у которых установлена цена).
+> При изменении цены сервисный слой создаёт запись в `price_history` (`entity_type='spare_part'`) и обновляет `unit_price` / `currency`.
+
+**Связи:** `work_act_parts(part_id)`, `work_act_items(part_id)`, `invoice_items(part_id)`, `price_history(entity_id, entity_type='spare_part')`
 
 ---
 
@@ -362,6 +436,28 @@
 
 ---
 
+### `work_act_items` — Позиции акта выполненных работ (BR-F-113)
+
+| Поле | Тип | Ограничения | Описание |
+| --- | --- | --- | --- |
+| id | integer | PK, NN, autoincrement | |
+| work_act_id | integer | FK → work_acts.id, NN, CASCADE | |
+| item_type | enum | NN | `service` / `part` — тип позиции |
+| service_id | integer | FK → service_catalog.id, RESTRICT, nullable | Заполняется при `item_type='service'` |
+| part_id | integer | FK → spare_parts.id, RESTRICT, nullable | Заполняется при `item_type='part'`; только позиции с `unit_price > 0` (BR-F-122) |
+| name | varchar(255) | NN | Наименование позиции (зафиксировано на момент создания) |
+| quantity | decimal(10,3) | NN, default 1 | Количество |
+| unit | varchar(16) | NN | Единица измерения |
+| unit_price | decimal(12,2) | NN | Цена (зафиксирована на момент создания акта; не меняется при изменении прайса) |
+| total | decimal(14,2) | NN | `quantity × unit_price` |
+| sort_order | integer | NN, default 0 | Порядок отображения |
+
+> Цена фиксируется в момент добавления позиции в акт и не пересчитывается при последующих изменениях прайса (BR-P-003).
+
+**Связи:** `work_acts(work_act_id)`, `service_catalog(service_id)`, `spare_parts(part_id)`
+
+---
+
 ### `ticket_comments` — Комментарии к заявкам
 
 | Поле | Тип | Ограничения | Описание |
@@ -454,9 +550,18 @@ equipment ──┬──< tickets (equipment_id)
              └──── maintenance_schedules
 
 tickets ──┬──< ticket_attachments
-           ├──< work_acts ──< work_act_parts >── spare_parts
+           ├──< work_acts ──┬──< work_act_parts >── spare_parts
+           │                └──< work_act_items >──┬── service_catalog
+           │                                        └── spare_parts (only unit_price > 0)
            ├──< comments
            └──< repair_history (ticket_id)
+
+invoices ──< invoice_items >──┬── service_catalog
+                               ├── spare_parts (only unit_price > 0)
+                               └── (manual — без FK)
+
+spare_parts ──< price_history (entity_type='spare_part')
+service_catalog ──< price_history (entity_type='service')
 ```
 
 ---
@@ -503,18 +608,23 @@ tickets ──┬──< ticket_attachments
 | created_at | timestamp | NN | |
 | updated_at | timestamp | NN | |
 
-### `invoice_items` — Строки счёта
+### `invoice_items` — Строки счёта (BR-F-411)
 
 | Поле | Тип | Ограничения | Описание |
 | --- | --- | --- | --- |
 | id | integer | PK, NN, autoincrement | |
 | invoice_id | integer | FK → invoices.id, NN, CASCADE | |
-| description | varchar(512) | NN | |
+| item_type | enum | nullable | `service` / `part` / `manual` — тип позиции; `manual` = ручной ввод без привязки к справочнику |
+| service_id | integer | FK → service_catalog.id, RESTRICT, nullable | Заполняется при `item_type='service'` |
+| part_id | integer | FK → spare_parts.id, RESTRICT, nullable | Заполняется при `item_type='part'`; только позиции с `unit_price > 0` (BR-F-122) |
+| description | varchar(512) | NN | Наименование позиции (зафиксировано на момент создания) |
 | quantity | decimal(10,3) | NN, default 1 | |
 | unit | varchar(16) | NN, default `шт` | |
-| unit_price | decimal(12,2) | NN | |
-| total | decimal(14,2) | NN | quantity × unit_price |
+| unit_price | decimal(12,2) | NN | Цена на момент создания счёта |
+| total | decimal(14,2) | NN | `quantity × unit_price` |
 | sort_order | integer | NN, default 0 | |
+
+**Связи:** `invoices(invoice_id)`, `service_catalog(service_id)`, `spare_parts(part_id)`
 
 ---
 
@@ -526,7 +636,7 @@ tickets ──┬──< ticket_attachments
 | --- | --- |
 | `equipment_models` | Список моделей банкоматов и платёжного оборудования |
 | `notification_settings` | Матрица умолчаний (BR-F-1401): все события включены для email и in_app |
-| `spare_parts` | Базовая номенклатура запчастей |
+| `spare_parts` | Базовая номенклатура материальных ценностей (запчасти, расходники) |
 
 ---
 
