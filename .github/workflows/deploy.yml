@@ -88,6 +88,7 @@ jobs:
             git reset --hard origin/main
             docker compose stop backend
             docker compose rm -f backend
+            docker compose build backend
             docker compose up -d --no-deps backend
             # Ждём healthy бэкенда (до 60 сек)
             for i in $(seq 1 12); do
