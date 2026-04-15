@@ -177,44 +177,24 @@ export interface ServiceCatalogItem {
   updated_at: string
 }
 
-// ── Product Catalog ───────────────────────────────────────────────────────────
+// ── Price History ─────────────────────────────────────────────────────────────
 
-export type ProductCategory = 'spare_part' | 'other'
-export type ProductUnit = 'pcs' | 'pack' | 'kit'
-
-export interface ProductCatalogItem {
+export interface PriceHistoryEntry {
   id: number
-  code: string
-  name: string
-  description?: string
-  category: ProductCategory
-  unit: ProductUnit
-  unit_price: string
+  entity_type: 'service' | 'spare_part'
+  entity_id: number
+  old_price: string
+  new_price: string
   currency: string
-  is_active: boolean
-  created_at: string
-  updated_at: string
+  reason: string
+  changed_by: number
+  changed_at: string
 }
 
-export interface ProductCatalogCreate {
-  code: string
-  name: string
-  description?: string
-  category: ProductCategory
-  unit: ProductUnit
-  unit_price: string
-  currency?: string
-}
-
-export interface ProductCatalogUpdate {
-  code?: string
-  name?: string
-  description?: string
-  category?: ProductCategory
-  unit?: ProductUnit
-  unit_price?: string
-  currency?: string
-  is_active?: boolean
+export interface SparePartPriceUpdate {
+  new_price: string
+  currency: string
+  reason: string
 }
 
 export interface WorkActItem {
@@ -223,7 +203,6 @@ export interface WorkActItem {
   item_type: WorkActItemType
   service_id?: number
   part_id?: number
-  product_id?: number
   name: string
   quantity: string
   unit: string
@@ -236,7 +215,6 @@ export interface WorkActItemCreate {
   item_type: WorkActItemType
   service_id?: number
   part_id?: number
-  product_id?: number
   name: string
   quantity: string
   unit: string
@@ -289,7 +267,8 @@ export interface SparePart {
   category?: string
   quantity: number
   min_quantity: number
-  price: number
+  unit_price: string
+  currency: string
   vendor_id?: number
   vendor?: Vendor
   description?: string

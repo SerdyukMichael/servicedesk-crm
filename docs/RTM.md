@@ -1,6 +1,6 @@
 # RTM: Матрица трассировки требований
 
-**Версия:** 1.1 | **Дата:** 03.04.2026 | **Статус:** В работе
+**Версия:** 1.3 | **Дата:** 14.04.2026 | **Статус:** В работе
 
 > Структура: Требование → Use Case → Компонент системы → Тест
 
@@ -22,6 +22,21 @@
 
 ---
 
+## Модуль 1 — Прайс-листы
+
+| # | Требование | Описание | Приоритет | UC | Компонент | Тест | Статус |
+|---|-----------|----------|-----------|-----|-----------|------|--------|
+| R1-1 | BR-F-110 | Справочник услуг (ServiceCatalog): код, наименование, категория, ед. изм., цена, валюта, is_active | Must | UC-101 | `models/service_catalog.py`, `endpoints/pricelist.py` | T-1-001 | ⬜ |
+| R1-2 | BR-F-111 | Автоподстановка цены из справочника при добавлении в акт/счёт | Must | UC-101, UC-102 | `endpoints/pricelist.py`, `endpoints/tickets.py` | T-1-002 | ⬜ |
+| R1-3 | BR-F-112 | Запрет физического удаления — только деактивация | Must | UC-101, UC-102 | `endpoints/pricelist.py` (guard) | T-1-003 | ⬜ |
+| R1-4 | BR-F-113 | Позиции акта: тип `service` (из `service_catalog`) / `part` (из `spare_parts`), ссылка на справочник, цена зафиксирована на момент сохранения | Must | UC-101, UC-102 | `models/work_act_items.py`, `endpoints/tickets.py` | T-1-004 | ⬜ |
+| R1-5 | BR-F-121 | Управление ценами каталога матценностей (`spare_parts`): установка/изменение цены с указанием валюты и причины; автозапись в `price_history` (`entity_type='spare_part'`); просмотр истории цен | Must | UC-102 | `models/spare_parts.py`, `models/price_history.py`, `endpoints/parts.py` | T-1-005 | ⬜ |
+| R1-6 | BR-F-104 | История изменения цен: покрывает `service_catalog` (`entity_type='service'`) и `spare_parts` (`entity_type='spare_part'`); дата, автор, старая/новая цена, валюта, причина (обязательна ≥ 5 символов) | Should | UC-101, UC-102 | `models/price_history.py`, `endpoints/pricelist.py` | T-1-006 | ⬜ |
+| R1-8 | BR-F-122 | В формах акта и счёта при выборе позиции из каталога матценностей отображаются только `spare_parts` с `unit_price > 0` | Must | UC-102 | `endpoints/parts.py` (query param `has_price=true`) | T-1-008 | ⬜ |
+| R1-7 | BR-F-102 | Поддержка валют PLN/EUR/USD/RUB; ручная установка курса в настройках | Must | — | `models/exchange_rate.py`, `endpoints/settings.py` | T-1-007 | ⬜ |
+
+---
+
 ## Модуль 3 — CRM: клиенты и контакты
 
 | # | Требование | Описание | Приоритет | UC | Компонент | Тест | Статус |
@@ -39,6 +54,18 @@
 
 > Миграции: `007_client_contacts_portal.py`, `008_client_user_role.py`
 > Тесты: `backend/tests/test_client_user_role.py` (15 тестов), `test_clients.py`
+
+---
+
+## Модуль 4 — Счета
+
+| # | Требование | Описание | Приоритет | UC | Компонент | Тест | Статус |
+|---|-----------|----------|-----------|-----|-----------|------|--------|
+| R4-1 | BR-F-400 | Создание счёта: номер, клиент, дата, позиции, НДС | Must | UC-401 | `models/invoice.py`, `endpoints/invoices.py` | T-4-001 | ⬜ |
+| R4-2 | BR-F-411 | Строки счёта: тип `service` / `part` / `manual`; ссылка на `service_catalog` или `spare_parts` (только с ценой); `manual` — без привязки к справочнику | Must | UC-401 | `models/invoice_items.py`, `endpoints/invoices.py` | T-4-002 | ⬜ |
+| R4-3 | BR-F-118 | Создание счёта из акта только при наличии позиций | Must | UC-403 | `endpoints/invoices.py` (guard) | T-4-003 | ⬜ |
+| R4-4 | BR-F-119 | Отображение ссылки на счёт рядом с актом в карточке заявки | Should | UC-401 | `endpoints/tickets.py` | T-4-004 | ⬜ |
+| R4-5 | BR-F-120 | Статус оплаты счёта отображается рядом с актом | Must | UC-401 | `endpoints/invoices.py`, `endpoints/tickets.py` | T-4-005 | ⬜ |
 
 ---
 

@@ -14,12 +14,11 @@ import type {
   WorkActItemCreate,
   WorkTemplate,
   SparePart,
+  SparePartPriceUpdate,
+  PriceHistoryEntry,
   Vendor,
   Invoice,
   ServiceCatalogItem,
-  ProductCatalogItem,
-  ProductCatalogCreate,
-  ProductCatalogUpdate,
   Notification,
   NotificationSetting,
   PaginatedResponse,
@@ -316,24 +315,13 @@ export const updateServiceCatalogItem = (id: number, data: Partial<ServiceCatalo
 export const deleteServiceCatalogItem = (id: number): Promise<void> =>
   api.delete(`/service-catalog/${id}`).then(() => undefined)
 
-// ===== Product Catalog =====
+// ===== Parts Price Management =====
 
-export const productCatalogApi = {
-  list: (params?: { include_inactive?: boolean; category?: string; page?: number; size?: number }) =>
-    api.get<PaginatedResponse<ProductCatalogItem>>('/product-catalog', { params }),
+export const setPartPrice = (id: number, data: SparePartPriceUpdate): Promise<SparePart> =>
+  api.patch<SparePart>(`/parts/${id}/price`, data).then(r => r.data)
 
-  get: (id: number) =>
-    api.get<ProductCatalogItem>(`/product-catalog/${id}`),
-
-  create: (data: ProductCatalogCreate) =>
-    api.post<ProductCatalogItem>('/product-catalog', data),
-
-  update: (id: number, data: ProductCatalogUpdate) =>
-    api.patch<ProductCatalogItem>(`/product-catalog/${id}`, data),
-
-  delete: (id: number) =>
-    api.delete(`/product-catalog/${id}`),
-}
+export const getPartPriceHistory = (id: number): Promise<PriceHistoryEntry[]> =>
+  api.get<PriceHistoryEntry[]>(`/parts/${id}/price-history`).then(r => r.data)
 
 // ===== Notifications =====
 

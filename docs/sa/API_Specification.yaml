@@ -39,6 +39,16 @@ tags:
     description: Заявки на обслуживание (Module 9)
   - name: Шаблоны работ
     description: Шаблоны типовых работ (UC-911)
+  - name: Прайс-листы
+    description: |
+      Справочник услуг (`service_catalog`) и управление ценами каталога матценностей (`spare_parts`).
+      История цен покрывает оба справочника через `price_history` (`entity_type`: `service` / `spare_part`).
+      UC-101, UC-102, BR-F-110, BR-F-121, BR-F-122.
+      Новые эндпоинты: `GET /spare-parts?has_price=true` — фильтр для форм актов/счетов;
+      `GET /spare-parts/{id}/price-history` — история цен позиции;
+      `GET /service-catalog/{id}/price-history` — история цен услуги.
+  - name: Настройки
+    description: Системные настройки — курсы валют (BR-F-102)
   - name: Запчасти
     description: Склад запчастей
   - name: Вендоры

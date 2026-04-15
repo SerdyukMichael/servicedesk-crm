@@ -471,10 +471,9 @@ class CommentResponse(BaseModel):
 # ── Work Acts ─────────────────────────────────────────────────────────────────
 
 class WorkActItemCreate(BaseModel):
-    item_type: str  # "service" | "part" | "product"
+    item_type: str  # "service" | "part"
     service_id: Optional[int] = None
     part_id: Optional[int] = None
-    product_id: Optional[int] = None
     name: str
     quantity: Decimal = Decimal("1")
     unit: str = "шт"
@@ -490,7 +489,6 @@ class WorkActItemResponse(BaseModel):
     item_type: str
     service_id: Optional[int]
     part_id: Optional[int]
-    product_id: Optional[int]
     name: str
     quantity: Decimal
     unit: str
@@ -587,6 +585,40 @@ class StockAdjust(BaseModel):
     reason: str
 
 
+class SparePartPriceUpdate(BaseModel):
+    new_price: Decimal
+    currency: str = "RUB"
+    reason: str
+
+    @field_validator("new_price")
+    @classmethod
+    def validate_price(cls, v: Decimal) -> Decimal:
+        if v < 0:
+            raise ValueError("Цена не может быть отрицательной")
+        return v
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, v: str) -> str:
+        if len(v.strip()) < 5:
+            raise ValueError("Причина должна содержать минимум 5 символов")
+        return v
+
+
+class PriceHistoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    entity_type: str
+    entity_id: int
+    old_price: Decimal
+    new_price: Decimal
+    currency: str
+    reason: str
+    changed_by: int
+    changed_at: datetime
+
+
 # ── Vendors ───────────────────────────────────────────────────────────────────
 
 class VendorCreate(BaseModel):
@@ -633,10 +665,9 @@ class InvoiceItemCreate(BaseModel):
     unit: str = "шт"
     unit_price: Decimal
     sort_order: int = 0
-    item_type: Optional[str] = None   # "service" | "part" | "product" | "manual"
+    item_type: Optional[str] = None   # "service" | "part" | "manual"
     service_id: Optional[int] = None
     part_id: Optional[int] = None
-    product_id: Optional[int] = None
 
 
 class InvoiceItemResponse(BaseModel):
@@ -653,7 +684,6 @@ class InvoiceItemResponse(BaseModel):
     item_type: Optional[str] = None
     service_id: Optional[int] = None
     part_id: Optional[int] = None
-    product_id: Optional[int] = None
 
 
 class InvoiceCreate(BaseModel):
@@ -816,41 +846,3 @@ class ServiceCatalogResponse(BaseModel):
     updated_at: datetime
 
 
-# ── Product Catalog ───────────────────────────────────────────────────────────
-
-class ProductCatalogCreate(BaseModel):
-    code: str
-    name: str
-    description: Optional[str] = None
-    category: str = "other"   # "spare_part" | "other"
-    unit: str = "pcs"          # "pcs" | "pack" | "kit"
-    unit_price: Decimal = Decimal("0.00")
-    currency: str = "RUB"
-    is_active: bool = True
-
-
-class ProductCatalogUpdate(BaseModel):
-    code: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[str] = None
-    unit: Optional[str] = None
-    unit_price: Optional[Decimal] = None
-    currency: Optional[str] = None
-    is_active: Optional[bool] = None
-
-
-class ProductCatalogResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    code: str
-    name: str
-    description: Optional[str]
-    category: str
-    unit: str
-    unit_price: Decimal
-    currency: str
-    is_active: bool
-    created_at: datetime
-    updated_at: datetime

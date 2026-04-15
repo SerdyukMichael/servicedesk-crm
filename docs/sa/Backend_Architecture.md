@@ -23,6 +23,8 @@ backend/
 │   │       ├── clients.py        # CRUD клиентов + контактов
 │   │       ├── equipment.py      # CRUD оборудования
 │   │       ├── tickets.py        # CRUD заявок + комментарии + акты + файлы
+│   │       ├── pricelist.py      # Прайс-листы: ServiceCatalog, PriceHistory (UC-101, UC-102)
+│   │       ├── settings.py       # Системные настройки: курсы валют (BR-F-102)
 │   │       ├── parts.py          # Склад запчастей
 │   │       ├── vendors.py        # Вендоры / поставщики
 │   │       ├── invoices.py       # Счета и документы

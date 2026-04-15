@@ -203,26 +203,6 @@ def make_service_catalog_item(db, code="SRV-001", name="Диагностика",
     return item
 
 
-def make_product_catalog_item(
-    db,
-    code: str = "PROD-001",
-    name: str = "Тест товар",
-    category: str = "spare_part",
-    unit: str = "pcs",
-    unit_price: float = 500.0,
-    currency: str = "RUB",
-    is_active: bool = True,
-):
-    from app.models import ProductCatalog
-    item = ProductCatalog(
-        code=code, name=name, category=category, unit=unit,
-        unit_price=unit_price, currency=currency, is_active=is_active,
-    )
-    db.add(item)
-    db.commit()
-    db.refresh(item)
-    return item
-
 
 def make_vendor(db, name="Test Vendor"):
     v = Vendor(name=name, is_active=True)
