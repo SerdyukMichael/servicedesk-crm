@@ -34,6 +34,7 @@
 | R1-6 | BR-F-104 | История изменения цен: покрывает `service_catalog` (`entity_type='service'`) и `spare_parts` (`entity_type='spare_part'`); дата, автор, старая/новая цена, валюта, причина (обязательна ≥ 5 символов) | Should | UC-101, UC-102 | `models/price_history.py`, `endpoints/pricelist.py` | T-1-006 | ⬜ |
 | R1-8 | BR-F-122 | В формах акта и счёта при выборе позиции из каталога матценностей отображаются только `spare_parts` с `unit_price > 0` | Must | UC-102 | `endpoints/parts.py` (query param `has_price=true`) | T-1-008 | ⬜ |
 | R1-7 | BR-F-102 | Поддержка валют PLN/EUR/USD/RUB; ручная установка курса в настройках | Must | — | `models/exchange_rate.py`, `endpoints/settings.py` | T-1-007 | ⬜ |
+| R1-9 | BR-F-125 | Возобновление заявки (closed/completed → in_progress): доступно admin/svc_mgr/client_user; engineer запрещено; closed_at сбрасывается; история обновляется; email-уведомление участникам | Must | — | `endpoints/tickets.py` (`_TRANSITIONS`, `_REOPEN_ROLES`), `core/email.py` | `tests/test_ticket_reopen.py` | ✅ |
 
 ---
 

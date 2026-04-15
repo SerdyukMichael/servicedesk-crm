@@ -37,3 +37,24 @@ Thumbs.db
 
 # Credentials (never commit)
 CREDENTIALS.md
+
+# Screenshots / Playwright snapshots
+*.png
+*.jpg
+*.jpeg
+.playwright-mcp/
+frontend/.vite/
+
+# DB dumps
+*.sql.gz
+
+# Misc dev artifacts
+install_beads.txt
+config.yaml
+scripts/voice_claude.bat
+scripts/voice_claude.py
+scripts/voice_requirements.txt
+
+# Root-level playwright / e2e test artefacts
+tests/
+*-snap.md

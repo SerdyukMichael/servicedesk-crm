@@ -1443,11 +1443,24 @@ paths:
       summary: Изменить статус заявки
       description: |
         Матрица переходов:
-        - new → in_progress (при назначении инженера)
-        - in_progress → pending_parts
-        - in_progress → resolved
-        - pending_parts → in_progress
-        - resolved → closed (требует signed work_act)
+        - new → assigned, cancelled
+        - assigned → in_progress, cancelled
+        - in_progress → waiting_part, on_review, completed
+        - waiting_part → in_progress, cancelled
+        - on_review → completed, in_progress
+        - completed → closed, in_progress (BR-F-125: возобновление)
+        - closed → in_progress (BR-F-125: возобновление)
+        - cancelled → (нет переходов)
+
+        **BR-F-125: возобновление заявки (→ in_progress из closed/completed)**
+        - Разрешено только ролям: `admin`, `svc_mgr`, `client_user`
+        - Роль `engineer` получает 403 Forbidden
+        - При переходе: `closed_at` обнуляется, запись в историю статусов,
+          email-уведомление инициатору и назначенному инженеру (через SMTP, async)
+      security:
+        - BearerAuth: []
+      x-roles: [admin, svc_mgr, engineer, client_user]
+      x-roles-reopen: [admin, svc_mgr, client_user]
       requestBody:
         required: true
         content:

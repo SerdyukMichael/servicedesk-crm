@@ -32,10 +32,12 @@ const STATUS_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   in_progress: ['waiting_part', 'on_review', 'cancelled'],
   waiting_part: ['in_progress', 'cancelled'],
   on_review: ['completed', 'in_progress'],
-  completed: ['closed'],
-  closed: [],
+  completed: ['closed', 'in_progress'],   // BR-F-125: возобновление
+  closed: ['in_progress'],                // BR-F-125: возобновление
   cancelled: [],
 }
+
+const REOPEN_SOURCES: TicketStatus[] = ['closed', 'completed']
 
 const STATUS_LABELS: Record<TicketStatus, string> = {
   new: 'Новая',
@@ -122,9 +124,6 @@ export default function TicketDetailPage() {
       <div className="alert alert-error">Ошибка загрузки заявки</div>
     )
 
-  const transitions = STATUS_TRANSITIONS[ticket.status] ?? []
-  const engineers = usersData?.items ?? []
-
   const isOverdue =
     ticket.sla_deadline &&
     isPast(parseISO(ticket.sla_deadline)) &&
@@ -133,6 +132,25 @@ export default function TicketDetailPage() {
   const isClientUser = hasRole('client_user')
   const canAssign = hasRole('admin', 'svc_mgr')
   const canChangeStatus = hasRole('admin', 'svc_mgr', 'engineer')
+  // BR-F-125: роли, которым разрешено возобновлять заявку
+  const canReopen = hasRole('admin', 'svc_mgr', 'client_user')
+
+  // Фильтруем переходы: reopen (→ in_progress из closed/completed) — только canReopen
+  const transitions = (STATUS_TRANSITIONS[ticket.status] ?? []).filter(s => {
+    if (s === 'in_progress' && REOPEN_SOURCES.includes(ticket.status as TicketStatus)) {
+      return canReopen
+    }
+    return canChangeStatus
+  })
+
+  const engineers = usersData?.items ?? []
+
+  const getTransitionLabel = (to: TicketStatus): string => {
+    if (to === 'in_progress' && REOPEN_SOURCES.includes(ticket.status as TicketStatus)) {
+      return 'Возобновить'
+    }
+    return STATUS_LABELS[to]
+  }
   const canCreateAct = hasRole('engineer', 'svc_mgr', 'admin')
   const canSignAct = hasRole('client_user')
 
@@ -812,7 +830,7 @@ export default function TicketDetailPage() {
         {/* Right column: actions */}
         <div>
           {/* Status change */}
-          {canChangeStatus && transitions.length > 0 && (
+          {transitions.length > 0 && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div className="card-header">
                 <h3>Изменить статус</h3>
@@ -828,7 +846,7 @@ export default function TicketDetailPage() {
                       onClick={() => handleStatusChange(s)}
                       disabled={statusMutation.isPending}
                     >
-                      → {STATUS_LABELS[s]}
+                      → {getTransitionLabel(s)}
                     </button>
                   ))}
                 </div>

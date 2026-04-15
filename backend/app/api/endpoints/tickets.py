@@ -9,7 +9,7 @@ from urllib.parse import quote
 
 import magic as _magic
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, File, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 
@@ -69,6 +69,7 @@ _TICKET_TYPE_TO_WORK_TYPE = {
     "diagnostics":  "unplanned_repair",
 }
 from app.api.deps import get_current_user, require_roles, _get_user_roles, get_client_scope
+from app.core.email import send_email
 from app.schemas import (
     TicketCreate, TicketUpdate, TicketResponse, TicketAssign,
     TicketStatusChange, CommentCreate, CommentResponse,
@@ -92,9 +93,13 @@ _TRANSITIONS = {
     "waiting_part": ["in_progress", "cancelled"],
     "on_review":    ["completed", "in_progress"],
     "completed":    ["closed", "in_progress"],
-    "closed":       [],
+    "closed":       ["in_progress"],   # BR-F-125: возобновление
     "cancelled":    [],
 }
+
+# BR-F-125: роли, которым разрешено возобновлять заявку (closed/completed → in_progress)
+_REOPEN_ROLES = frozenset({"admin", "svc_mgr", "client_user"})
+_REOPEN_SOURCES = frozenset({"closed", "completed"})
 
 
 def _next_ticket_number(db: Session) -> str:
@@ -286,6 +291,7 @@ _STATUS_ROLES = ("admin", "svc_mgr", "engineer", "client_user")
 def change_ticket_status(
     ticket_id: int,
     data: TicketStatusChange,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(*_STATUS_ROLES)),
     client_scope: Optional[int] = Depends(get_client_scope),
@@ -308,10 +314,24 @@ def change_ticket_status(
                 "message": "Необходимо назначить инженера на заявку",
             },
         )
+    # BR-F-125: возобновление заявки — только привилегированные роли
+    if data.status == "in_progress" and ticket.status in _REOPEN_SOURCES:
+        user_roles = set(_get_user_roles(current_user))
+        if not user_roles & _REOPEN_ROLES:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "FORBIDDEN",
+                    "message": "Возобновить заявку могут только администратор, менеджер или клиент",
+                },
+            )
     prev_status = ticket.status
     ticket.status = data.status
     if data.status in ("closed", "completed"):
         ticket.closed_at = datetime.utcnow()
+    # BR-F-125: сброс closed_at при возобновлении
+    if data.status == "in_progress" and prev_status in _REOPEN_SOURCES:
+        ticket.closed_at = None
     db.add(TicketStatusHistory(
         ticket_id=ticket_id,
         from_status=prev_status,
@@ -341,7 +361,34 @@ def change_ticket_status(
                 parts_used=parts,
             ))
     db.commit()
-    ticket = db.query(Ticket).options(joinedload(Ticket.client), joinedload(Ticket.assignee), joinedload(Ticket.creator), joinedload(Ticket.equipment).joinedload(Equipment.model)).filter(Ticket.id == ticket_id).first()
+    ticket = db.query(Ticket).options(
+        joinedload(Ticket.client),
+        joinedload(Ticket.assignee),
+        joinedload(Ticket.creator),
+        joinedload(Ticket.equipment).joinedload(Equipment.model),
+    ).filter(Ticket.id == ticket_id).first()
+
+    # BR-F-125: email-уведомление при возобновлении заявки
+    if data.status == "in_progress" and prev_status in _REOPEN_SOURCES and ticket:
+        recipients: list[str] = []
+        if ticket.creator and ticket.creator.email:
+            recipients.append(ticket.creator.email)
+        if ticket.assignee and ticket.assignee.email and ticket.assignee.email not in recipients:
+            recipients.append(ticket.assignee.email)
+        # Инициатор-менеджер/admin также получает копию, если не дублирует
+        if current_user.email and current_user.email not in recipients:
+            initiator_roles = set(_get_user_roles(current_user))
+            if initiator_roles & {"admin", "svc_mgr"}:
+                recipients.append(current_user.email)
+        subject = f"Заявка {ticket.number} возобновлена"
+        body = (
+            f"<p>Заявка <b>{ticket.number}</b> «{ticket.title}» "
+            f"возобновлена и переведена в статус <b>В работе</b>.</p>"
+            f"<p>Инициатор: {current_user.full_name}</p>"
+            f"<p><a href=\"https://mikes1.fvds.ru/tickets/{ticket.id}\">Открыть заявку</a></p>"
+        )
+        background_tasks.add_task(send_email, recipients, subject, body)
+
     return ticket
 
 

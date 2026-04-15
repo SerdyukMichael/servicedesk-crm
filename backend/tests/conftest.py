@@ -76,7 +76,7 @@ def client(db):
 # ── User factories ────────────────────────────────────────────────────────────
 
 def make_user(db, email="user@test.com", full_name="Test User",
-              roles=None, password="pass12345", is_active=True):
+              roles=None, password="pass12345", is_active=True, client_id=None):
     u = User(
         email=email,
         full_name=full_name,
@@ -84,6 +84,7 @@ def make_user(db, email="user@test.com", full_name="Test User",
         roles=roles or ["engineer"],
         is_active=is_active,
         is_deleted=False,
+        client_id=client_id,
     )
     db.add(u)
     db.commit()
@@ -202,6 +203,11 @@ def make_service_catalog_item(db, code="SRV-001", name="Диагностика",
     db.refresh(item)
     return item
 
+
+
+def make_client_user(db, client_id: int, email: str = "client_user@test.com"):
+    return make_user(db, email=email, full_name="Client User",
+                     roles=["client_user"], client_id=client_id)
 
 
 def make_vendor(db, name="Test Vendor"):

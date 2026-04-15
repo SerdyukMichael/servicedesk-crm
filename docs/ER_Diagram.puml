@@ -1,0 +1,552 @@
+@startuml ER_ServiceDesk_CRM
+' ============================================================
+' ER Diagram — ServiceDesk CRM
+' Source: docs/ER_DataModel.md v1.1
+' ============================================================
+
+!define PK  <b><color:#b8860b>PK</color></b>
+!define FK  <color:#5555aa>FK</color>
+!define UQ  <color:#777>UQ</color>
+!define NN  <i>NN</i>
+
+skinparam entity {
+  BackgroundColor White
+  BorderColor #555
+  FontSize 11
+}
+skinparam package {
+  BackgroundColor #f5f5f5
+  BorderColor #999
+  FontSize 12
+  FontStyle bold
+}
+skinparam ArrowColor #555
+skinparam linetype ortho
+
+' ============================================================
+' МОДУЛЬ 8 — Персонал
+' ============================================================
+package "Модуль 8 · Персонал" {
+
+  entity "users" as users {
+    PK id : integer
+    --
+    UQ email : varchar(128)
+    full_name : varchar(128)
+    position : varchar(100)
+    department : varchar(100)
+    password_hash : varchar(255)
+    roles : JSON
+    FK client_id : integer
+    phone : varchar(32)
+    telegram_chat_id : varchar(64)
+    is_active : boolean
+    is_deleted : boolean
+    last_login_at : timestamp
+    created_at : timestamp
+    updated_at : timestamp
+  }
+
+  entity "engineer_competencies" as eng_comp {
+    PK id : bigint
+    --
+    FK engineer_id : bigint
+    FK equipment_model_id : bigint
+    certificate_number : varchar(100)
+    certificate_valid_until : date
+    last_training_date : date
+    is_deleted : boolean
+  }
+
+  entity "absences" as absences {
+    PK id : bigint
+    --
+    FK user_id : bigint
+    type : enum
+    start_date : date
+    end_date : date
+    notes : text
+    FK created_by : bigint
+    created_at : timestamp
+  }
+
+  entity "audit_log" as audit_log {
+    PK id : bigint
+    --
+    FK user_id : bigint
+    action : varchar(100)
+    entity : varchar(100)
+    entity_id : bigint
+    old_value : JSON
+    new_value : JSON
+    ip_address : varchar(45)
+    created_at : timestamp
+  }
+}
+
+' ============================================================
+' МОДУЛЬ 1 — Прайс-листы
+' ============================================================
+package "Модуль 1 · Прайс-листы" {
+
+  entity "service_catalog" as service_catalog {
+    PK id : integer
+    --
+    UQ code : varchar(32)
+    name : varchar(255)
+    description : text
+    category : enum
+    unit : enum
+    unit_price : decimal(12,2)
+    currency : varchar(3)
+    is_active : boolean
+    FK created_by : integer
+    created_at : timestamp
+    updated_at : timestamp
+  }
+
+  entity "price_history" as price_history {
+    PK id : integer
+    --
+    entity_type : enum
+    ' service | spare_part
+    entity_id : integer
+    old_price : decimal(12,2)
+    new_price : decimal(12,2)
+    currency : varchar(3)
+    reason : varchar(512)
+    FK changed_by : integer
+    changed_at : timestamp
+  }
+
+  entity "exchange_rates" as exchange_rates {
+    PK id : integer
+    --
+    currency : varchar(3)
+    rate_to_rub : decimal(10,4)
+    FK set_by : integer
+    set_at : timestamp
+  }
+}
+
+' ============================================================
+' СПРАВОЧНИКИ
+' ============================================================
+package "Справочники" {
+
+  entity "clients" as clients {
+    PK id : integer
+    --
+    name : varchar(255)
+    inn : varchar(12)
+    kpp : varchar(9)
+    legal_address : text
+    contract_type : enum
+    contract_number : varchar(64)
+    contract_valid_until : date
+    address : text
+    FK manager_id : integer
+    is_deleted : boolean
+    created_at : timestamp
+    updated_at : timestamp
+  }
+
+  entity "client_contacts" as client_contacts {
+    PK id : integer
+    --
+    FK client_id : integer
+    name : varchar(128)
+    phone : varchar(32)
+    email : varchar(128)
+    position : varchar(128)
+    is_primary : boolean
+    is_active : boolean
+    portal_access : boolean
+    portal_role : enum
+    FK portal_user_id : integer
+    FK created_by : integer
+    created_at : timestamp
+    updated_at : timestamp
+  }
+
+  entity "equipment_models" as equipment_models {
+    PK id : integer
+    --
+    name : varchar(255)
+    manufacturer : varchar(128)
+    category : enum
+    description : text
+    warranty_months_default : integer
+    is_active : boolean
+  }
+
+  entity "vendors" as vendors {
+    PK id : integer
+    --
+    name : varchar(255)
+    inn : varchar(12)
+    contact_name : varchar(128)
+    contact_phone : varchar(32)
+    contact_email : varchar(128)
+    website : varchar(255)
+    notes : text
+    is_active : boolean
+  }
+
+  entity "spare_parts" as spare_parts {
+    PK id : integer
+    --
+    UQ sku : varchar(64)
+    name : varchar(255)
+    category : varchar(64)
+    unit : varchar(16)
+    quantity : integer
+    min_quantity : integer
+    unit_price : decimal(12,2)
+    ' кэш актуальной цены (0 = нет цены)
+    currency : varchar(3)
+    FK vendor_id : integer
+    description : text
+    is_active : boolean
+    FK created_by : integer
+    created_at : timestamp
+    updated_at : timestamp
+  }
+
+  entity "work_templates" as work_templates {
+    PK id : integer
+    --
+    name : varchar(255)
+    FK equipment_model_id : integer
+    description : text
+    is_active : boolean
+    FK created_by : integer
+    created_at : timestamp
+    updated_at : timestamp
+  }
+
+  entity "work_template_steps" as wt_steps {
+    PK id : integer
+    --
+    FK template_id : integer
+    step_order : integer
+    description : text
+    estimated_minutes : integer
+  }
+}
+
+' ============================================================
+' МОДУЛЬ 10 — Оборудование
+' ============================================================
+package "Модуль 10 · Оборудование" {
+
+  entity "equipment" as equipment {
+    PK id : integer
+    --
+    FK client_id : integer
+    FK model_id : integer
+    UQ serial_number : varchar(128)
+    location : text
+    status : enum
+    installed_at : date
+    warranty_until : date
+    notes : text
+    is_deleted : boolean
+    created_at : timestamp
+    updated_at : timestamp
+  }
+
+  entity "equipment_documents" as equipment_docs {
+    PK id : bigint
+    --
+    FK equipment_id : bigint
+    FK history_id : bigint
+    doc_type : enum
+    file_name : varchar(255)
+    file_url : varchar(500)
+    file_size_kb : integer
+    mime_type : varchar(100)
+    FK uploaded_by : bigint
+    uploaded_at : timestamp
+    is_deleted : boolean
+  }
+
+  entity "equipment_history" as equipment_history {
+    PK id : bigint
+    --
+    FK equipment_id : bigint
+    event_type : enum
+    FK from_client_id : bigint
+    FK to_client_id : bigint
+    return_type : enum
+    event_date : date
+    act_number : varchar(64)
+    reason : text
+    claim_created : boolean
+    FK recorded_by : bigint
+    recorded_at : timestamp
+  }
+
+  entity "maintenance_schedules" as maintenance {
+    PK id : bigint
+    --
+    FK equipment_id : bigint
+    interval_months : integer
+    first_maintenance_date : date
+    next_maintenance_date : date
+    last_ticket_created_at : date
+    is_active : boolean
+    FK created_by : bigint
+    updated_at : timestamp
+  }
+
+  entity "repair_history" as repair_history {
+    PK id : bigint
+    --
+    FK equipment_id : bigint
+    FK ticket_id : bigint
+    action_type : varchar(64)
+    performed_at : timestamp
+    FK performed_by : bigint
+    parts_used : JSON
+    description : text
+    created_at : timestamp
+  }
+}
+
+' ============================================================
+' МОДУЛЬ 9 — Заявки
+' ============================================================
+package "Модуль 9 · Заявки" {
+
+  entity "tickets" as tickets {
+    PK id : integer
+    --
+    UQ number : varchar(32)
+    FK client_id : integer
+    FK equipment_id : integer
+    FK assigned_to : integer
+    FK created_by : integer
+    title : varchar(255)
+    description : text
+    type : enum
+    priority : enum
+    status : enum
+    sla_deadline : timestamp
+    FK work_template_id : integer
+    closed_at : timestamp
+    cancellation_reason : text
+    FK cancelled_by : integer
+    cancelled_at : timestamp
+    is_deleted : boolean
+    created_at : timestamp
+    updated_at : timestamp
+  }
+
+  entity "ticket_attachments" as ticket_attach {
+    PK id : bigint
+    --
+    FK ticket_id : bigint
+    file_name : varchar(255)
+    file_url : varchar(500)
+    file_size_kb : integer
+    uploaded_by_type : enum
+    uploaded_by_id : bigint
+    uploaded_at : timestamp
+    is_deleted : boolean
+  }
+
+  entity "ticket_comments" as ticket_comments {
+    PK id : integer
+    --
+    FK ticket_id : integer
+    FK user_id : integer
+    text : text
+    created_at : timestamp
+  }
+
+  entity "work_acts" as work_acts {
+    PK id : integer
+    --
+    UQ FK ticket_id : integer
+    FK engineer_id : integer
+    work_description : text
+    parts_used : JSON
+    total_time_minutes : integer
+    FK signed_by : integer
+    signed_at : timestamp
+    created_at : timestamp
+  }
+
+  entity "work_act_items" as work_act_items {
+    PK id : integer
+    --
+    FK work_act_id : integer
+    item_type : enum
+    ' service | part
+    FK service_id : integer
+    FK part_id : integer
+    name : varchar(255)
+    quantity : decimal(10,3)
+    unit : varchar(16)
+    unit_price : decimal(12,2)
+    total : decimal(14,2)
+    sort_order : integer
+  }
+
+  entity "work_act_parts" as work_act_parts {
+    PK id : bigint
+    --
+    FK work_act_id : bigint
+    FK part_id : bigint
+    qty : integer
+    source : enum
+  }
+}
+
+' ============================================================
+' ФИНАНСЫ
+' ============================================================
+package "Финансы" {
+
+  entity "invoices" as invoices {
+    PK id : integer
+    --
+    UQ number : varchar(32)
+    FK client_id : integer
+    FK ticket_id : integer
+    type : enum
+    status : enum
+    issue_date : date
+    due_date : date
+    subtotal : decimal(14,2)
+    vat_rate : decimal(5,2)
+    vat_amount : decimal(14,2)
+    total_amount : decimal(14,2)
+    notes : text
+    FK created_by : integer
+    paid_at : timestamp
+    created_at : timestamp
+    updated_at : timestamp
+  }
+
+  entity "invoice_items" as invoice_items {
+    PK id : integer
+    --
+    FK invoice_id : integer
+    item_type : enum
+    ' service | part | manual
+    FK service_id : integer
+    FK part_id : integer
+    description : varchar(512)
+    quantity : decimal(10,3)
+    unit : varchar(16)
+    unit_price : decimal(12,2)
+    total : decimal(14,2)
+    sort_order : integer
+  }
+}
+
+' ============================================================
+' МОДУЛЬ 14 — Уведомления
+' ============================================================
+package "Модуль 14 · Уведомления" {
+
+  entity "notification_settings" as notif_settings {
+    PK id : bigint
+    --
+    FK user_id : bigint
+    event_type : enum
+    channel : enum
+    enabled : boolean
+    updated_at : timestamp
+  }
+
+  entity "notifications" as notifications {
+    PK id : integer
+    --
+    FK user_id : integer
+    event_type : varchar(64)
+    title : varchar(255)
+    body : text
+    FK ticket_id : integer
+    is_read : boolean
+    created_at : timestamp
+  }
+}
+
+' ============================================================
+' СВЯЗИ
+' ============================================================
+
+' users → others
+users ||--o{ eng_comp         : "engineer_id"
+users ||--o{ absences          : "user_id"
+users ||--o{ audit_log         : "user_id"
+users ||--o{ clients           : "manager_id"
+users ||--o{ client_contacts   : "portal_user_id"
+users ||--o{ tickets           : "assigned_to"
+users ||--o{ tickets           : "created_by"
+users ||--o{ work_acts         : "engineer_id"
+users ||--o{ work_acts         : "signed_by"
+users ||--o{ notif_settings    : "user_id"
+users ||--o{ notifications     : "user_id"
+users ||--o{ service_catalog   : "created_by"
+users ||--o{ spare_parts       : "created_by"
+users ||--o{ price_history     : "changed_by"
+users ||--o{ exchange_rates    : "set_by"
+
+' clients
+clients ||--o{ equipment        : "client_id"
+clients ||--o{ tickets          : "client_id"
+clients ||--o{ client_contacts  : "client_id"
+clients ||--o{ invoices         : "client_id"
+
+' equipment_models
+equipment_models ||--o{ equipment      : "model_id"
+equipment_models ||--o{ eng_comp       : "equipment_model_id"
+equipment_models ||--o{ work_templates : "equipment_model_id"
+
+' equipment
+equipment ||--o{ tickets           : "equipment_id"
+equipment ||--o{ equipment_docs    : "equipment_id"
+equipment ||--o{ equipment_history : "equipment_id"
+equipment ||--o{ repair_history    : "equipment_id"
+equipment ||--|| maintenance       : "equipment_id"
+
+' equipment_history
+equipment_history ||--o{ equipment_docs : "history_id"
+
+' tickets
+tickets ||--o{ ticket_attach    : "ticket_id"
+tickets ||--o{ ticket_comments  : "ticket_id"
+tickets ||--|{ work_acts        : "ticket_id"
+tickets ||--o{ repair_history   : "ticket_id"
+tickets ||--o{ invoices         : "ticket_id"
+tickets ||--o{ notifications    : "ticket_id"
+
+' work_templates
+work_templates ||--o{ wt_steps : "template_id"
+
+' work_acts
+work_acts ||--o{ work_act_items  : "work_act_id"
+work_acts ||--o{ work_act_parts  : "work_act_id"
+
+' service catalog → act items & invoice items
+service_catalog ||--o{ work_act_items  : "service_id"
+service_catalog ||--o{ invoice_items   : "service_id"
+
+' spare_parts (единый каталог матценностей)
+spare_parts ||--o{ work_act_parts   : "part_id"
+spare_parts ||--o{ work_act_items   : "part_id"
+spare_parts ||--o{ invoice_items    : "part_id"
+vendors     ||--o{ spare_parts      : "vendor_id"
+
+' price history
+service_catalog ||--o{ price_history   : "entity_id (service)"
+spare_parts     ||--o{ price_history   : "entity_id (spare_part)"
+
+' invoices
+invoices ||--o{ invoice_items : "invoice_id"
+
+@enduml
