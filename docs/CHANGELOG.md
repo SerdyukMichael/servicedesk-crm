@@ -1,5 +1,61 @@
 # CHANGELOG
 
+## [1.0.0] — 2026-04-15
+
+**Единый каталог материальных ценностей + история цен** (BR-F-122, BR-P-006)
+
+### Архитектурное решение
+Отдельная сущность `product_catalog` (добавленная в 0.9.1) упразднена. `SparePart` — единый каталог материальных ценностей: для части позиций ведётся прайс с историей изменений. `price_history` покрывает оба справочника: услуги (`entity_type='service'`) и запчасти (`entity_type='spare_part'`).
+
+### Backend
+- Удалены: таблица `product_catalog`, эндпоинт `/api/v1/product-catalog`, модель, схемы
+- `SparePart`: добавлены поля `unit_price`, `currency`, `created_by`, `created_at`, `updated_at`
+- `PATCH /api/v1/parts/{id}/price` — установка/изменение цены (роли: admin, svc_mgr); автоматически пишет запись в `price_history`
+- `GET /api/v1/parts/{id}/price-history` — история изменений цены; недоступен `client_user`
+- `GET /api/v1/parts?has_price=true` — фильтр: только позиции с ценой > 0
+- Новая таблица `price_history`: полиморфная ссылка `(entity_type, entity_id)`, хранит старую/новую цену, валюту, причину, автора, дату
+- Миграция `011_remove_product_catalog`
+
+### Frontend
+- `PartsPage` полностью переработана:
+  - Колонка «Цена» с валютой и ссылкой «история»
+  - Кнопка «Уст. цену» / «Цена» — только для admin, svc_mgr
+  - Модальное окно установки/изменения цены (причина обязательна, ≥ 5 символов)
+  - Модальное окно «История цен» с таблицей изменений
+- `TicketDetailPage`: выпадающий список запчастей при создании акта фильтруется по `has_price=true` (BR-F-122)
+- Удалены: `ProductCatalogPage.tsx`, `useProductCatalog.ts`, маршрут `/product-catalog`, пункт меню «Товары»
+- `SparePart` в `types.ts`: поле `price` заменено на `unit_price: string` + `currency: string`
+
+### База данных
+- Миграция `011`: удалена `product_catalog`; откат enum `work_act_item_type` → `service|part`; откат `invoice_item_type` → `service|part|manual`; создана `price_history`
+
+### Тесты
+- Удалены: `test_product_catalog.py`
+- Добавлены: `test_parts_price.py` — 14 тестов (установка цены, права, история, сортировка)
+- Итого: **378 тестов, все зелёные**
+
+### Документы
+- `ER_DataModel.md`, `RBAC_Matrix.md`, `RTM.md`, `BRD`, `UC-101.md` — обновлены
+- `docs/sa/API_Specification.yaml`, `Backend_Architecture.md`, `Frontend_Architecture.md` — обновлены
+- `releases/v1.0.0/CHANGES.md`, `releases/v1.0.0/db_migrations.sql` — сформированы
+
+### Инфраструктура
+- CI/CD (`deploy.yml`): добавлен шаг `docker cp dist → nginx-контейнер` для обновления фронтенда без пересборки образа на сервере
+- CI/CD: добавлен `docker compose build backend` перед `up` — теперь новый Python-код гарантированно попадает в контейнер
+
+---
+
+## [0.9.1] — 2026-04-12
+
+**Product Catalog MVP** (UC-102) — *впоследствии заменён архитектурным решением v1.0.0*
+
+- Таблица `product_catalog`, эндпоинт `/api/v1/product-catalog` (CRUD)
+- Страница «Прайс-лист товаров» в интерфейсе
+- Миграция `010_product_catalog`
+- Фикс `docker-compose.yml`: `nginx.conf` по умолчанию для локального стенда
+
+---
+
 ## [0.9.0] — 2026-04-09
 
 **Подписание акта, статус оплаты, защита редактирования** (BR-F-115 – BR-F-120)
