@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## [Unreleased] — 2026-04-16
+
+**Блокировка редактирования акта при существующем/оплаченном счёте** (BR-F-126, BR-F-127)
+
+### Backend
+- `PATCH /api/v1/tickets/{id}/work-act`:
+  - Guard: если по заявке создан счёт (статус ≠ `cancelled`) → только `admin` может редактировать акт; остальные роли получают 403 `ACT_LOCKED_INVOICE_EXISTS` (BR-F-126)
+  - При изменении позиций и существующем **неоплаченном** счёте: автоматически заменяются позиции счёта и пересчитываются `subtotal`, `vat_amount`, `total_amount` (BR-F-127)
+  - При изменении позиций и существующем **оплаченном** счёте и расхождении суммы: возвращает 409 `INVOICE_PAID_MISMATCH` с полями `act_total`, `invoice_total`
+  - Новый флаг `force_save: bool` в `WorkActUpdate`: при `true` сохраняет акт, счёт не изменяется (BR-F-127)
+- Новые хелперы: `_calc_act_total(items)`, `_sync_invoice_from_act(invoice, act_items, db)`
+- 8 новых тестов в `tests/test_work_act_invoice_lock.py` (все зелёные; полный сьют: 396/396)
+
+### Frontend
+- `TicketDetailPage`: кнопка «Редактировать акт» скрыта для не-admin если счёт существует (BR-F-126)
+- `TicketDetailPage`: диалог подтверждения при 409 `INVOICE_PAID_MISMATCH` с кнопкой «Сохранить принудительно» (повтор с `force_save=true`)
+- `endpoints.ts`: добавлен параметр `force_save?: boolean` в `updateWorkAct`
+
+### RBAC
+- `engineer` добавлен в `_READ_ROLES` для `/api/v1/invoices` (BR-F-119, BR-F-120: инженер должен видеть связанный счёт и статус оплаты)
+- Обновлена `RBAC_Matrix.md`: engineer имеет `📖⁷` на просмотр счетов
+
+### Документация
+- `DocSpec_WorkAct.md` v1.1: добавлены BR-F-126, BR-F-127 в раздел проверок и таблицу ролей
+- `RBAC_Matrix.md`: обновлена таблица акта — разделены строки редактирования с/без счёта
+- `RTM.md`: добавлены R1-10 (BR-F-126) и R1-11 (BR-F-127), статус ✅
+
+---
+
 ## [1.0.0] — 2026-04-15
 
 **Единый каталог материальных ценностей + история цен** (BR-F-122, BR-P-006)

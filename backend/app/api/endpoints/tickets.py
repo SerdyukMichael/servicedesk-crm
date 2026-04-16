@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models import Ticket, TicketComment, TicketFile, WorkAct, WorkActItem, User, RepairHistory, Equipment, EquipmentModel, TicketStatusHistory
+from app.models import Ticket, TicketComment, TicketFile, WorkAct, WorkActItem, User, RepairHistory, Equipment, EquipmentModel, TicketStatusHistory, Invoice, InvoiceItem
 
 # MIME-типы, запрещённые к загрузке (хранимый XSS через SVG/HTML/JS)
 _BLOCKED_MIME_TYPES = frozenset({
@@ -652,6 +652,37 @@ def get_work_act(
     return act
 
 
+def _calc_act_total(items: list) -> Decimal:
+    """Сумма позиций акта без НДС."""
+    return sum((i.total for i in items), Decimal("0"))
+
+
+def _sync_invoice_from_act(invoice: Invoice, act_items: list, db: Session) -> None:
+    """Заменить позиции счёта позициями акта и пересчитать итоги."""
+    db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice.id).delete()
+    db.flush()
+    subtotal = Decimal("0")
+    for i, act_item in enumerate(act_items):
+        total = act_item.total
+        db.add(InvoiceItem(
+            invoice_id=invoice.id,
+            description=act_item.name,
+            quantity=act_item.quantity,
+            unit=act_item.unit,
+            unit_price=act_item.unit_price,
+            total=total,
+            sort_order=i,
+            item_type=act_item.item_type,
+            service_id=act_item.service_id,
+            part_id=act_item.part_id,
+        ))
+        subtotal += total
+    # Цены в актах уже включают НДС — счёт выставляется без дополнительного начисления
+    invoice.subtotal = subtotal
+    invoice.vat_amount = Decimal("0.00")
+    invoice.total_amount = subtotal
+
+
 @router.patch("/{ticket_id}/work-act", response_model=WorkActResponse)
 def update_work_act(
     ticket_id: int,
@@ -671,12 +702,34 @@ def update_work_act(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "NOT_FOUND", "message": "Акт выполненных работ не найден"},
         )
+
+    # Guard 1: акт подписан → запрещено всем
     if act.signed_by is not None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"error": "FORBIDDEN", "message": "Акт подписан и не может быть изменён"},
         )
 
+    # Guard 2: счёт существует → только admin (BR-F-126)
+    user_roles = set(_get_user_roles(current_user))
+    all_invoices = (
+        db.query(Invoice)
+        .filter(Invoice.ticket_id == ticket_id)
+        .filter(Invoice.status != "cancelled")
+        .order_by(Invoice.created_at.desc())
+        .all()
+    )
+    paid_invoice = next((inv for inv in all_invoices if inv.status == "paid"), None)
+    latest_unpaid_invoice = next((inv for inv in all_invoices if inv.status != "paid"), None)
+
+    if all_invoices and "admin" not in user_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "ACT_LOCKED_INVOICE_EXISTS",
+                    "message": "Редактирование акта заблокировано: счёт уже создан. Обратитесь к администратору"},
+        )
+
+    # Применяем изменения
     if data.work_description is not None:
         act.work_description = data.work_description
     if data.total_time_minutes is not None:
@@ -684,12 +737,12 @@ def update_work_act(
     if data.parts_used is not None:
         act.parts_used = data.parts_used
 
+    new_act_items: list = []   # заполняется ниже при изменении позиций
     if data.items is not None:
-        # Full replace: delete all existing items, insert new ones
         db.query(WorkActItem).filter(WorkActItem.work_act_id == act.id).delete()
         for i, item_data in enumerate(data.items):
             total = (item_data.quantity * item_data.unit_price).quantize(Decimal("0.01"))
-            db.add(WorkActItem(
+            item = WorkActItem(
                 work_act_id=act.id,
                 item_type=item_data.item_type,
                 service_id=item_data.service_id,
@@ -700,7 +753,33 @@ def update_work_act(
                 unit_price=item_data.unit_price,
                 total=total,
                 sort_order=item_data.sort_order if item_data.sort_order else i,
-            ))
+            )
+            db.add(item)
+            new_act_items.append(item)
+        db.flush()
+
+    # Синхронизация счётов (только если изменились позиции)
+    if data.items is not None:
+        act_total = _calc_act_total(new_act_items)
+
+        # BR-F-127: если есть оплаченный счёт и сумма изменилась → 409
+        if paid_invoice is not None and act_total != paid_invoice.subtotal:
+            if not data.force_save:
+                db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "error": "INVOICE_PAID_MISMATCH",
+                        "message": "Сумма акта изменилась, но счёт уже оплачен. Подтвердите сохранение.",
+                        "act_total": str(act_total),
+                        "invoice_total": str(paid_invoice.total_amount),
+                    },
+                )
+            # force_save=True: сохраняем акт, оплаченный счёт не трогаем
+
+        # Синхронизируем последний неоплаченный счёт (всегда, независимо от наличия оплаченного)
+        if latest_unpaid_invoice is not None:
+            _sync_invoice_from_act(latest_unpaid_invoice, new_act_items, db)
 
     db.commit()
     db.refresh(act)

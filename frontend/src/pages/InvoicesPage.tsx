@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { format, parseISO, isPast } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate, Link } from 'react-router-dom'
 import * as api from '../api/endpoints'
 import { useClients } from '../hooks/useClients'
 import { useAuth } from '../context/AuthContext'
@@ -26,6 +27,7 @@ const STATUS_STYLE: Record<InvoiceStatus, { background: string; color: string }>
 
 export default function InvoicesPage() {
   const { hasRole } = useAuth()
+  const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | ''>('')
   const [clientFilter, setClientFilter] = useState<string>('')
@@ -122,9 +124,19 @@ export default function InvoicesPage() {
                     inv.status !== 'paid'
 
                   return (
-                    <tr key={inv.id}>
+                    <tr
+                      key={inv.id}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => navigate(`/invoices/${inv.id}`)}
+                    >
                       <td>
-                        <span style={{ fontWeight: 500 }}>{inv.number}</span>
+                        <Link
+                          to={`/invoices/${inv.id}`}
+                          style={{ fontWeight: 500 }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {inv.number}
+                        </Link>
                       </td>
                       <td>{inv.client?.name ?? clients.find(c => c.id === inv.client_id)?.name ?? '—'}</td>
                       <td>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format, isPast, parseISO } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import {
@@ -112,6 +112,7 @@ export default function TicketDetailPage() {
   const [isEditingAct, setIsEditingAct] = useState(false)
   const [actItems, setActItems] = useState<WorkActItemCreate[]>([])
   const [invoiceFromActError, setInvoiceFromActError] = useState<string | null>(null)
+  const [paidMismatch, setPaidMismatch] = useState<{ actTotal: string; invoiceTotal: string } | null>(null)
 
   if (isLoading)
     return (
@@ -177,23 +178,33 @@ export default function TicketDetailPage() {
     )
   }
 
-  const handleSubmitWorkAct = () => {
-    const onSuccess = () => {
+  const handleSubmitWorkAct = async () => {
+    const closeForm = () => {
       setShowWorkActForm(false)
       setIsEditingAct(false)
       setActItems([])
       setWorkActDesc('')
     }
     if (isEditingAct) {
-      updateWorkAct.mutate(
-        { work_description: workActDesc, items: actItems },
-        { onSuccess }
-      )
+      try {
+        await updateWorkAct.mutateAsync({ work_description: workActDesc, items: actItems })
+        closeForm()
+      } catch (err: unknown) {
+        const data = (err as { response?: { data?: Record<string, string> } })
+          ?.response?.data
+        if (data?.error === 'INVOICE_PAID_MISMATCH') {
+          setPaidMismatch({ actTotal: data.act_total, invoiceTotal: data.invoice_total })
+        }
+      }
     } else {
-      createWorkAct.mutate(
-        { work_description: workActDesc, work_performed: workActPerformed, items: actItems },
-        { onSuccess }
-      )
+      try {
+        await createWorkAct.mutateAsync(
+          { work_description: workActDesc, work_performed: workActPerformed, items: actItems }
+        )
+        closeForm()
+      } catch {
+        // ошибка создания — ничего не делаем (хук уже в isError)
+      }
     }
   }
 
@@ -214,6 +225,20 @@ export default function TicketDetailPage() {
     )
     setIsEditingAct(true)
     setShowWorkActForm(true)
+  }
+
+  const handleForceSaveAct = () => {
+    const onSuccess = () => {
+      setShowWorkActForm(false)
+      setIsEditingAct(false)
+      setActItems([])
+      setWorkActDesc('')
+      setPaidMismatch(null)
+    }
+    updateWorkAct.mutate(
+      { work_description: workActDesc, items: actItems, force_save: true },
+      { onSuccess }
+    )
   }
 
   const addActItem = () => {
@@ -403,7 +428,7 @@ export default function TicketDetailPage() {
                   {showWorkActForm ? 'Отмена' : '+ Создать акт'}
                 </button>
               )}
-              {canCreateAct && workAct && !workAct.signed_by && (
+              {canCreateAct && workAct && !workAct.signed_by && (!ticketInvoice || hasRole('admin')) && (
                 <button
                   className="btn btn-secondary btn-sm"
                   onClick={() => {
@@ -587,17 +612,61 @@ export default function TicketDetailPage() {
                         )}
                       </span>
                     </li>
-                    {ticketInvoice && (
+                    {ticketInvoices && ticketInvoices.length > 0 && (
                       <li>
-                        <span className="info-list-label">Счёт</span>
+                        <span className="info-list-label">
+                          {ticketInvoices.length === 1 ? 'Счёт' : `Счета (${ticketInvoices.length})`}
+                        </span>
                         <span className="info-list-value">
-                          <a href={`/invoices`} style={{ textDecoration: 'underline' }}>
-                            {ticketInvoice.number}
-                          </a>
-                          {' '}
-                          <span className={`badge badge-${ticketInvoice.is_paid ? 'active' : 'draft'}`} style={{ fontSize: 10 }}>
-                            {ticketInvoice.is_paid ? '✓ Оплачен' : ticketInvoice.status === 'sent' ? 'Выставлен' : ticketInvoice.status}
-                          </span>
+                          {ticketInvoices.map(inv => {
+                            const statusLabel: Record<string, string> = {
+                              draft: 'Черновик', sent: 'Выставлен', paid: 'Оплачен',
+                              overdue: 'Просрочен', cancelled: 'Отменён',
+                            }
+                            const statusColor: Record<string, string> = {
+                              draft: '#475569', sent: '#1d4ed8', paid: '#166534',
+                              overdue: '#991b1b', cancelled: '#64748b',
+                            }
+                            const statusBg: Record<string, string> = {
+                              draft: '#f1f5f9', sent: '#dbeafe', paid: '#dcfce7',
+                              overdue: '#fecaca', cancelled: '#f1f5f9',
+                            }
+                            const isOverdue = inv.due_date && isPast(parseISO(inv.due_date)) && inv.status !== 'paid'
+                            return (
+                              <div key={inv.id} style={{ marginBottom: ticketInvoices.length > 1 ? 6 : 0 }}>
+                                <Link to={`/invoices/${inv.id}`} style={{ fontWeight: 500 }}>
+                                  {inv.number}
+                                </Link>
+                                {' '}
+                                <span style={{
+                                  fontSize: 11, padding: '2px 7px', borderRadius: 4,
+                                  background: statusBg[inv.status] ?? '#f1f5f9',
+                                  color: statusColor[inv.status] ?? '#475569',
+                                }}>
+                                  {statusLabel[inv.status] ?? inv.status}
+                                </span>
+                                {' '}
+                                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                  {parseFloat(String(inv.total_amount)).toLocaleString('ru-RU')} ₽
+                                </span>
+                                {inv.issue_date && (
+                                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 6 }}>
+                                    · выставлен {format(parseISO(inv.issue_date), 'dd.MM.yyyy', { locale: ru })}
+                                  </span>
+                                )}
+                                {inv.due_date && (
+                                  <span style={{ fontSize: 11, color: isOverdue ? 'var(--danger)' : 'var(--text-muted)', marginLeft: 4 }}>
+                                    · срок {format(parseISO(inv.due_date), 'dd.MM.yyyy', { locale: ru })}
+                                  </span>
+                                )}
+                                {inv.paid_at && (
+                                  <span style={{ fontSize: 11, color: '#166534', marginLeft: 4 }}>
+                                    · оплачен {format(parseISO(inv.paid_at), 'dd.MM.yyyy', { locale: ru })}
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          })}
                         </span>
                       </li>
                     )}
@@ -961,6 +1030,43 @@ export default function TicketDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* INVOICE_PAID_MISMATCH dialog */}
+      {paidMismatch && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+        }}>
+          <div style={{
+            background: 'var(--surface)', borderRadius: 8, padding: 24,
+            maxWidth: 480, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+          }}>
+            <h3 style={{ margin: '0 0 12px', color: 'var(--text-primary)' }}>Внимание: оплаченный счёт</h3>
+            <p style={{ color: 'var(--text-secondary)', margin: '0 0 16px' }}>
+              Сумма акта (<strong>{paidMismatch.actTotal} ₽</strong>) отличается от суммы
+              уже оплаченного счёта (<strong>{paidMismatch.invoiceTotal} ₽</strong>).
+            </p>
+            <p style={{ color: 'var(--text-secondary)', margin: '0 0 20px' }}>
+              Счёт не будет изменён. Сохранить акт с новыми данными?
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setPaidMismatch(null)}
+              >
+                Отмена
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={handleForceSaveAct}
+                disabled={updateWorkAct.isPending}
+              >
+                {updateWorkAct.isPending ? 'Сохранение...' : 'Сохранить принудительно'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

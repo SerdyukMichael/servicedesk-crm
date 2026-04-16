@@ -12,7 +12,7 @@ from app.schemas import InvoiceCreate, InvoiceUpdate, InvoiceResponse, Paginated
 
 router = APIRouter()
 
-_READ_ROLES = ("admin", "accountant", "director", "svc_mgr", "client_user")
+_READ_ROLES = ("admin", "accountant", "director", "svc_mgr", "engineer", "client_user")
 _WRITE_ROLES = ("admin", "accountant", "svc_mgr")
 _ADMIN = ("admin",)
 
@@ -106,9 +106,16 @@ def get_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
     _: User = Depends(require_roles(*_READ_ROLES)),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
     inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not inv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": "Счёт не найден"},
+        )
+    # client_user видит только счета своей организации
+    if client_scope is not None and inv.client_id != client_scope:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "NOT_FOUND", "message": "Счёт не найден"},

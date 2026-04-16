@@ -217,7 +217,7 @@ export const createWorkAct = (
 
 export const updateWorkAct = (
   ticketId: number,
-  data: { work_description?: string; total_time_minutes?: number; items?: WorkActItemCreate[] }
+  data: { work_description?: string; total_time_minutes?: number; items?: WorkActItemCreate[]; force_save?: boolean }
 ): Promise<WorkAct> =>
   api.patch<WorkAct>(`/tickets/${ticketId}/work-act`, data).then(r => r.data)
 
@@ -297,6 +297,12 @@ export const createInvoiceFromAct = (ticketId: number): Promise<Invoice> =>
 export const getInvoicesByTicket = (ticketId: number): Promise<Invoice[]> =>
   api.get<PaginatedResponse<Invoice>>('/invoices', { params: { ticket_id: ticketId, size: 10 } })
     .then(r => r.data.items)
+
+export const sendInvoice = (id: number): Promise<Invoice> =>
+  api.post<Invoice>(`/invoices/${id}/send`).then(r => r.data)
+
+export const payInvoice = (id: number): Promise<Invoice> =>
+  api.post<Invoice>(`/invoices/${id}/pay`).then(r => r.data)
 
 // ===== Service Catalog =====
 

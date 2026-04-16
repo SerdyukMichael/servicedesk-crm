@@ -14,6 +14,7 @@ import EquipmentDetailPage from './pages/EquipmentDetailPage'
 import UsersPage from './pages/UsersPage'
 import PartsPage from './pages/PartsPage'
 import InvoicesPage from './pages/InvoicesPage'
+import InvoiceDetailPage from './pages/InvoiceDetailPage'
 import NotificationsPage from './pages/NotificationsPage'
 import EquipmentModelsPage from './pages/EquipmentModelsPage'
 import ServiceCatalogPage from './pages/ServiceCatalogPage'
@@ -82,6 +83,7 @@ export default function App() {
 
           {/* Invoices */}
           <Route path="invoices" element={<InvoicesPage />} />
+          <Route path="invoices/:id" element={<InvoiceDetailPage />} />
 
           {/* Notifications */}
           <Route path="notifications" element={<NotificationsPage />} />

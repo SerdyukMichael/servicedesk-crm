@@ -509,6 +509,7 @@ class WorkActUpdate(BaseModel):
     parts_used: Optional[Any] = None
     total_time_minutes: Optional[int] = None
     items: Optional[List[WorkActItemCreate]] = None  # None = не менять, [] = удалить все
+    force_save: bool = False  # True = сохранить акт даже если счёт оплачен и суммы расходятся
 
 
 class WorkActResponse(BaseModel):
