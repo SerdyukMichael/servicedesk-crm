@@ -120,6 +120,14 @@ class TestInvoiceFromAct:
         r = client.post(f"/api/v1/invoices/from-act/{ticket.id}", headers=headers)
         assert r.status_code == 201
         data = r.json()
-        assert data["subtotal"] == "6000.00"       # 3 × 2000
-        assert data["vat_amount"] == "1200.00"     # 20%
-        assert data["total_amount"] == "7200.00"   # subtotal + vat
+        # НДС "в т.ч.": total_amount = сумма позиций (цены уже с НДС); vat вычисляется из итога
+        # 3 × 2000 = 6000; vat = 6000 / 122 * 22 ≈ 1081.97; subtotal = 6000 - 1081.97 = 4918.03
+        from decimal import Decimal
+        total = Decimal(data["total_amount"])
+        vat = Decimal(data["vat_amount"])
+        subtotal = Decimal(data["subtotal"])
+        vat_rate = Decimal(data["vat_rate"])
+        assert total == Decimal("6000.00")          # сумма позиций (не растёт)
+        expected_vat = (total * vat_rate / (100 + vat_rate)).quantize(Decimal("0.01"))
+        assert vat == expected_vat                  # НДС в т.ч.
+        assert subtotal + vat == total              # subtotal + vat = total

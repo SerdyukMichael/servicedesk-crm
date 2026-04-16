@@ -693,7 +693,7 @@ class InvoiceCreate(BaseModel):
     type: str = "service"
     issue_date: date
     due_date: Optional[date] = None
-    vat_rate: Decimal = Decimal("20.00")
+    vat_rate: Decimal = Decimal("22.00")
     notes: Optional[str] = None
     items: List[InvoiceItemCreate]
 

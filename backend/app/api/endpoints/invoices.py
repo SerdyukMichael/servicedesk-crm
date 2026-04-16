@@ -24,11 +24,13 @@ def _next_invoice_number(db: Session) -> str:
 
 
 def _recalculate(invoice: Invoice) -> None:
-    subtotal = sum(item.total for item in invoice.items)
-    vat = (subtotal * invoice.vat_rate / 100).quantize(Decimal("0.01"))
-    invoice.subtotal = subtotal
+    # total_amount = сумма позиций (цены уже включают НДС — "в т.ч.")
+    total = sum(item.total for item in invoice.items)
+    # НДС "в т.ч.": vat = total / (100 + rate) * rate
+    vat = (total * invoice.vat_rate / (100 + invoice.vat_rate)).quantize(Decimal("0.01"))
+    invoice.total_amount = total
     invoice.vat_amount = vat
-    invoice.total_amount = subtotal + vat
+    invoice.subtotal = total - vat  # база без НДС (справочно)
 
 
 @router.get("", response_model=PaginatedResponse[InvoiceResponse])

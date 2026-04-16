@@ -429,7 +429,7 @@ class Invoice(Base):
     issue_date:   Mapped[date]            = mapped_column(Date, nullable=False)
     due_date:     Mapped[Optional[date]]  = mapped_column(Date)
     subtotal:     Mapped[Decimal]         = mapped_column(DECIMAL(14, 2), default=0, nullable=False)
-    vat_rate:     Mapped[Decimal]         = mapped_column(DECIMAL(5, 2), default=20.00, nullable=False)
+    vat_rate:     Mapped[Decimal]         = mapped_column(DECIMAL(5, 2), default=22.00, nullable=False)
     vat_amount:   Mapped[Decimal]         = mapped_column(DECIMAL(14, 2), default=0, nullable=False)
     total_amount: Mapped[Decimal]         = mapped_column(DECIMAL(14, 2), default=0, nullable=False)
     notes:        Mapped[Optional[str]]   = mapped_column(Text)

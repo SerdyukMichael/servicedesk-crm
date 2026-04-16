@@ -81,18 +81,24 @@ class TestCreateInvoice:
         assert res.json()["number"] is not None
 
     def test_vat_calculated(self, client, db):
-        """VAT = 20% of subtotal by default."""
+        """НДС считается 'в т.ч.' — total_amount не увеличивается.
+        Формула: vat = total / (100 + rate) * rate  (для 22%: total / 122 * 22).
+        """
+        import decimal
         u, admin_hdrs = _admin(db)
         cl = make_client(db)
         res = _create_invoice(client, admin_hdrs, cl.id, u.id)
         assert res.status_code == 201
         data = res.json()
-        if data.get("subtotal") and data.get("vat_amount"):
-            import decimal
-            subtotal = decimal.Decimal(str(data["subtotal"]))
-            vat = decimal.Decimal(str(data["vat_amount"]))
-            expected_vat = (subtotal * 20 / 100).quantize(decimal.Decimal("0.01"))
-            assert vat == expected_vat
+        total = decimal.Decimal(str(data["total_amount"]))
+        vat = decimal.Decimal(str(data["vat_amount"]))
+        vat_rate = decimal.Decimal(str(data["vat_rate"]))
+        # НДС вычисляется из суммы, не добавляется к ней
+        expected_vat = (total * vat_rate / (100 + vat_rate)).quantize(decimal.Decimal("0.01"))
+        assert vat == expected_vat, f"НДС в т.ч.: {vat} != {expected_vat}"
+        # subtotal + vat_amount = total_amount (сумма счёта не растёт)
+        subtotal = decimal.Decimal(str(data["subtotal"]))
+        assert subtotal + vat == total, "subtotal + vat_amount должно равняться total_amount"
 
 
 class TestGetInvoice:

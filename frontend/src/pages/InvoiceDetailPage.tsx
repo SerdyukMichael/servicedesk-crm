@@ -59,7 +59,6 @@ export default function InvoiceDetailPage() {
 
   const canWrite = hasRole('admin', 'accountant', 'svc_mgr')
   const isOverdue = inv.due_date && isPast(parseISO(inv.due_date)) && inv.status !== 'paid'
-  const subtotal = parseFloat(String(inv.subtotal))
   const vatAmount = parseFloat(String(inv.vat_amount))
   const totalAmount = parseFloat(String(inv.total_amount))
 
@@ -178,24 +177,22 @@ export default function InvoiceDetailPage() {
               ))}
             </tbody>
             <tfoot>
-              <tr>
-                <td colSpan={4} style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 13 }}>Сумма без НДС:</td>
-                <td style={{ textAlign: 'right' }}>{subtotal.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽</td>
-              </tr>
-              {vatAmount > 0 && (
-                <tr>
-                  <td colSpan={4} style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 13 }}>
-                    НДС ({parseFloat(String(inv.vat_rate))}%):
-                  </td>
-                  <td style={{ textAlign: 'right' }}>{vatAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽</td>
-                </tr>
-              )}
               <tr style={{ background: 'var(--surface-alt, var(--surface))' }}>
                 <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700 }}>Итого:</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 16 }}>
                   {totalAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽
                 </td>
               </tr>
+              {vatAmount > 0 && (
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 13 }}>
+                    в т.ч. НДС ({parseFloat(String(inv.vat_rate))}%):
+                  </td>
+                  <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 13 }}>
+                    {vatAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽
+                  </td>
+                </tr>
+              )}
             </tfoot>
           </table>
         </div>

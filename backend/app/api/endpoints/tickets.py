@@ -677,10 +677,12 @@ def _sync_invoice_from_act(invoice: Invoice, act_items: list, db: Session) -> No
             part_id=act_item.part_id,
         ))
         subtotal += total
-    # Цены в актах уже включают НДС — счёт выставляется без дополнительного начисления
-    invoice.subtotal = subtotal
-    invoice.vat_amount = Decimal("0.00")
+    # НДС "в т.ч.": vat = total / (100 + rate) * rate; total не изменяется
+    vat_rate = invoice.vat_rate
+    vat = (subtotal * vat_rate / (100 + vat_rate)).quantize(Decimal("0.01"))
     invoice.total_amount = subtotal
+    invoice.vat_amount = vat
+    invoice.subtotal = subtotal - vat  # база без НДС (справочно)
 
 
 @router.patch("/{ticket_id}/work-act", response_model=WorkActResponse)
