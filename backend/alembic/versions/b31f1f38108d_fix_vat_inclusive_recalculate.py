@@ -20,16 +20,20 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # Пересчёт НДС "в т.ч." для всех существующих счетов.
-    # Старая формула: total_amount = subtotal + vat (НДС сверху).
-    # Новая формула:  total_amount = subtotal (сумма позиций, НДС внутри).
-    # subtotal здесь — старое значение (= сумма позиций до ошибочного начисления).
+    # Источник истины — сумма позиций (invoice_items.total).
+    # Ставка меняется на 22%. total_amount = сумма позиций (не растёт).
     op.execute("""
-        UPDATE invoices
+        UPDATE invoices i
+        JOIN (
+            SELECT invoice_id, SUM(total) AS items_total
+            FROM invoice_items
+            GROUP BY invoice_id
+        ) ii ON i.id = ii.invoice_id
         SET
-            total_amount = subtotal,
-            vat_amount   = ROUND(subtotal * vat_rate / (100 + vat_rate), 2),
-            subtotal     = ROUND(subtotal - ROUND(subtotal * vat_rate / (100 + vat_rate), 2), 2)
-        WHERE total_amount > subtotal
+            i.vat_rate     = 22.00,
+            i.total_amount = ii.items_total,
+            i.vat_amount   = ROUND(ii.items_total * 22 / 122, 2),
+            i.subtotal     = ROUND(ii.items_total - ROUND(ii.items_total * 22 / 122, 2), 2)
     """)
 
 
