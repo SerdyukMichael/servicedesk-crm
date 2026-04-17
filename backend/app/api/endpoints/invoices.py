@@ -238,7 +238,7 @@ def create_invoice_from_act(
         ticket_id=ticket_id,
         type="mixed",
         issue_date=date.today(),
-        vat_rate=Decimal("20.00"),
+        vat_rate=Decimal("22.00"),
         created_by=current_user.id,
         subtotal=Decimal("0"),
         vat_amount=Decimal("0"),
