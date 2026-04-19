@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useCurrency } from '../context/CurrencyContext'
 import {
   useServiceCatalog,
   useCreateServiceCatalogItem,
@@ -44,6 +45,7 @@ const EMPTY_FORM: FormState = {
 
 export default function ServiceCatalogPage() {
   const { hasRole } = useAuth()
+  const { currency } = useCurrency()
   const canWrite = hasRole('admin', 'svc_mgr')
 
   const [page, setPage] = useState(1)
@@ -209,7 +211,7 @@ export default function ServiceCatalogPage() {
                     </td>
                     <td>{CATEGORY_LABELS[item.category]}</td>
                     <td>{UNIT_LABELS[item.unit]}</td>
-                    <td style={{ fontWeight: 600 }}>{parseFloat(item.unit_price).toLocaleString('ru-RU')} ₽</td>
+                    <td style={{ fontWeight: 600 }}>{parseFloat(item.unit_price).toLocaleString('ru-RU')} {currency.currency_code}</td>
                     <td>
                       {item.is_active ? (
                         <span className="badge badge-completed">Активна</span>
@@ -324,7 +326,7 @@ export default function ServiceCatalogPage() {
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">Цена (₽) *</label>
+                <label className="form-label">Цена ({currency.currency_code}) *</label>
                 <input
                   type="number"
                   className="form-input"

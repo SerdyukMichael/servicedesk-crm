@@ -376,3 +376,13 @@ export interface LoginResponse {
 export interface ErrorResponse {
   detail: string | { msg: string; type: string }[]
 }
+
+export interface CurrencySetting {
+  currency_code: string
+  currency_name: string
+}
+
+export interface CurrencySettingUpdate {
+  currency_code: string
+  currency_name: string
+}

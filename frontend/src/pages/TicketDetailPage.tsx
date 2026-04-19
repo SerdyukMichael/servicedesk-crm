@@ -18,6 +18,7 @@ import {
 } from '../hooks/useTickets'
 import { useUsers } from '../hooks/useUsers'
 import { useAuth } from '../context/AuthContext'
+import { useCurrency } from '../context/CurrencyContext'
 import { useServiceCatalog } from '../hooks/useServiceCatalog'
 import { useParts } from '../hooks/useParts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -63,6 +64,7 @@ export default function TicketDetailPage() {
   const ticketId = parseInt(id ?? '0', 10)
   const navigate = useNavigate()
   const { hasRole } = useAuth()
+  const { currency } = useCurrency()
 
   const { data: ticket, isLoading, isError } = useTicket(ticketId)
   const { data: comments } = useTicketComments(ticketId)
@@ -500,7 +502,7 @@ export default function TicketDetailPage() {
                                 >
                                   <option value="">— выбрать услугу —</option>
                                   {serviceCatalog?.items.filter(s => s.is_active).map(s => (
-                                    <option key={s.id} value={s.id}>{s.name} ({parseFloat(s.unit_price).toLocaleString('ru-RU')} ₽)</option>
+                                    <option key={s.id} value={s.id}>{s.name} ({parseFloat(s.unit_price).toLocaleString('ru-RU')} {currency.currency_code})</option>
                                   ))}
                                 </select>
                               ) : (
@@ -554,7 +556,7 @@ export default function TicketDetailPage() {
                                 onChange={e => updateActItem(idx, { unit_price: e.target.value })}
                               />
                               <span style={{ fontSize: 13, color: 'var(--text-muted)', alignSelf: 'center', whiteSpace: 'nowrap' }}>
-                                = {(parseFloat(item.quantity || '0') * parseFloat(item.unit_price || '0')).toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽
+                                = {(parseFloat(item.quantity || '0') * parseFloat(item.unit_price || '0')).toLocaleString('ru-RU', { minimumFractionDigits: 2 })} {currency.currency_code}
                               </span>
                               <button
                                 type="button"
@@ -568,7 +570,7 @@ export default function TicketDetailPage() {
                           </div>
                         ))}
                         <div style={{ padding: '8px 12px', background: 'var(--surface-alt, var(--surface))', fontSize: 13, fontWeight: 600, textAlign: 'right' }}>
-                          Итого: {actItems.reduce((s, i) => s + parseFloat(i.quantity || '0') * parseFloat(i.unit_price || '0'), 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽
+                          Итого: {actItems.reduce((s, i) => s + parseFloat(i.quantity || '0') * parseFloat(i.unit_price || '0'), 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })} {currency.currency_code}
                         </div>
                       </div>
                     )}
@@ -647,7 +649,7 @@ export default function TicketDetailPage() {
                                 </span>
                                 {' '}
                                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                                  {parseFloat(String(inv.total_amount)).toLocaleString('ru-RU')} ₽
+                                  {parseFloat(String(inv.total_amount)).toLocaleString('ru-RU')} {currency.currency_code}
                                 </span>
                                 {inv.issue_date && (
                                   <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 6 }}>
@@ -705,8 +707,8 @@ export default function TicketDetailPage() {
                                 <td>{item.name}</td>
                                 <td>{parseFloat(item.quantity)}</td>
                                 <td>{item.unit}</td>
-                                <td>{parseFloat(item.unit_price).toLocaleString('ru-RU')} ₽</td>
-                                <td style={{ fontWeight: 600 }}>{parseFloat(item.total).toLocaleString('ru-RU')} ₽</td>
+                                <td>{parseFloat(item.unit_price).toLocaleString('ru-RU')} {currency.currency_code}</td>
+                                <td style={{ fontWeight: 600 }}>{parseFloat(item.total).toLocaleString('ru-RU')} {currency.currency_code}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -714,7 +716,7 @@ export default function TicketDetailPage() {
                             <tr>
                               <td colSpan={5} style={{ textAlign: 'right', fontWeight: 600, fontSize: 13 }}>Итого:</td>
                               <td style={{ fontWeight: 700 }}>
-                                {workAct.items.reduce((s, i) => s + parseFloat(i.total), 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽
+                                {workAct.items.reduce((s, i) => s + parseFloat(i.total), 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })} {currency.currency_code}
                               </td>
                             </tr>
                           </tfoot>
@@ -1043,8 +1045,8 @@ export default function TicketDetailPage() {
           }}>
             <h3 style={{ margin: '0 0 12px', color: 'var(--text-primary)' }}>Внимание: оплаченный счёт</h3>
             <p style={{ color: 'var(--text-secondary)', margin: '0 0 16px' }}>
-              Сумма акта (<strong>{paidMismatch.actTotal} ₽</strong>) отличается от суммы
-              уже оплаченного счёта (<strong>{paidMismatch.invoiceTotal} ₽</strong>).
+              Сумма акта (<strong>{paidMismatch.actTotal} {currency.currency_code}</strong>) отличается от суммы
+              уже оплаченного счёта (<strong>{paidMismatch.invoiceTotal} {currency.currency_code}</strong>).
             </p>
             <p style={{ color: 'var(--text-secondary)', margin: '0 0 20px' }}>
               Счёт не будет изменён. Сохранить акт с новыми данными?

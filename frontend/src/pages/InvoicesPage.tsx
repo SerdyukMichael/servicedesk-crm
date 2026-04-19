@@ -6,6 +6,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import * as api from '../api/endpoints'
 import { useClients } from '../hooks/useClients'
 import { useAuth } from '../context/AuthContext'
+import { useCurrency } from '../context/CurrencyContext'
 import Pagination from '../components/Pagination'
 import type { InvoiceStatus } from '../api/types'
 
@@ -27,6 +28,7 @@ const STATUS_STYLE: Record<InvoiceStatus, { background: string; color: string }>
 
 export default function InvoicesPage() {
   const { hasRole } = useAuth()
+  const { currency } = useCurrency()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | ''>('')
@@ -161,7 +163,7 @@ export default function InvoicesPage() {
                         }
                       </td>
                       <td style={{ fontWeight: 500 }}>
-                        {parseFloat(String(inv.total_amount)).toLocaleString('ru-RU')} ₽
+                        {parseFloat(String(inv.total_amount)).toLocaleString('ru-RU')} {currency.currency_code}
                       </td>
                       <td>
                         {format(parseISO(inv.issue_date), 'dd.MM.yyyy', { locale: ru })}

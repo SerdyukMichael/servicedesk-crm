@@ -628,6 +628,26 @@ service_catalog ──< price_history (entity_type='service')
 
 ---
 
+## Модуль 16 — Системные настройки
+
+### `system_settings` — Системные настройки (BR-F-1601..1604)
+
+| Поле | Тип | Ограничения | Описание |
+| --- | --- | --- | --- |
+| key | varchar(64) | PK | Уникальный ключ настройки |
+| value | varchar(255) | NN | Значение настройки |
+| updated_at | timestamp | NN, default now() | Дата последнего изменения |
+| updated_by | bigint | FK → users.id, NULL | Кто изменил (NULL = seed) |
+
+**Начальные записи:**
+
+| key | value |
+| --- | --- |
+| `currency_code` | `RUB` |
+| `currency_name` | `Российский рубль` |
+
+---
+
 ## Таблицы-справочники (seed data)
 
 При инициализации системы заполнить:
@@ -637,6 +657,7 @@ service_catalog ──< price_history (entity_type='service')
 | `equipment_models` | Список моделей банкоматов и платёжного оборудования |
 | `notification_settings` | Матрица умолчаний (BR-F-1401): все события включены для email и in_app |
 | `spare_parts` | Базовая номенклатура материальных ценностей (запчасти, расходники) |
+| `system_settings` | `currency_code=RUB`, `currency_name=Российский рубль` |
 
 ---
 

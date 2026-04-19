@@ -4,6 +4,7 @@ import { ru } from 'date-fns/locale'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as api from '../api/endpoints'
 import { useAuth } from '../context/AuthContext'
+import { useCurrency } from '../context/CurrencyContext'
 import type { InvoiceStatus } from '../api/types'
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
@@ -26,6 +27,7 @@ export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { hasRole } = useAuth()
+  const { currency } = useCurrency()
   const qc = useQueryClient()
   const invoiceId = Number(id)
 
@@ -171,8 +173,8 @@ export default function InvoiceDetailPage() {
                   <td>{item.description}</td>
                   <td style={{ textAlign: 'center' }}>{parseFloat(String(item.quantity))}</td>
                   <td>{item.unit}</td>
-                  <td style={{ textAlign: 'right' }}>{parseFloat(String(item.unit_price)).toLocaleString('ru-RU')} ₽</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{parseFloat(String(item.total)).toLocaleString('ru-RU')} ₽</td>
+                  <td style={{ textAlign: 'right' }}>{parseFloat(String(item.unit_price)).toLocaleString('ru-RU')} {currency.currency_code}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{parseFloat(String(item.total)).toLocaleString('ru-RU')} {currency.currency_code}</td>
                 </tr>
               ))}
             </tbody>
@@ -180,7 +182,7 @@ export default function InvoiceDetailPage() {
               <tr style={{ background: 'var(--surface-alt, var(--surface))' }}>
                 <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700 }}>Итого:</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 16 }}>
-                  {totalAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽
+                  {totalAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} {currency.currency_code}
                 </td>
               </tr>
               {vatAmount > 0 && (
@@ -189,7 +191,7 @@ export default function InvoiceDetailPage() {
                     в т.ч. НДС ({parseFloat(String(inv.vat_rate))}%):
                   </td>
                   <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 13 }}>
-                    {vatAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽
+                    {vatAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} {currency.currency_code}
                   </td>
                 </tr>
               )}

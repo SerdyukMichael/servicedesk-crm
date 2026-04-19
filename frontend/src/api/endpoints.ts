@@ -23,6 +23,8 @@ import type {
   NotificationSetting,
   PaginatedResponse,
   LoginResponse,
+  CurrencySetting,
+  CurrencySettingUpdate,
 } from './types'
 
 // ===== Auth =====
@@ -354,3 +356,11 @@ export const updateNotificationSetting = (
   api
     .put<NotificationSetting>('/notifications/settings', { event_type, channel, enabled })
     .then(r => r.data)
+
+// ===== Settings =====
+
+export const getCurrency = (): Promise<CurrencySetting> =>
+  api.get<CurrencySetting>('/settings/currency').then(r => r.data)
+
+export const updateCurrency = (data: CurrencySettingUpdate): Promise<CurrencySetting> =>
+  api.put<CurrencySetting>('/settings/currency', data).then(r => r.data)

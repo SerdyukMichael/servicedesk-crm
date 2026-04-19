@@ -84,6 +84,18 @@ export default function Layout() {
               Пользователи
             </NavLink>
           )}
+
+          {hasRole('admin') && (
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                'sidebar-nav-item' + (isActive ? ' active' : '')
+              }
+            >
+              <span className="sidebar-nav-icon">⚙️</span>
+              Настройки
+            </NavLink>
+          )}
         </nav>
       </aside>
 

@@ -5,9 +5,11 @@ import Pagination from '../components/Pagination'
 import { setPartPrice, getPartPriceHistory } from '../api/endpoints'
 import type { SparePart, SparePartPriceUpdate, PriceHistoryEntry } from '../api/types'
 import { useAuth } from '../context/AuthContext'
+import { useCurrency } from '../context/CurrencyContext'
 
 export default function PartsPage() {
   const { hasRole } = useAuth()
+  const { currency } = useCurrency()
   const canManagePrice = hasRole('admin', 'svc_mgr')
 
   const [page, setPage] = useState(1)
@@ -171,7 +173,7 @@ export default function PartsPage() {
                       <td style={{ color: 'var(--text-muted)' }}>{part.min_quantity}</td>
                       <td>
                         <span style={{ fontWeight: hasPriceSet ? 600 : 400, color: hasPriceSet ? 'inherit' : 'var(--text-muted)' }}>
-                          {hasPriceSet ? `${price.toFixed(2)} ${part.currency ?? '₽'}` : '—'}
+                          {hasPriceSet ? `${price.toFixed(2)} ${currency.currency_code}` : '—'}
                         </span>
                         {hasPriceSet && (
                           <button

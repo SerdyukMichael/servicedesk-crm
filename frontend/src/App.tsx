@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { CurrencyProvider } from './context/CurrencyContext'
 import PrivateRoute from './components/PrivateRoute'
 import Layout from './components/Layout'
 
@@ -18,6 +19,7 @@ import InvoiceDetailPage from './pages/InvoiceDetailPage'
 import NotificationsPage from './pages/NotificationsPage'
 import EquipmentModelsPage from './pages/EquipmentModelsPage'
 import ServiceCatalogPage from './pages/ServiceCatalogPage'
+import SettingsPage from './pages/SettingsPage'
 
 function NotFoundPage() {
   return (
@@ -31,6 +33,7 @@ function NotFoundPage() {
 export default function App() {
   return (
     <AuthProvider>
+      <CurrencyProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
 
@@ -88,10 +91,21 @@ export default function App() {
           {/* Notifications */}
           <Route path="notifications" element={<NotificationsPage />} />
 
+          {/* Settings (admin only) */}
+          <Route
+            path="settings"
+            element={
+              <PrivateRoute roles={['admin']}>
+                <SettingsPage />
+              </PrivateRoute>
+            }
+          />
+
           {/* 404 */}
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
+      </CurrencyProvider>
     </AuthProvider>
   )
 }

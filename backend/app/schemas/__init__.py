@@ -847,3 +847,31 @@ class ServiceCatalogResponse(BaseModel):
     updated_at: datetime
 
 
+
+
+
+# ===== SystemSettings =====
+
+class CurrencySettingResponse(BaseModel):
+    currency_code: str
+    currency_name: str
+
+
+class CurrencySettingUpdate(BaseModel):
+    currency_code: str
+    currency_name: str
+
+    @field_validator("currency_code")
+    @classmethod
+    def validate_code(cls, v: str) -> str:
+        v = v.strip().upper()
+        if len(v) != 3 or not v.isalpha():
+            raise ValueError("Код валюты должен содержать ровно 3 латинских символа (например: RUB, KZT, PLN)")
+        return v
+
+    @field_validator("currency_name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Введите наименование валюты")
+        return v.strip()

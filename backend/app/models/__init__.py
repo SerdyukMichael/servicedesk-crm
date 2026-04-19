@@ -537,6 +537,15 @@ class AuditLog(Base):
     user: Mapped[Optional["User"]] = relationship("User", back_populates="audit_logs")
 
 
+class SystemSetting(Base):
+    __tablename__ = "system_settings"
+
+    key:        Mapped[str]           = mapped_column(String(64), primary_key=True)
+    value:      Mapped[str]           = mapped_column(String(255), nullable=False)
+    updated_at: Mapped[datetime]      = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    updated_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
 __all__ = [
     "User",
     "Client",
@@ -561,4 +570,5 @@ __all__ = [
     "NotificationSetting",
     "Notification",
     "AuditLog",
+    "SystemSetting",
 ]
