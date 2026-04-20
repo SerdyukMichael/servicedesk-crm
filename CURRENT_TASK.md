@@ -1,86 +1,53 @@
 # CURRENT TASK
 
-**Последнее обновление:** 2026-04-17
+**Последнее обновление:** 2026-04-20
 
 ## Последняя команда пользователя
 
-> НДС "в т.ч." 22%, исправить на тесте и проде
+> выкладываем все в гит и на прод
 
 ## Статус
 
-DONE — НДС исправлен на тесте и проде, подтверждено пользователем.
+DONE — v1.3.0 закоммичена, тег создан, пуш выполнен. CI/CD задеплоит на прод автоматически.
 
-## Что сделано (2026-04-17)
+## Что сделано (2026-04-20)
 
-### Фикс расчёта НДС "в т.ч." (ставка 22%)
+### v1.3.0 — Удаление repair_history, UI/UX улучшения
 
-- `backend/app/api/endpoints/invoices.py` — `_recalculate()`: НДС считается из суммы (не сверху), формула `vat = total * 22/122`
-- `backend/app/api/endpoints/tickets.py` — `_sync_invoice_from_act()`: та же формула
-- `backend/app/api/endpoints/invoices.py` — hardcode `20.00` → `22.00` в эндпоинте создания счёта из акта
-- `backend/app/models/__init__.py` — default vat_rate 20 → 22
-- `backend/app/schemas/__init__.py` — default vat_rate 20 → 22
-- `frontend/src/pages/InvoiceDetailPage.tsx` — убрана строка "Сумма без НДС", НДС показывается как "в т.ч." под итогом
-- Миграции БД для прода:
-  - `b31f1f38108d` — пересчёт от invoice_items
-  - `d20b1718df8a` — ставка 22%
-  - `89b7f086cd94` — принудительно 22% для всех счетов (финальный рабочий)
+**Frontend:**
+- Удалена вкладка «История ремонтов» из карточки оборудования
+- Добавлена кнопка «← Назад» на страницы: заявки, клиента, оборудования
+- EquipmentModelsPage: исправлены CSS-классы формы (form-control → form-input/select/textarea), добавлены маркеры обязательных полей
 
-## Что сделано (2026-04-16, финальный фикс)
+**Backend:**
+- Удалён эндпоинт `GET /equipment/{id}/history`
+- Удалена ORM-модель `RepairHistory`, схема `RepairHistoryResponse`
+- Удалён BR-F-906 (авто-создание записей repair_history при завершении заявки)
+- Удалён словарь `_TICKET_TYPE_TO_WORK_TYPE`
 
-### Фикс синхронизации неоплаченного счёта при редактировании акта (BR-F-127)
+**БД:**
+- Миграция `403d0220d2a5`: `DROP TABLE repair_history`
 
-- `backend/app/api/endpoints/tickets.py` — убрано условие `and paid_invoice is None` из строки 781: неоплаченный счёт теперь синхронизируется **всегда** при изменении позиций акта, независимо от наличия оплаченного счёта
-- Пересборка backend-контейнера: `docker compose up -d --build backend`
-- `pytest tests/ -q` → **397/397 passed**
+**Тесты:**
+- Удалён `test_repair_history.py` (9 тестов)
+- Удалены 2 теста из `test_equipment.py` и `test_row_level_detail.py`
+- Итого: 388/388 passed
 
-## Что сделано (2026-04-16, дополнение)
+**Документы:**
+- BRD, RTM, AC_MVP_Requirements, AppendixD, CHANGELOG, ER_Diagram.puml
+- ER_DataModel.md, RBAC_Matrix.md, UC-1001, UC-1002 (упразднён), API_Specification.yaml, DB_Migrations.md
 
-### Фикс диалога INVOICE_PAID_MISMATCH
-
-- `frontend/src/pages/TicketDetailPage.tsx` — переход с `mutate(data, { onError })` на `mutateAsync` + try/catch (per-mutation callbacks не вызываются в TanStack Query v5.95.2)
-- `frontend/src/pages/TicketDetailPage.tsx` — то же для `createWorkAct`
-- `frontend/nginx.conf` — добавлен `Cache-Control: no-cache, no-store` для `location /` (SPA index.html не кешируется браузером)
-- Playwright-тест: диалог «Внимание: оплаченный счёт» подтверждён работающим
-
-### Полный прогон тестов после финальных правок
-
-- `docker compose exec backend pytest tests/ -q` → **397/397 passed**
-
-## Что сделано (2026-04-16)
-
-### BR-F-126 / BR-F-127 — блокировка редактирования акта при наличии счёта
-
-- `backend/app/api/endpoints/tickets.py` — эндпоинт `PUT /tickets/{id}/work-act`:
-  - **Фикс 1**: передавать `new_act_items` вместо `act.items` в `_sync_invoice_from_act` (ORM объект устаревает после bulk delete)
-  - **Фикс 2 (по результатам ручного теста)**: убрана внешняя проверка `if act_total != inv_subtotal` — неоплаченный счёт теперь всегда синхронизируется при изменении позиций акта (BR-F-127)
-- `backend/app/api/endpoints/invoices.py` — добавлен `"engineer"` в `_READ_ROLES` (чтобы фронтенд мог проверить наличие счёта)
-- `backend/app/schemas/__init__.py` — добавлен `force_save: bool = False` в `WorkActUpdate`
-- `backend/tests/test_work_act_invoice_lock.py` — 8 новых тестов (все pass)
-- `backend/tests/test_invoices.py` — `test_engineer_can_list` (было `cannot`, ожидало 403)
-- `frontend/src/pages/TicketDetailPage.tsx` — кнопка «Редактировать акт» скрыта у не-admin если счёт существует; диалог INVOICE_PAID_MISMATCH при 409
-- `frontend/src/api/endpoints.ts` — `force_save?: boolean` в `updateWorkAct`
-- Документация: `docs/DocSpec_WorkAct.md`, `docs/RBAC_Matrix.md`, `docs/RTM.md`, `docs/CHANGELOG.md`
-
-### Справочник услуг на тестовом стенде
-
-- Скопированы 29 услуг с прода на тестовый стенд
-
-### Полный прогон тестов
-
-- `docker compose exec backend pytest tests/ -v` → **396/396 passed**
-
-## Ожидает
-
-Явного ОК пользователя на коммит и пуш ветки `feat/product-catalog-mvp`.
+**Git:**
+- Коммит: `daa1ecf`
+- Тег: `v1.3.0`
+- Пуш: выполнен, CI/CD деплоит на https://mikes1.fvds.ru
 
 ## Что было реализовано ранее
 
-### Product Catalog MVP (2026-04-12)
+### НДС "в т.ч." 22% (2026-04-17)
 
-- Миграция `010_product_catalog.py` — таблица product_catalog
-- Модель/схемы/эндпоинт `/api/v1/product-catalog`
-- Frontend: ProductCatalogPage, меню «Товары»
+DONE — исправлено на тесте и проде, подтверждено пользователем.
 
-### v0.9.0 (Work Act / Invoice features)
+### BR-F-126 / BR-F-127 — блокировка редактирования акта (2026-04-16)
 
-- BR-F-115..BR-F-120: подписание акта, статусы, ссылка на счёт, статус оплаты
+DONE — реализовано и задеплоено.
