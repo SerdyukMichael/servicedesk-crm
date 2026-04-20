@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models import Ticket, TicketComment, TicketFile, WorkAct, WorkActItem, User, RepairHistory, Equipment, EquipmentModel, TicketStatusHistory, Invoice, InvoiceItem
+from app.models import Ticket, TicketComment, TicketFile, WorkAct, WorkActItem, User, Equipment, EquipmentModel, TicketStatusHistory, Invoice, InvoiceItem
 
 # MIME-типы, запрещённые к загрузке (хранимый XSS через SVG/HTML/JS)
 _BLOCKED_MIME_TYPES = frozenset({
@@ -61,13 +61,6 @@ def _validate_and_detect_mime(data: bytes) -> str:
     return detected
 
 
-# Ticket type → repair history work_type
-_TICKET_TYPE_TO_WORK_TYPE = {
-    "repair":       "unplanned_repair",
-    "maintenance":  "planned_maintenance",
-    "installation": "installation",
-    "diagnostics":  "unplanned_repair",
-}
 from app.api.deps import get_current_user, require_roles, _get_user_roles, get_client_scope
 from app.core.email import send_email
 from app.schemas import (
@@ -339,27 +332,6 @@ def change_ticket_status(
         changed_by=current_user.id,
         comment=data.comment if data.comment else None,
     ))
-    # BR-F-906: авто-создание записи истории ремонтов при завершении заявки
-    if data.status == "completed" and ticket.equipment_id:
-        already_exists = db.query(RepairHistory).filter(
-            RepairHistory.ticket_id == ticket_id
-        ).first()
-        if not already_exists:
-            work_act = db.query(WorkAct).filter(WorkAct.ticket_id == ticket_id).first()
-            description = (
-                (work_act.work_description if work_act else None)
-                or ticket.description
-            )
-            parts = work_act.parts_used if work_act else None
-            db.add(RepairHistory(
-                ticket_id=ticket_id,
-                equipment_id=ticket.equipment_id,
-                action_type=_TICKET_TYPE_TO_WORK_TYPE.get(ticket.type, "unplanned_repair"),
-                description=description,
-                performed_by=ticket.assigned_to,
-                performed_at=datetime.utcnow(),
-                parts_used=parts,
-            ))
     db.commit()
     ticket = db.query(Ticket).options(
         joinedload(Ticket.client),

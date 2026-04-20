@@ -35,72 +35,96 @@ export default function SettingsPage() {
       await updateCurrency({ currency_code: code, currency_name: name })
       reload()
       setSuccess(true)
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Ошибка сохранения')
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } }
+      setError(err?.response?.data?.detail || 'Ошибка сохранения')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="p-6 max-w-lg">
-      <h1 className="text-2xl font-bold mb-6">Настройки системы</h1>
+    <>
+      <div className="page-header">
+        <h1>Настройки системы</h1>
+      </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">Системная валюта</h2>
+      <div className="card" style={{ maxWidth: 560 }}>
+        <div className="card-header">
+          <h3>Системная валюта</h3>
+        </div>
+        <div className="card-body">
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>
+            Код и наименование валюты отображаются во всех денежных значениях системы: счетах, складе, прайс-листе услуг.
+          </p>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Код валюты (ISO 4217)
-            </label>
-            <input
-              type="text"
-              value={code}
-              onChange={e => setCode(e.target.value.toUpperCase())}
-              maxLength={3}
-              disabled={!isAdmin}
-              placeholder="RUB"
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+          <div className="form-row" style={{ marginBottom: 16 }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">
+                Код валюты (ISO 4217) <span className="required">*</span>
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                value={code}
+                onChange={e => { setCode(e.target.value.toUpperCase()); setSuccess(false) }}
+                maxLength={3}
+                disabled={!isAdmin}
+                placeholder="RUB"
+              />
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                3 заглавные латинские буквы
+              </span>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Наименование валюты
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              disabled={!isAdmin}
-              placeholder="Российский рубль"
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">
+                Наименование валюты <span className="required">*</span>
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                value={name}
+                onChange={e => { setName(e.target.value); setSuccess(false) }}
+                disabled={!isAdmin}
+                placeholder="Российский рубль"
+              />
+            </div>
           </div>
 
           {error && (
-            <div className="text-red-600 text-sm">{error}</div>
+            <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>
           )}
           {success && (
-            <div className="text-green-600 text-sm">Валюта успешно сохранена</div>
+            <div className="alert alert-success" style={{ marginBottom: 16 }}>
+              ✓ Валюта успешно сохранена
+            </div>
           )}
 
-          {isAdmin && (
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
-            >
-              {saving ? 'Сохранение...' : 'Сохранить'}
-            </button>
-          )}
-
-          {!isAdmin && (
-            <p className="text-sm text-gray-500">Изменение валюты доступно только администратору.</p>
+          {isAdmin ? (
+            <div className="form-actions" style={{ marginTop: 0 }}>
+              <button
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? 'Сохранение...' : 'Сохранить'}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => { setCode(currency.currency_code); setName(currency.currency_name); setError(null); setSuccess(false) }}
+                disabled={saving}
+              >
+                Сбросить
+              </button>
+            </div>
+          ) : (
+            <div className="alert alert-info" style={{ marginTop: 0 }}>
+              Изменение системной валюты доступно только администратору.
+            </div>
           )}
         </div>
       </div>
-    </div>
+    </>
   )
 }

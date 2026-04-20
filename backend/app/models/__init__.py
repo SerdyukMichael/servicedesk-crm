@@ -45,7 +45,6 @@ class User(Base):
     work_acts_signed:       Mapped[List["WorkAct"]]         = relationship("WorkAct", foreign_keys="WorkAct.signed_by", back_populates="signer")
     created_work_templates: Mapped[List["WorkTemplate"]]    = relationship("WorkTemplate", foreign_keys="WorkTemplate.created_by", back_populates="creator")
     created_invoices:       Mapped[List["Invoice"]]         = relationship("Invoice", foreign_keys="Invoice.created_by", back_populates="creator")
-    repair_history:         Mapped[List["RepairHistory"]]   = relationship("RepairHistory", back_populates="performer")
     notification_settings:  Mapped[List["NotificationSetting"]] = relationship("NotificationSetting", back_populates="user", cascade="all, delete-orphan")
     notifications:          Mapped[List["Notification"]]   = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     audit_logs:             Mapped[List["AuditLog"]]        = relationship("AuditLog", back_populates="user")
@@ -152,7 +151,6 @@ class Equipment(Base):
     client:         Mapped["Client"]            = relationship("Client", back_populates="equipment")
     model:          Mapped["EquipmentModel"]    = relationship("EquipmentModel", back_populates="equipment")
     tickets:        Mapped[List["Ticket"]]      = relationship("Ticket", back_populates="equipment")
-    repair_history: Mapped[List["RepairHistory"]] = relationship("RepairHistory", back_populates="equipment")
 
 
 # ── Work Templates ────────────────────────────────────────────────────────────
@@ -228,7 +226,6 @@ class Ticket(Base):
     comments:      Mapped[List["TicketComment"]] = relationship("TicketComment", back_populates="ticket", cascade="all, delete-orphan")
     files:         Mapped[List["TicketFile"]]    = relationship("TicketFile", back_populates="ticket", cascade="all, delete-orphan")
     work_act:      Mapped[Optional["WorkAct"]]   = relationship("WorkAct", back_populates="ticket", uselist=False)
-    repair_history: Mapped[List["RepairHistory"]] = relationship("RepairHistory", back_populates="ticket")
     notifications: Mapped[List["Notification"]]  = relationship("Notification", back_populates="ticket")
 
 
@@ -465,24 +462,6 @@ class InvoiceItem(Base):
     invoice: Mapped["Invoice"] = relationship("Invoice", back_populates="items")
 
 
-# ── Repair History ────────────────────────────────────────────────────────────
-class RepairHistory(Base):
-    __tablename__ = "repair_history"
-
-    id:            Mapped[int]            = mapped_column(Integer, primary_key=True, autoincrement=True)
-    ticket_id:     Mapped[Optional[int]]  = mapped_column(ForeignKey("tickets.id", ondelete="SET NULL"))
-    equipment_id:  Mapped[int]            = mapped_column(ForeignKey("equipment.id", ondelete="RESTRICT"), nullable=False)
-    action_type:   Mapped[str]            = mapped_column(String(64), nullable=False)
-    description:   Mapped[Optional[str]]  = mapped_column(Text)
-    performed_by:  Mapped[Optional[int]]  = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
-    performed_at:  Mapped[datetime]       = mapped_column(DateTime, default=func.now(), nullable=False)
-    parts_used:    Mapped[Optional[Any]]  = mapped_column(JSON)
-
-    ticket:    Mapped[Optional["Ticket"]]    = relationship("Ticket", back_populates="repair_history")
-    equipment: Mapped["Equipment"]           = relationship("Equipment", back_populates="repair_history")
-    performer: Mapped[Optional["User"]]      = relationship("User", back_populates="repair_history")
-
-
 # ── Notification Settings ─────────────────────────────────────────────────────
 class NotificationSetting(Base):
     __tablename__ = "notification_settings"
@@ -566,7 +545,6 @@ __all__ = [
     "SparePart",
     "Invoice",
     "InvoiceItem",
-    "RepairHistory",
     "NotificationSetting",
     "Notification",
     "AuditLog",

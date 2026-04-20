@@ -341,22 +341,6 @@ export interface NotificationSetting {
   enabled: boolean
 }
 
-export interface RepairHistoryEntry {
-  id: number
-  equipment_id: number
-  ticket_id?: number
-  ticket_number?: string
-  action_type: string
-  work_type?: string
-  description?: string
-  performed_by?: number
-  engineer_id?: number
-  engineer?: User
-  performed_at: string
-  work_date?: string
-  parts_used?: Array<{ part_id: number; name: string; qty: number }>
-}
-
 // ===== API wrappers =====
 
 export interface PaginatedResponse<T> {

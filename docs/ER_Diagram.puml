@@ -300,18 +300,6 @@ package "Модуль 10 · Оборудование" {
     updated_at : timestamp
   }
 
-  entity "repair_history" as repair_history {
-    PK id : bigint
-    --
-    FK equipment_id : bigint
-    FK ticket_id : bigint
-    action_type : varchar(64)
-    performed_at : timestamp
-    FK performed_by : bigint
-    parts_used : JSON
-    description : text
-    created_at : timestamp
-  }
 }
 
 ' ============================================================
@@ -511,7 +499,6 @@ equipment_models ||--o{ work_templates : "equipment_model_id"
 equipment ||--o{ tickets           : "equipment_id"
 equipment ||--o{ equipment_docs    : "equipment_id"
 equipment ||--o{ equipment_history : "equipment_id"
-equipment ||--o{ repair_history    : "equipment_id"
 equipment ||--|| maintenance       : "equipment_id"
 
 ' equipment_history
@@ -521,7 +508,6 @@ equipment_history ||--o{ equipment_docs : "history_id"
 tickets ||--o{ ticket_attach    : "ticket_id"
 tickets ||--o{ ticket_comments  : "ticket_id"
 tickets ||--|{ work_acts        : "ticket_id"
-tickets ||--o{ repair_history   : "ticket_id"
 tickets ||--o{ invoices         : "ticket_id"
 tickets ||--o{ notifications    : "ticket_id"
 

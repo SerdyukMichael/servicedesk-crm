@@ -735,6 +735,11 @@ export default function ClientDetailPage() {
           </table>
         </div>
       )}
+      <div style={{ marginTop: 24 }}>
+        <button className="btn btn-secondary btn-sm" onClick={() => navigate(-1)}>
+          ← Назад
+        </button>
+      </div>
     </>
   )
 }

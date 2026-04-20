@@ -5,28 +5,12 @@ import { ru } from 'date-fns/locale'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useEquipmentItem, useEquipmentModels, useUpdateEquipment, useEquipmentHistory } from '../hooks/useEquipment'
+import { useEquipmentItem, useEquipmentModels, useUpdateEquipment } from '../hooks/useEquipment'
 import { useEquipmentTickets } from '../hooks/useTickets'
 import { useClients } from '../hooks/useClients'
 import { useAuth } from '../context/AuthContext'
 import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
-
-const WORK_TYPE_LABELS: Record<string, string> = {
-  unplanned_repair: 'Внеплановый ремонт',
-  planned_maintenance: 'Плановое ТО',
-  warranty_repair: 'Гарантийный ремонт',
-  installation: 'Установка',
-  diagnostics: 'Диагностика',
-}
-
-const WORK_TYPE_COLORS: Record<string, { bg: string; color: string }> = {
-  unplanned_repair:  { bg: '#fee2e2', color: '#991b1b' },
-  planned_maintenance: { bg: '#dbeafe', color: '#1e40af' },
-  warranty_repair:   { bg: '#dcfce7', color: '#166534' },
-  installation:      { bg: '#f3e8ff', color: '#6b21a8' },
-  diagnostics:       { bg: '#fef9c3', color: '#854d0e' },
-}
 
 const EQUIPMENT_STATUS_LABELS: Record<string, string> = {
   active: 'Активно',
@@ -81,14 +65,9 @@ export default function EquipmentDetailPage() {
 
   const [showEdit, setShowEdit] = useState(false)
   const [formError, setFormError] = useState('')
-  const [historyWorkType, setHistoryWorkType] = useState('')
 
   const { data: eq, isLoading, isError } = useEquipmentItem(equipmentId)
   const { data: tickets } = useEquipmentTickets(equipmentId)
-  const { data: history } = useEquipmentHistory(
-    equipmentId,
-    historyWorkType ? { work_type: historyWorkType } : undefined
-  )
   const { data: modelsData } = useEquipmentModels()
   const { data: clientsData } = useClients({ size: 200 })
   const updateMutation = useUpdateEquipment(equipmentId)
@@ -274,90 +253,6 @@ export default function EquipmentDetailPage() {
         </div>
       </div>
 
-      {/* Repair history */}
-      <div style={{ maxWidth: 900, marginTop: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-            История ремонтов{history && history.length > 0 ? ` (${history.length})` : ''}
-          </h2>
-          <select
-            className="form-select"
-            style={{ width: 220, fontSize: 13 }}
-            value={historyWorkType}
-            onChange={e => setHistoryWorkType(e.target.value)}
-          >
-            <option value="">Все типы работ</option>
-            {Object.entries(WORK_TYPE_LABELS).map(([val, label]) => (
-              <option key={val} value={val}>{label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="table-wrap">
-          <table className="table table-hover">
-            <thead>
-              <tr>
-                <th>Дата</th>
-                <th>Тип работ</th>
-                <th>Инженер</th>
-                <th>Описание</th>
-                <th>Запчасти</th>
-                <th>Заявка</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(!history || history.length === 0) && (
-                <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
-                    История ремонтов пуста
-                  </td>
-                </tr>
-              )}
-              {history?.map(entry => {
-                const wt = entry.work_type ?? entry.action_type ?? 'unplanned_repair'
-                const wtColors = WORK_TYPE_COLORS[wt] ?? { bg: '#f1f5f9', color: '#475569' }
-                const workDate = entry.work_date ?? entry.performed_at
-                const partsCount = entry.parts_used?.length ?? 0
-                return (
-                  <tr key={entry.id}>
-                    <td style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
-                      {workDate
-                        ? format(parseISO(workDate), 'dd.MM.yyyy', { locale: ru })
-                        : '—'}
-                    </td>
-                    <td>
-                      <span className="badge" style={{ background: wtColors.bg, color: wtColors.color }}>
-                        {WORK_TYPE_LABELS[wt] ?? wt}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                      {entry.engineer?.full_name ?? '—'}
-                    </td>
-                    <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
-                      {entry.description ?? '—'}
-                    </td>
-                    <td style={{ fontSize: 13, color: partsCount > 0 ? 'inherit' : 'var(--text-muted)' }}>
-                      {partsCount > 0 ? `${partsCount} поз.` : '—'}
-                    </td>
-                    <td>
-                      {entry.ticket_number ? (
-                        <span
-                          style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--primary)', cursor: 'pointer' }}
-                          onClick={() => navigate(`/tickets/${entry.ticket_id}`)}
-                        >
-                          {entry.ticket_number}
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {/* Tickets */}
       <div style={{ maxWidth: 900, marginTop: 16 }}>
         <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>
@@ -524,6 +419,11 @@ export default function EquipmentDetailPage() {
           </div>
         </div>
       )}
+      <div style={{ marginTop: 24 }}>
+        <button className="btn btn-secondary btn-sm" onClick={() => navigate(-1)}>
+          ← Назад
+        </button>
+      </div>
     </>
   )
 }

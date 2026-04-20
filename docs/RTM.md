@@ -101,7 +101,7 @@
 | 16 | BR-F-903 | SLA-контроль: таймеры реакции и решения; флаги нарушения | Must | UC-901, UC-902, UC-905 | `models/ticket.py` (`sla_*` поля), `services/sla_service.py` | T-9-004 | ⬜ |
 | 17 | BR-F-904 | Авто-эскалация при приближении к нарушению SLA | Must | UC-905 | `services/sla_service.py`, `services/notification_service.py` | T-9-005 | ⬜ |
 | 18 | BR-F-905 | Инженер заполняет акт выполненных работ (описание, время, запчасти, фото) | Must | UC-904 | `models/work_act.py`, `endpoints/requests.py` | T-9-006 | ⬜ |
-| 19 | BR-F-906 | Авто-создание записи в истории ремонтов при закрытии заявки | Must | UC-901, UC-904 | `models/repair_history.py`, `services/ticket_service.py` | T-9-007 | ⬜ |
+| 19 | BR-F-906 | История обслуживания оборудования — через заявки с фильтрацией по equipment_id | Must | UC-901, UC-904 | `endpoints/tickets.py`, `endpoints/equipment.py` | T-9-007 | ⬜ |
 | 20 | BR-F-907 | Авто-списание запчастей со склада при сохранении акта | Must | UC-903, UC-904 | `models/spare_part.py`, `services/parts_service.py` | T-9-008 | ⬜ |
 | 21 | BR-F-908 | Клиент подтверждает выполнение работ; без подтверждения перевод в «Выполнена» блокируется | Must | UC-903, UC-904 | `models/work_act.py` (`client_confirmed*` поля), `services/ticket_service.py` | T-9-009 | ⬜ |
 | 22 | BR-F-909 | Авто-создание заявок на ТО за 7 дней до плановой даты | Should | UC-908 | `services/maintenance_service.py`, Celery task | T-9-010 | ⬜ |
@@ -127,7 +127,6 @@
 | # | Требование | Описание | Приоритет | UC | Компонент | Тест | Статус |
 |---|-----------|----------|-----------|-----|-----------|------|--------|
 | 37 | BR-F-1000 | Паспорт оборудования: модель, серийный номер, даты гарантии, фото | Must | UC-1001 | `models/equipment.py`, `endpoints/equipment.py` | T-10-001 | ⬜ |
-| 38 | BR-F-1001 | История ремонтов: дата, тип работ, инженер, запчасти | Must | UC-1002 | `models/repair_history.py`, `endpoints/equipment.py` | T-10-002 | ⬜ |
 | 39 | BR-F-1002 | Авто-расчёт статуса гарантии: На гарантии / Истекает / Истекла | Must | UC-1001 | `services/equipment_service.py`, `models/equipment.py` | T-10-003 | ⬜ |
 | 40 | BR-F-1003 | Конфигурация оборудования: модули, прошивка, компоненты | Should | UC-1001 | `models/equipment.py` (JSON-поле `configuration`) | T-10-004 | ⬜ |
 | 41 | BR-F-1004 | Прикрепление документов к оборудованию: акты, гарантийные талоны, договоры | Must | UC-1004 | `models/equipment_document.py`, `endpoints/equipment.py` | T-10-005 | ⬜ |
@@ -182,9 +181,8 @@
 | `models/comment.py` | BR-F-911, BR-F-912, BR-R-009 |
 | `models/attachment.py` | BR-F-915, BR-R-009 |
 | `models/spare_part.py` | BR-F-907, BR-R-005 |
-| `models/repair_history.py` | BR-F-906, BR-F-1001 |
 | `models/equipment.py` | BR-F-1000, BR-F-1002, BR-F-1003, BR-F-1007, BR-R-008 |
-| `services/ticket_service.py` | BR-F-901, BR-F-902, BR-F-906, BR-F-907, BR-F-908, BR-R-004 |
+| `services/ticket_service.py` | BR-F-901, BR-F-902, BR-F-907, BR-F-908, BR-R-004 |
 | `services/sla_service.py` | BR-F-903, BR-F-904 |
 | `services/engineer_load.py` | BR-F-803, BR-F-804 |
 | `services/notification_service.py` | BR-F-910, BR-F-912, BR-F-914, BR-F-1400, BR-F-1402 |

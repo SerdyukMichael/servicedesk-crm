@@ -214,14 +214,6 @@ class TestEquipmentDetailRowLevel:
         )
         assert resp.status_code == 404
 
-    def test_client_user_can_get_own_equipment_history(self, client, db):
-        _, _, _, _, _, eq_a, _, cu_a = _setup(db)
-        resp = client.get(
-            f"/api/v1/equipment/{eq_a.id}/history",
-            headers=auth_headers(cu_a.id, cu_a.roles),
-        )
-        assert resp.status_code == 200
-
     def test_admin_can_get_any_equipment(self, client, db):
         admin, _, _, _, _, _, eq_b, _ = _setup(db)
         resp = client.get(

@@ -284,12 +284,3 @@ class TestDeleteEquipment:
         assert res.status_code == 403
 
 
-class TestEquipmentHistory:
-    def test_history_endpoint_exists(self, client, db):
-        _, eng_hdrs = _eng(db)
-        cl = make_client(db)
-        model = make_equipment_model(db)
-        eq = make_equipment(db, cl.id, model.id)
-        res = client.get(f"/api/v1/equipment/{eq.id}/history", headers=eng_hdrs)
-        assert res.status_code == 200
-        assert isinstance(res.json(), list)

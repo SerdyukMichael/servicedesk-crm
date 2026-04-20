@@ -40,7 +40,6 @@ python scripts/seed.py         # загрузить начальные данн�
   M010_create_equipment_documents     (зависит от: equipment, users)
   M011_create_equipment_history       (зависит от: equipment, clients, users)
   M012_create_maintenance_schedules   (зависит от: equipment, users)
-  M013_create_repair_history          (зависит от: equipment, users)
 
 Волна 5 — заявки и работа с ними
   M014_create_work_templates          (зависит от: equipment_models, users)
@@ -268,22 +267,6 @@ CREATE TABLE maintenance_schedules (
     FOREIGN KEY (created_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE repair_history (
-    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    equipment_id    BIGINT UNSIGNED NOT NULL,
-    ticket_id       BIGINT UNSIGNED COMMENT 'NULL при ручном вводе',
-    work_type       ENUM('warranty_repair','planned_maintenance','unplanned_repair','installation') NOT NULL,
-    work_date       DATE NOT NULL,
-    engineer_id     BIGINT UNSIGNED,
-    parts_used      JSON COMMENT '[{part_id, name, qty}] — денормализованный снапшот',
-    description     TEXT,
-    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (equipment_id) REFERENCES equipment(id),
-    FOREIGN KEY (engineer_id) REFERENCES users(id),
-    INDEX idx_repair_equipment (equipment_id),
-    INDEX idx_repair_ticket (ticket_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 -- ============================================================
 -- ВОЛНА 5: ЗАЯВКИ
 -- ============================================================
@@ -341,10 +324,6 @@ CREATE TABLE tickets (
     INDEX idx_ticket_sla_reaction (sla_reaction_deadline),
     INDEX idx_ticket_sla_resolution (sla_resolution_deadline)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- После создания tickets — добавить FK в repair_history
-ALTER TABLE repair_history
-    ADD CONSTRAINT fk_repair_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id);
 
 CREATE TABLE ticket_attachments (
     id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -578,4 +557,3 @@ ADMIN_USER = {
 | `audit_log` | `(created_at)` | Фильтрация по периоду (UC-806) |
 | `notifications` | `(user_id, read_at)` | Polling непрочитанных — каждые 30 сек |
 | `equipment` | `(serial_number)` | UNIQUE + частый поиск (UC-1005) |
-| `repair_history` | `(equipment_id)` | История ремонтов (UC-1002) |

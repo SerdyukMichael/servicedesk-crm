@@ -1204,58 +1204,6 @@ paths:
         '400':
           $ref: '#/components/responses/BusinessError'
 
-  /equipment/{id}/history:
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: integer
-
-    get:
-      tags: [Оборудование]
-      summary: История ремонтов и ТО (UC-1002)
-      parameters:
-        - in: query
-          name: work_type
-          schema:
-            type: string
-            enum: [repair, maintenance]
-        - in: query
-          name: date_from
-          schema:
-            type: string
-            format: date
-        - in: query
-          name: date_to
-          schema:
-            type: string
-            format: date
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                    work_type:
-                      type: string
-                    work_date:
-                      type: string
-                      format: date
-                    engineer_name:
-                      type: string
-                    description:
-                      type: string
-                    ticket_number:
-                      type: string
-                      nullable: true
-
   /equipment/models:
     get:
       tags: [Оборудование]

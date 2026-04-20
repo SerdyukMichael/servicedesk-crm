@@ -220,19 +220,19 @@ export default function EquipmentModelsPage() {
                 )}
 
                 <div className="form-group">
-                  <label className="form-label">Наименование *</label>
-                  <input className="form-control" {...register('name')} />
+                  <label className="form-label">Наименование <span className="required">*</span></label>
+                  <input className="form-input" {...register('name')} />
                   {errors.name && <span className="form-error">{errors.name.message}</span>}
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Производитель</label>
-                  <input className="form-control" {...register('manufacturer')} />
+                  <input className="form-input" {...register('manufacturer')} />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Категория *</label>
-                  <select className="form-control" {...register('category')}>
+                  <label className="form-label">Категория <span className="required">*</span></label>
+                  <select className="form-select" {...register('category')}>
                     <option value="atm">Банкомат</option>
                     <option value="card_printer">Карт-принтер</option>
                     <option value="pos_terminal">POS-терминал</option>
@@ -246,7 +246,7 @@ export default function EquipmentModelsPage() {
                   <input
                     type="number"
                     min="1"
-                    className="form-control"
+                    className="form-input"
                     {...register('warranty_months_default')}
                   />
                   {errors.warranty_months_default && (
@@ -256,7 +256,7 @@ export default function EquipmentModelsPage() {
 
                 <div className="form-group">
                   <label className="form-label">Описание</label>
-                  <textarea className="form-control" rows={3} {...register('description')} />
+                  <textarea className="form-input form-textarea" rows={3} {...register('description')} />
                 </div>
               </div>
 

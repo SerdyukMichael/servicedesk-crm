@@ -1069,6 +1069,12 @@ export default function TicketDetailPage() {
           </div>
         </div>
       )}
+
+      <div style={{ marginTop: 24 }}>
+        <button className="btn btn-secondary btn-sm" onClick={() => navigate(-1)}>
+          ← Назад
+        </button>
+      </div>
     </>
   )
 }

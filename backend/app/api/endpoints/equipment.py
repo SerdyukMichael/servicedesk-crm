@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
-from app.models import Equipment, EquipmentModel, RepairHistory, User, Ticket
+from app.models import Equipment, EquipmentModel, User, Ticket
 from app.api.deps import get_current_user, require_roles, get_client_scope
 from app.schemas import (
     EquipmentCreate, EquipmentUpdate, EquipmentResponse,
     EquipmentModelCreate, EquipmentModelUpdate, EquipmentModelResponse,
-    RepairHistoryResponse, PaginatedResponse,
+    PaginatedResponse,
 )
 
 router = APIRouter()
@@ -247,28 +247,3 @@ def delete_equipment(
     db.commit()
 
 
-@router.get("/{equipment_id}/history", response_model=list[RepairHistoryResponse])
-def get_equipment_history(
-    equipment_id: int,
-    work_type: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
-    client_scope: Optional[int] = Depends(get_client_scope),
-):
-    q = db.query(Equipment).filter(Equipment.id == equipment_id, Equipment.is_deleted.is_(False))
-    if client_scope is not None:
-        q = q.filter(Equipment.client_id == client_scope)
-    eq = q.first()
-    if not eq:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "NOT_FOUND", "message": "Оборудование не найдено"},
-        )
-    q = (
-        db.query(RepairHistory)
-        .options(joinedload(RepairHistory.performer), joinedload(RepairHistory.ticket))
-        .filter(RepairHistory.equipment_id == equipment_id)
-    )
-    if work_type:
-        q = q.filter(RepairHistory.action_type == work_type)
-    return q.order_by(RepairHistory.performed_at.desc()).all()

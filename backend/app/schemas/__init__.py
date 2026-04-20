@@ -770,44 +770,6 @@ class NotificationResponse(BaseModel):
     created_at: datetime
 
 
-# ── Repair History ────────────────────────────────────────────────────────────
-
-class RepairHistoryResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    ticket_id: Optional[int]
-    equipment_id: int
-    # DB column aliases exposed under UC-1002 names
-    action_type: str
-    work_type: Optional[str] = None          # alias: action_type
-    description: Optional[str]
-    performed_by: Optional[int]
-    engineer_id: Optional[int] = None        # alias: performed_by
-    engineer: Optional["UserResponse"] = Field(None, validation_alias="performer")
-    performed_at: datetime
-    work_date: Optional[datetime] = None     # alias: performed_at
-    parts_used: Optional[Any] = None
-    ticket_number: Optional[str] = None      # denormalised from ticket
-
-    # ticket relationship — only needed for ticket_number extraction
-    ticket: Optional[Any] = None
-
-    @model_validator(mode="after")
-    def _aliases(self) -> "RepairHistoryResponse":
-        if self.work_type is None:
-            self.work_type = self.action_type
-        if self.engineer_id is None:
-            self.engineer_id = self.performed_by
-        if self.work_date is None:
-            self.work_date = self.performed_at
-        if self.ticket_number is None and self.ticket is not None:
-            self.ticket_number = getattr(self.ticket, "number", None)
-        # drop the ORM object so it doesn't appear in output
-        self.ticket = None
-        return self
-
-
 # ── Service Catalog ───────────────────────────────────────────────────────────
 
 class ServiceCatalogCreate(BaseModel):
