@@ -24,6 +24,9 @@ import type {
   LoginResponse,
   CurrencySetting,
   CurrencySettingUpdate,
+  ExchangeRate,
+  ExchangeRateHistoryItem,
+  ExchangeRateCreate,
 } from './types'
 
 // ===== Auth =====
@@ -357,3 +360,20 @@ export const getCurrency = (): Promise<CurrencySetting> =>
 
 export const updateCurrency = (data: CurrencySettingUpdate): Promise<CurrencySetting> =>
   api.put<CurrencySetting>('/settings/currency', data).then(r => r.data)
+
+export const getExchangeRates = (): Promise<ExchangeRate[]> =>
+  api.get<ExchangeRate[]>('/settings/exchange-rates').then(r => r.data)
+
+export const createExchangeRate = (data: ExchangeRateCreate): Promise<ExchangeRate> =>
+  api.post<ExchangeRate>('/settings/exchange-rates', data).then(r => r.data)
+
+export const getExchangeRateHistory = (
+  currency: string,
+  page = 1,
+  size = 20,
+): Promise<PaginatedResponse<ExchangeRateHistoryItem>> =>
+  api
+    .get<PaginatedResponse<ExchangeRateHistoryItem>>(`/settings/exchange-rates/${currency}`, {
+      params: { page, size },
+    })
+    .then(r => r.data)

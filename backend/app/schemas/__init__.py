@@ -837,3 +837,47 @@ class CurrencySettingUpdate(BaseModel):
         if not v.strip():
             raise ValueError("Введите наименование валюты")
         return v.strip()
+
+
+# ===== Exchange Rates =====
+
+class ExchangeRateCreate(BaseModel):
+    currency: str
+    rate: Decimal
+    set_at: Optional[datetime] = None
+
+    @field_validator("currency")
+    @classmethod
+    def validate_currency(cls, v: str) -> str:
+        if not v.isupper() or not v.isalpha() or len(v) != 3:
+            raise ValueError("Код валюты должен содержать ровно 3 заглавных латинских символа (например: USD, EUR)")
+        return v
+
+    @field_validator("rate")
+    @classmethod
+    def validate_rate(cls, v: Decimal) -> Decimal:
+        if v <= 0:
+            raise ValueError("Курс должен быть положительным числом")
+        return v
+
+
+class ExchangeRateResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    currency: str
+    rate: Decimal
+    set_by: int
+    set_at: datetime
+
+
+class ExchangeRateHistoryItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    currency: str
+    rate: Decimal
+    set_by: int
+    set_by_name: str
+    set_at: datetime
+    created_at: datetime

@@ -24,7 +24,6 @@ export default function PartsPage() {
   // Price modal state
   const [pricePart, setPricePart] = useState<SparePart | null>(null)
   const [priceValue, setPriceValue] = useState('')
-  const [priceCurrency, setPriceCurrency] = useState('RUB')
   const [priceReason, setPriceReason] = useState('')
   const [priceError, setPriceError] = useState<string | null>(null)
 
@@ -86,14 +85,13 @@ export default function PartsPage() {
     setPriceError(null)
     setPrice.mutate({
       id: pricePart.id,
-      payload: { new_price: priceValue, currency: priceCurrency, reason: priceReason },
+      payload: { new_price: priceValue, currency: currency.currency_code, reason: priceReason },
     })
   }
 
   const openPriceModal = (part: SparePart) => {
     setPricePart(part)
     setPriceValue(parseFloat(String(part.unit_price ?? 0)).toFixed(2))
-    setPriceCurrency(part.currency ?? 'RUB')
     setPriceReason('')
     setPriceError(null)
   }
@@ -267,21 +265,12 @@ export default function PartsPage() {
                 <div className="alert alert-error" style={{ marginBottom: 12 }}>{priceError}</div>
               )}
               <div className="form-group">
-                <label className="form-label">Новая цена *</label>
+                <label className="form-label">Цена ({currency.currency_code}) <span className="required">*</span></label>
                 <input
                   type="number" min="0" step="0.01" className="form-input"
                   placeholder="0.00" value={priceValue}
                   onChange={e => setPriceValue(e.target.value)}
                 />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Валюта</label>
-                <select className="form-select" value={priceCurrency} onChange={e => setPriceCurrency(e.target.value)}>
-                  <option value="RUB">RUB</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="PLN">PLN</option>
-                </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Причина изменения * (мин. 5 символов)</label>

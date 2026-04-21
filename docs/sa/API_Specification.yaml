@@ -72,6 +72,80 @@ components:
       bearerFormat: JWT
 
   schemas:
+    # ─── Настройки: валюта и курсы ───────────────────────────────────────────
+    CurrencySettingResponse:
+      type: object
+      properties:
+        currency_code:
+          type: string
+          example: KZT
+          description: ISO 4217 код системной валюты
+        currency_name:
+          type: string
+          example: Казахстанский тенге
+      required: [currency_code, currency_name]
+
+    CurrencySettingUpdate:
+      type: object
+      properties:
+        currency_code:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: KZT
+        currency_name:
+          type: string
+          example: Казахстанский тенге
+      required: [currency_code, currency_name]
+
+    ExchangeRateResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        currency:
+          type: string
+          example: USD
+          description: ISO 4217 код иностранной валюты
+        rate:
+          type: number
+          format: decimal
+          example: 450.0000
+          description: Курс к системной валюте (сколько единиц системной валюты за 1 единицу иностранной)
+        set_by:
+          type: integer
+          description: ID пользователя, установившего курс
+        set_by_name:
+          type: string
+          example: Иванов И.И.
+        set_at:
+          type: string
+          format: date-time
+      required: [id, currency, rate, set_by, set_at]
+
+    ExchangeRateCreate:
+      type: object
+      properties:
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: USD
+          description: ISO 4217 код иностранной валюты (3 заглавные латинские буквы)
+        rate:
+          type: number
+          format: decimal
+          example: 450.0000
+          description: Курс к системной валюте; должен быть > 0
+        set_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2025-01-15T00:00:00'
+          description: |
+            Дата и время установки курса (BR-R-206). Опционально.
+            Если не передано — сервер подставляет текущий момент.
+            Допускается прошедшая или будущая дата.
+      required: [currency, rate]
+
     # ─── Общие ───────────────────────────────────────────────────────────────
     ErrorResponse:
       type: object
@@ -2177,3 +2251,156 @@ paths:
                               format: date-time
         '403':
           $ref: '#/components/responses/Forbidden'
+
+  # ── Настройки: системная валюта ──────────────────────────────────────────────
+
+  /settings/currency:
+    get:
+      tags: [Настройки]
+      summary: Получить системную валюту
+      description: Возвращает текущий код и наименование системной валюты из system_settings.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencySettingResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [Настройки]
+      summary: Изменить системную валюту
+      description: Только admin. Обновляет код и наименование системной валюты.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CurrencySettingUpdate'
+      responses:
+        '200':
+          description: Валюта обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencySettingResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Настройки: курсы валют (BR-F-102, UC-1003) ───────────────────────────────
+
+  /settings/exchange-rates:
+    get:
+      tags: [Настройки]
+      summary: Актуальные курсы всех иностранных валют
+      description: |
+        Возвращает последний установленный курс по каждой иностранной валюте.
+        Актуальный курс определяется как последняя запись по `set_at`.
+        Доступно всем авторизованным пользователям.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Список актуальных курсов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExchangeRateResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Настройки]
+      summary: Установить курс иностранной валюты
+      description: |
+        Создаёт новую запись в истории курсов. Каждая запись неизменна.
+        Доступно ролям: **admin**, **accountant**.
+
+        **BR-R-201:** код — 3 заглавные латинские буквы (ISO 4217).
+        **BR-R-202:** курс > 0.
+        **BR-R-206:** поле `set_at` опционально; если не передано — сервер подставляет текущий момент; допускается прошедшая или будущая дата.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeRateCreate'
+      responses:
+        '201':
+          description: Курс установлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRateResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Ошибка валидации (некорректный код валюты или курс ≤ 0)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /settings/exchange-rates/{currency}:
+    get:
+      tags: [Настройки]
+      summary: История курсов по конкретной иностранной валюте
+      description: |
+        Возвращает все записи по указанной валюте, отсортированные по убыванию даты.
+        Доступно всем авторизованным пользователям.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: currency
+          in: path
+          required: true
+          description: ISO 4217 код иностранной валюты (например: USD, EUR)
+          schema:
+            type: string
+            pattern: '^[A-Z]{3}$'
+            example: USD
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: История курсов
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ExchangeRateResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Валюта не найдена (нет ни одной записи)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

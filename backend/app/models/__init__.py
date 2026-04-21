@@ -525,6 +525,20 @@ class SystemSetting(Base):
     updated_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
 
+# ── Exchange Rates ─────────────────────────────────────────────────────────────
+class ExchangeRate(Base):
+    __tablename__ = "exchange_rates"
+
+    id:         Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
+    currency:   Mapped[str]      = mapped_column(String(3), nullable=False, index=True)
+    rate:       Mapped[Decimal]  = mapped_column(DECIMAL(15, 4), nullable=False)
+    set_by:     Mapped[int]      = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    set_at:     Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+
+    setter: Mapped["User"] = relationship("User", foreign_keys=[set_by])
+
+
 __all__ = [
     "User",
     "Client",
@@ -549,4 +563,5 @@ __all__ = [
     "Notification",
     "AuditLog",
     "SystemSetting",
+    "ExchangeRate",
 ]

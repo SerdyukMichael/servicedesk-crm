@@ -370,3 +370,27 @@ export interface CurrencySettingUpdate {
   currency_code: string
   currency_name: string
 }
+
+export interface ExchangeRate {
+  id: number
+  currency: string
+  rate: string
+  set_by: number
+  set_at: string
+}
+
+export interface ExchangeRateHistoryItem {
+  id: number
+  currency: string
+  rate: string
+  set_by: number
+  set_by_name: string
+  set_at: string
+  created_at: string
+}
+
+export interface ExchangeRateCreate {
+  currency: string
+  rate: string
+  set_at?: string | null
+}
