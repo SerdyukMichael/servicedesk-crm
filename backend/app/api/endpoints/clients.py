@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.core.security import hash_password
 from app.models import AuditLog, Client, ClientContact, Equipment, Ticket, User
 from app.api.deps import get_current_user, require_roles, get_client_scope
+from app.services.audit import log_action
 from app.schemas import (
     ClientContactCreate,
     ClientContactPortalAccess,
@@ -155,7 +156,7 @@ def list_clients(
 def create_client(
     data: ClientCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*_WRITE_ROLES)),
 ):
     d = data.model_dump()
     if d.get("contract_end") is not None:
@@ -164,6 +165,9 @@ def create_client(
         d.pop("contract_end", None)
     client = Client(**d)
     db.add(client)
+    db.flush()
+    log_action(db, user_id=current_user.id, action="CREATE", entity_type="client", entity_id=client.id,
+               new={"name": client.name, "inn": client.inn, "contract_type": client.contract_type})
     db.commit()
     db.refresh(client)
     db.refresh(client, ["manager"])
@@ -201,7 +205,7 @@ def update_client(
     client_id: int,
     data: ClientUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*_WRITE_ROLES)),
 ):
     client = (
         db.query(Client)
@@ -217,8 +221,11 @@ def update_client(
     d = data.model_dump(exclude_none=True)
     if "contract_end" in d:
         d["contract_valid_until"] = d.pop("contract_end")
+    old_vals = {k: str(getattr(client, k, None)) for k in d}
     for k, v in d.items():
         setattr(client, k, v)
+    log_action(db, user_id=current_user.id, action="UPDATE", entity_type="client", entity_id=client.id,
+               old=old_vals, new={k: str(v) for k, v in d.items()})
     db.commit()
     db.refresh(client)
     db.refresh(client, ["manager"])
@@ -229,7 +236,7 @@ def update_client(
 def delete_client(
     client_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_ADMIN)),
+    current_user: User = Depends(require_roles(*_ADMIN)),
 ):
     client = db.query(Client).filter(Client.id == client_id, Client.is_deleted.is_(False)).first()
     if not client:
@@ -238,6 +245,8 @@ def delete_client(
             detail={"error": "NOT_FOUND", "message": "Клиент не найден"},
         )
     client.is_deleted = True
+    log_action(db, user_id=current_user.id, action="DELETE", entity_type="client", entity_id=client.id,
+               old={"name": client.name, "inn": client.inn})
     db.commit()
 
 

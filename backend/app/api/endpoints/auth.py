@@ -5,10 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
+from fastapi import Request
 from app.core.database import get_db
 from app.core.security import verify_password, create_access_token
 from app.models import User
 from app.api.deps import get_current_user
+from app.services.audit import log_action, extract_ip
 
 router = APIRouter()
 
@@ -38,7 +40,7 @@ class TokenResponse(BaseModel):
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
 @router.post("/login")
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     user = (
         db.query(User)
         .filter(User.email == body.email, User.is_active.is_(True), User.is_deleted.is_(False))
@@ -51,6 +53,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         )
 
     user.last_login_at = datetime.utcnow()
+    log_action(db, user_id=user.id, action="LOGIN", entity_type="user", entity_id=user.id, ip=extract_ip(request))
     db.commit()
 
     token = create_access_token({"sub": str(user.id)})

@@ -148,9 +148,10 @@ class Equipment(Base):
     created_at:       Mapped[datetime]       = mapped_column(DateTime, default=func.now(), nullable=False)
     updated_at:       Mapped[datetime]       = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
-    client:         Mapped["Client"]            = relationship("Client", back_populates="equipment")
-    model:          Mapped["EquipmentModel"]    = relationship("EquipmentModel", back_populates="equipment")
-    tickets:        Mapped[List["Ticket"]]      = relationship("Ticket", back_populates="equipment")
+    client:                Mapped["Client"]                     = relationship("Client", back_populates="equipment")
+    model:                 Mapped["EquipmentModel"]             = relationship("EquipmentModel", back_populates="equipment")
+    tickets:               Mapped[List["Ticket"]]               = relationship("Ticket", back_populates="equipment")
+    maintenance_schedules: Mapped[List["MaintenanceSchedule"]]  = relationship("MaintenanceSchedule", back_populates="equipment", foreign_keys="MaintenanceSchedule.equipment_id")
 
 
 # ── Work Templates ────────────────────────────────────────────────────────────
@@ -210,7 +211,14 @@ class Ticket(Base):
              name="ticket_status_enum"),
         default="new", nullable=False
     )
-    sla_deadline:     Mapped[Optional[datetime]] = mapped_column(DateTime)
+    sla_deadline:                 Mapped[Optional[datetime]] = mapped_column(DateTime)
+    assigned_at:                  Mapped[Optional[datetime]] = mapped_column(DateTime)
+    sla_reaction_deadline:        Mapped[Optional[datetime]] = mapped_column(DateTime, index=True)
+    sla_resolution_deadline:      Mapped[Optional[datetime]] = mapped_column(DateTime, index=True)
+    sla_reaction_violated:        Mapped[bool]               = mapped_column(Boolean, default=False, nullable=False)
+    sla_resolution_violated:      Mapped[bool]               = mapped_column(Boolean, default=False, nullable=False)
+    sla_reaction_escalated_at:    Mapped[Optional[datetime]] = mapped_column(DateTime)
+    sla_resolution_escalated_at:  Mapped[Optional[datetime]] = mapped_column(DateTime)
     work_template_id: Mapped[Optional[int]]  = mapped_column(ForeignKey("work_templates.id", ondelete="SET NULL"))
     closed_at:        Mapped[Optional[datetime]] = mapped_column(DateTime)
     is_deleted:       Mapped[bool]           = mapped_column(Boolean, default=False, nullable=False)
@@ -539,6 +547,29 @@ class ExchangeRate(Base):
     setter: Mapped["User"] = relationship("User", foreign_keys=[set_by])
 
 
+# ── Maintenance Schedule ───────────────────────────────────────────────────────
+class MaintenanceSchedule(Base):
+    __tablename__ = "maintenance_schedules"
+
+    id:             Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
+    equipment_id:   Mapped[int]           = mapped_column(ForeignKey("equipment.id", ondelete="CASCADE"), nullable=False, index=True)
+    frequency:      Mapped[str]           = mapped_column(
+        Enum("monthly", "quarterly", "semiannual", "annual", name="maintenance_frequency_enum"),
+        nullable=False,
+    )
+    first_date:     Mapped[date]          = mapped_column(Date, nullable=False)
+    next_date:      Mapped[date]          = mapped_column(Date, nullable=False, index=True)
+    last_ticket_id: Mapped[Optional[int]] = mapped_column(ForeignKey("tickets.id", ondelete="SET NULL"))
+    is_active:      Mapped[bool]          = mapped_column(Boolean, default=True, nullable=False)
+    created_by:     Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at:     Mapped[datetime]      = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at:     Mapped[datetime]      = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    equipment:   Mapped["Equipment"]        = relationship("Equipment", back_populates="maintenance_schedules")
+    last_ticket: Mapped[Optional["Ticket"]] = relationship("Ticket", foreign_keys=[last_ticket_id])
+    creator:     Mapped[Optional["User"]]   = relationship("User", foreign_keys=[created_by])
+
+
 __all__ = [
     "User",
     "Client",
@@ -564,4 +595,5 @@ __all__ = [
     "AuditLog",
     "SystemSetting",
     "ExchangeRate",
+    "MaintenanceSchedule",
 ]

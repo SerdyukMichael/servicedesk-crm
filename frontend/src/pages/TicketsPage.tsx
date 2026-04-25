@@ -39,12 +39,14 @@ export default function TicketsPage() {
   const [priority, setPriority] = useState<TicketPriority | ''>('')
   const [search, setSearch] = useState('')
   const [clientId, setClientId] = useState<number | ''>('')
+  const [slaViolated, setSlaViolated] = useState(false)
 
   const params: Record<string, unknown> = { page, size: 20 }
   if (status) params.status = status
   if (priority) params.priority = priority
   if (search) params.search = search
   if (clientId) params.client_id = clientId
+  if (slaViolated) params.sla_violated = true
 
   const { data, isLoading, isError } = useTickets(params)
   const { data: clientsData } = useClients({ size: 200 })
@@ -126,6 +128,13 @@ export default function TicketsPage() {
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
+        <button
+          className={`btn btn-sm ${slaViolated ? 'btn-danger' : 'btn-secondary'}`}
+          onClick={() => { setSlaViolated(v => !v); setPage(1) }}
+          title="Показать только заявки с нарушением SLA"
+        >
+          {slaViolated ? '🔴 SLA нарушен' : 'SLA нарушен'}
+        </button>
       </div>
 
       {isLoading && (

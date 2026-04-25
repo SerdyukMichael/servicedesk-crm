@@ -63,6 +63,8 @@ def _validate_and_detect_mime(data: bytes) -> str:
 
 from app.api.deps import get_current_user, require_roles, _get_user_roles, get_client_scope
 from app.core.email import send_email
+from app.services.sla import compute_sla_deadlines
+from app.services.audit import log_action
 from app.schemas import (
     TicketCreate, TicketUpdate, TicketResponse, TicketAssign,
     TicketStatusChange, CommentCreate, CommentResponse,
@@ -115,6 +117,7 @@ def list_tickets(
     client_id: Optional[int] = Query(None),
     equipment_id: Optional[int] = Query(None),
     assigned_to: Optional[int] = Query(None),
+    sla_violated: Optional[bool] = Query(None),
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=200),
@@ -142,6 +145,22 @@ def list_tickets(
         q = q.filter(Ticket.equipment_id == equipment_id)
     if assigned_to:
         q = q.filter(Ticket.assigned_to == assigned_to)
+    if sla_violated is True:
+        now = datetime.utcnow()
+        _FINAL = ["completed", "closed", "cancelled"]
+        from sqlalchemy import or_, and_
+        q = q.filter(
+            or_(
+                Ticket.sla_reaction_violated.is_(True),
+                Ticket.sla_resolution_violated.is_(True),
+                and_(
+                    Ticket.sla_deadline.isnot(None),
+                    Ticket.sla_deadline < now,
+                    Ticket.status.notin_(_FINAL),
+                    Ticket.sla_reaction_deadline.is_(None),
+                ),
+            )
+        )
     if search:
         q = q.filter(Ticket.title.ilike(f"%{search}%"))
 
@@ -187,6 +206,8 @@ def create_ticket(
         to_status="new",
         changed_by=current_user.id,
     ))
+    log_action(db, user_id=current_user.id, action="CREATE", entity_type="ticket", entity_id=ticket.id,
+               new={"number": ticket.number, "title": ticket.title, "priority": ticket.priority, "type": ticket.type})
     db.commit()
     db.refresh(ticket)
     return ticket
@@ -220,12 +241,16 @@ def update_ticket(
     ticket_id: int,
     data: TicketUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_MANAGE_ROLES)),
+    current_user: User = Depends(require_roles(*_MANAGE_ROLES)),
     client_scope: Optional[int] = Depends(get_client_scope),
 ):
     ticket = _require_ticket(db, ticket_id, client_scope)
-    for k, v in data.model_dump(exclude_none=True).items():
+    upd = data.model_dump(exclude_none=True)
+    old_vals = {k: getattr(ticket, k) for k in upd}
+    for k, v in upd.items():
         setattr(ticket, k, v)
+    log_action(db, user_id=current_user.id, action="UPDATE", entity_type="ticket", entity_id=ticket.id,
+               old=old_vals, new=upd)
     db.commit()
     db.refresh(ticket)
     return ticket
@@ -235,7 +260,7 @@ def update_ticket(
 def delete_ticket(
     ticket_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_ADMIN)),
+    current_user: User = Depends(require_roles(*_ADMIN)),
 ):
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.is_deleted.is_(False)).first()
     if not ticket:
@@ -244,6 +269,8 @@ def delete_ticket(
             detail={"error": "NOT_FOUND", "message": "Заявка не найдена"},
         )
     ticket.is_deleted = True
+    log_action(db, user_id=current_user.id, action="DELETE", entity_type="ticket", entity_id=ticket.id,
+               old={"number": ticket.number, "title": ticket.title, "status": ticket.status})
     db.commit()
 
 
@@ -253,7 +280,7 @@ def assign_ticket(
     ticket_id: int,
     data: TicketAssign,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "svc_mgr")),
+    current_user: User = Depends(require_roles("admin", "svc_mgr")),
     client_scope: Optional[int] = Depends(get_client_scope),
 ):
     ticket = _require_ticket(db, ticket_id, client_scope)
@@ -263,15 +290,28 @@ def assign_ticket(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "NOT_FOUND", "message": "Инженер не найден"},
         )
+    now = datetime.utcnow()
     ticket.assigned_to = data.engineer_id
+    if ticket.assigned_at is None:
+        ticket.assigned_at = now
+    # compute SLA deadlines on first assignment if not yet set
+    if ticket.sla_reaction_deadline is None:
+        eq = db.query(Equipment).filter(Equipment.id == ticket.equipment_id).first() if ticket.equipment_id else None
+        client = eq.client if eq else None
+        contract_type = getattr(client, "contract_type", None) if client else None
+        reaction_deadline, resolution_deadline = compute_sla_deadlines(contract_type, ticket.created_at or now)
+        ticket.sla_reaction_deadline = reaction_deadline
+        ticket.sla_resolution_deadline = resolution_deadline
     if ticket.status == "new":
         db.add(TicketStatusHistory(
             ticket_id=ticket_id,
             from_status="new",
             to_status="assigned",
-            changed_by=_.id,
+            changed_by=current_user.id,
         ))
         ticket.status = "assigned"
+    log_action(db, user_id=current_user.id, action="ASSIGN", entity_type="ticket", entity_id=ticket_id,
+               new={"engineer_id": data.engineer_id, "status": ticket.status})
     db.commit()
     ticket = db.query(Ticket).options(joinedload(Ticket.client), joinedload(Ticket.assignee), joinedload(Ticket.creator), joinedload(Ticket.equipment).joinedload(Equipment.model)).filter(Ticket.id == ticket_id).first()
     return ticket
@@ -332,6 +372,8 @@ def change_ticket_status(
         changed_by=current_user.id,
         comment=data.comment if data.comment else None,
     ))
+    log_action(db, user_id=current_user.id, action="STATUS_CHANGE", entity_type="ticket", entity_id=ticket_id,
+               old={"status": prev_status}, new={"status": data.status})
     db.commit()
     ticket = db.query(Ticket).options(
         joinedload(Ticket.client),
@@ -597,6 +639,8 @@ def create_work_act(
         )
         db.add(act_item)
 
+    log_action(db, user_id=current_user.id, action="CREATE", entity_type="work_act", entity_id=act.id,
+               new={"ticket_id": ticket_id})
     db.commit()
     db.refresh(act)
     return act
@@ -755,6 +799,8 @@ def update_work_act(
         if latest_unpaid_invoice is not None:
             _sync_invoice_from_act(latest_unpaid_invoice, new_act_items, db)
 
+    log_action(db, user_id=current_user.id, action="UPDATE", entity_type="work_act", entity_id=act.id,
+               new={"ticket_id": ticket_id})
     db.commit()
     db.refresh(act)
     return act
@@ -794,6 +840,8 @@ def sign_work_act_by_ticket(
     act.signed_at = datetime.utcnow()
     if ticket.status == "in_progress":
         ticket.status = "on_review"
+    log_action(db, user_id=current_user.id, action="SIGN", entity_type="work_act", entity_id=act.id,
+               new={"ticket_id": ticket_id, "signed_by": current_user.id})
     db.commit()
     db.refresh(act)
     return act
@@ -838,6 +886,8 @@ def sign_work_act(
     if ticket and ticket.status == "in_progress":
         ticket.status = "on_review"
 
+    log_action(db, user_id=current_user.id, action="SIGN", entity_type="work_act", entity_id=act.id,
+               new={"ticket_id": ticket_id, "signed_by": current_user.id})
     db.commit()
     db.refresh(act)
     return act

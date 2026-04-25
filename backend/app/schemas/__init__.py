@@ -419,6 +419,11 @@ class TicketResponse(BaseModel):
     priority: str
     status: str
     sla_deadline: Optional[datetime]
+    assigned_at: Optional[datetime]
+    sla_reaction_deadline: Optional[datetime]
+    sla_resolution_deadline: Optional[datetime]
+    sla_reaction_violated: bool
+    sla_resolution_violated: bool
     work_template_id: Optional[int]
     closed_at: Optional[datetime]
     is_deleted: bool
@@ -881,3 +886,73 @@ class ExchangeRateHistoryItem(BaseModel):
     set_by_name: str
     set_at: datetime
     created_at: datetime
+
+
+# ── Audit Log ─────────────────────────────────────────────────────────────────
+
+class AuditUserBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+    full_name: str
+
+
+class AuditLogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: Optional[int]
+    user: Optional[AuditUserBrief]
+    action: str
+    entity_type: str
+    entity_id: Optional[int]
+    old_values: Optional[dict]
+    new_values: Optional[dict]
+    ip_address: Optional[str]
+    created_at: datetime
+
+
+# ── Reports ───────────────────────────────────────────────────────────────────
+
+class TicketReportResponse(BaseModel):
+    total: int
+    by_status: dict[str, int]
+    by_type: dict[str, int]
+    by_priority: dict[str, int]
+    by_engineer: dict[str, int]
+    sla_reaction_compliance_pct: Optional[float] = None
+    sla_resolution_compliance_pct: Optional[float] = None
+    sla_compliance_pct: Optional[float] = None
+    avg_resolution_hours: Optional[float] = None
+    period_from: date
+    period_to: date
+
+
+# ── Maintenance Schedule ──────────────────────────────────────────────────────
+
+class MaintenanceScheduleCreate(BaseModel):
+    frequency: str = Field(..., pattern="^(monthly|quarterly|semiannual|annual)$")
+    first_date: date
+
+
+class MaintenanceScheduleUpdate(BaseModel):
+    frequency: Optional[str] = Field(None, pattern="^(monthly|quarterly|semiannual|annual)$")
+    first_date: Optional[date] = None
+    next_date: Optional[date] = None
+    is_active: Optional[bool] = None
+
+
+class MaintenanceScheduleResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    equipment_id: int
+    frequency: str
+    first_date: date
+    next_date: date
+    last_ticket_id: Optional[int]
+    is_active: bool
+    created_by: Optional[int]
+    created_at: datetime
+    updated_at: datetime

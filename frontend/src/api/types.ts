@@ -124,10 +124,63 @@ export interface Ticket {
   created_by_id: number
   created_by?: User
   sla_deadline?: string
+  assigned_at?: string
+  sla_reaction_deadline?: string
+  sla_resolution_deadline?: string
+  sla_reaction_violated: boolean
+  sla_resolution_violated: boolean
   resolved_at?: string
   work_template_id?: number
   work_template?: WorkTemplate
   work_act?: WorkAct
+  created_at: string
+  updated_at: string
+}
+
+export interface AuditLogUser {
+  id: number
+  email: string
+  full_name: string
+}
+
+export interface AuditLogEntry {
+  id: number
+  user_id?: number
+  user?: AuditLogUser
+  action: string
+  entity_type: string
+  entity_id?: number
+  old_values?: Record<string, unknown>
+  new_values?: Record<string, unknown>
+  ip_address?: string
+  created_at: string
+}
+
+export interface TicketReport {
+  total: number
+  by_status: Record<string, number>
+  by_type: Record<string, number>
+  by_priority: Record<string, number>
+  by_engineer: Record<string, number>
+  sla_reaction_compliance_pct?: number
+  sla_resolution_compliance_pct?: number
+  sla_compliance_pct?: number
+  avg_resolution_hours?: number
+  period_from: string
+  period_to: string
+}
+
+export type MaintenanceFrequency = 'monthly' | 'quarterly' | 'semiannual' | 'annual'
+
+export interface MaintenanceSchedule {
+  id: number
+  equipment_id: number
+  frequency: MaintenanceFrequency
+  first_date: string
+  next_date: string
+  last_ticket_id?: number
+  is_active: boolean
+  created_by?: number
   created_at: string
   updated_at: string
 }
