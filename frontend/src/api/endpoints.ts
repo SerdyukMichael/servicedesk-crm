@@ -27,6 +27,10 @@ import type {
   ExchangeRate,
   ExchangeRateHistoryItem,
   ExchangeRateCreate,
+  AuditLogEntry,
+  TicketReport,
+  MaintenanceSchedule,
+  MaintenanceFrequency,
 } from './types'
 
 // ===== Auth =====
@@ -377,3 +381,62 @@ export const getExchangeRateHistory = (
       params: { page, size },
     })
     .then(r => r.data)
+
+// ===== Audit Log =====
+
+export const getAuditLog = (params: {
+  user_id?: number
+  action?: string
+  entity_type?: string
+  date_from?: string
+  date_to?: string
+  ip_address?: string
+  page?: number
+  size?: number
+}): Promise<PaginatedResponse<AuditLogEntry>> =>
+  api.get<PaginatedResponse<AuditLogEntry>>('/audit-log', { params }).then(r => r.data)
+
+export const getAuditLogExportUrl = (params: Record<string, string | number | undefined>): string => {
+  const base = api.defaults.baseURL || '/api/v1'
+  const q = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== '')
+    .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+    .join('&')
+  return `${base}/audit-log/export${q ? '?' + q : ''}`
+}
+
+// ===== Reports =====
+
+export const getTicketReport = (params: {
+  date_from: string
+  date_to: string
+  engineer_id?: number
+  client_id?: number
+}): Promise<TicketReport> =>
+  api.get<TicketReport>('/reports/tickets', { params }).then(r => r.data)
+
+export const getTicketReportExportUrl = (params: Record<string, string | number | undefined>): string => {
+  const base = api.defaults.baseURL || '/api/v1'
+  const q = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== '')
+    .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+    .join('&')
+  return `${base}/reports/tickets/export/xlsx${q ? '?' + q : ''}`
+}
+
+// ===== Maintenance Schedule =====
+
+export const getMaintenanceSchedule = (equipmentId: number): Promise<MaintenanceSchedule | null> =>
+  api.get<MaintenanceSchedule | null>(`/equipment/${equipmentId}/maintenance-schedule`).then(r => r.data)
+
+export const createMaintenanceSchedule = (
+  equipmentId: number,
+  data: { frequency: MaintenanceFrequency; first_date: string }
+): Promise<MaintenanceSchedule> =>
+  api.post<MaintenanceSchedule>(`/equipment/${equipmentId}/maintenance-schedule`, data).then(r => r.data)
+
+export const updateMaintenanceSchedule = (
+  equipmentId: number,
+  data: { frequency?: MaintenanceFrequency; first_date?: string; next_date?: string; is_active?: boolean }
+): Promise<MaintenanceSchedule> =>
+  api.put<MaintenanceSchedule>(`/equipment/${equipmentId}/maintenance-schedule`, data).then(r => r.data)

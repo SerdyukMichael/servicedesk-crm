@@ -20,6 +20,8 @@ import NotificationsPage from './pages/NotificationsPage'
 import EquipmentModelsPage from './pages/EquipmentModelsPage'
 import ServiceCatalogPage from './pages/ServiceCatalogPage'
 import SettingsPage from './pages/SettingsPage'
+import AuditLogPage from './pages/AuditLogPage'
+import ReportsPage from './pages/ReportsPage'
 
 function NotFoundPage() {
   return (
@@ -90,6 +92,26 @@ export default function App() {
 
           {/* Notifications */}
           <Route path="notifications" element={<NotificationsPage />} />
+
+          {/* Reports */}
+          <Route
+            path="reports"
+            element={
+              <PrivateRoute roles={['director', 'svc_mgr', 'admin']}>
+                <ReportsPage />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Audit Log */}
+          <Route
+            path="audit-log"
+            element={
+              <PrivateRoute roles={['admin', 'director']}>
+                <AuditLogPage />
+              </PrivateRoute>
+            }
+          />
 
           {/* Settings (admin only) */}
           <Route

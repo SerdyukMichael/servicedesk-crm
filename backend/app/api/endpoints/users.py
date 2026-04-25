@@ -8,6 +8,7 @@ from app.core.security import hash_password
 from app.models import User
 from app.api.deps import get_current_user, require_roles, get_client_scope
 from app.schemas import UserCreate, UserUpdate, UserResponse, PaginatedResponse
+from app.services.audit import log_action
 
 router = APIRouter()
 
@@ -44,7 +45,7 @@ def list_users(
 def create_user(
     data: UserCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_ADMIN)),
+    current_user: User = Depends(require_roles(*_ADMIN)),
 ):
     if db.query(User).filter(User.email == data.email, User.is_deleted.is_(False)).first():
         raise HTTPException(
@@ -61,6 +62,9 @@ def create_user(
         is_active=data.is_active,
     )
     db.add(user)
+    db.flush()
+    log_action(db, user_id=current_user.id, action="CREATE", entity_type="user", entity_id=user.id,
+               new={"email": user.email, "full_name": user.full_name, "roles": user.roles})
     db.commit()
     db.refresh(user)
     return user
@@ -86,7 +90,7 @@ def update_user(
     user_id: int,
     data: UserUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_ADMIN)),
+    current_user: User = Depends(require_roles(*_ADMIN)),
 ):
     user = db.query(User).filter(User.id == user_id, User.is_deleted.is_(False)).first()
     if not user:
@@ -95,10 +99,17 @@ def update_user(
             detail={"error": "NOT_FOUND", "message": "Пользователь не найден"},
         )
     update_data = data.model_dump(exclude_none=True)
+    changed_fields = [k for k in update_data if k != "password"]
+    old_vals = {k: getattr(user, k) for k in changed_fields}
     if "password" in update_data:
         user.password_hash = hash_password(update_data.pop("password"))
+        old_vals["password"] = "***"
+        update_data["password"] = "***"
     for k, v in update_data.items():
-        setattr(user, k, v)
+        if k != "password":
+            setattr(user, k, v)
+    log_action(db, user_id=current_user.id, action="UPDATE", entity_type="user", entity_id=user.id,
+               old=old_vals, new={k: v for k, v in update_data.items()})
     db.commit()
     db.refresh(user)
     return user
@@ -123,4 +134,6 @@ def delete_user(
         )
     user.is_deleted = True
     user.is_active = False
+    log_action(db, user_id=current_user.id, action="DELETE", entity_type="user", entity_id=user.id,
+               old={"email": user.email, "full_name": user.full_name})
     db.commit()

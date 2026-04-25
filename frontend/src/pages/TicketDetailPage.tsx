@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { format, isPast, parseISO } from 'date-fns'
+import { format, isPast, parseISO, differenceInSeconds } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import {
   useTicket,
@@ -26,6 +26,24 @@ import { createInvoiceFromAct, getInvoicesByTicket } from '../api/endpoints'
 import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
 import type { TicketStatus, WorkActItemCreate, WorkActItemType } from '../api/types'
+
+function SlaCountdown({ deadline }: { deadline: string }) {
+  const [secs, setSecs] = useState(() => differenceInSeconds(parseISO(deadline), new Date()))
+  useEffect(() => {
+    const id = setInterval(() => setSecs(differenceInSeconds(parseISO(deadline), new Date())), 1000)
+    return () => clearInterval(id)
+  }, [deadline])
+  if (secs <= 0) return null
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  const s = secs % 60
+  const color = secs < 3600 ? '#e74c3c' : secs < 14400 ? '#e67e22' : '#27ae60'
+  return (
+    <span style={{ marginLeft: 8, fontFamily: 'monospace', fontSize: 12, color, fontWeight: 600 }}>
+      ({h.toString().padStart(2, '0')}:{m.toString().padStart(2, '0')}:{s.toString().padStart(2, '0')})
+    </span>
+  )
+}
 
 const STATUS_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   new: ['cancelled'],
@@ -131,6 +149,10 @@ export default function TicketDetailPage() {
     ticket.sla_deadline &&
     isPast(parseISO(ticket.sla_deadline)) &&
     !['completed', 'closed', 'cancelled'].includes(ticket.status)
+
+  const isUnderWarranty = ticket.equipment?.warranty_until
+    ? new Date(ticket.equipment.warranty_until) >= new Date(new Date().toISOString().split('T')[0])
+    : false
 
   const isClientUser = hasRole('client_user')
   const canAssign = hasRole('admin', 'svc_mgr')
@@ -365,14 +387,38 @@ export default function TicketDetailPage() {
                     {format(parseISO(ticket.created_at), 'dd.MM.yyyy HH:mm', { locale: ru })}
                   </span>
                 </li>
-                {ticket.sla_deadline && (
+                {ticket.sla_deadline && !ticket.sla_reaction_deadline && (
                   <li>
-                    <span className="info-list-label">Дедлайн SLA</span>
-                    <span
-                      className={`info-list-value${isOverdue ? ' sla-overdue' : ''}`}
-                    >
+                    <span className="info-list-label">SLA дедлайн</span>
+                    <span className={`info-list-value${isOverdue ? ' sla-overdue' : ''}`}>
                       {format(parseISO(ticket.sla_deadline), 'dd.MM.yyyy HH:mm', { locale: ru })}
                       {isOverdue && ' — просрочено!'}
+                    </span>
+                  </li>
+                )}
+                {ticket.sla_reaction_deadline && (
+                  <li>
+                    <span className="info-list-label">SLA реакции</span>
+                    <span className={`info-list-value${ticket.sla_reaction_violated ? ' sla-overdue' : ''}`}>
+                      {format(parseISO(ticket.sla_reaction_deadline), 'dd.MM.yyyy HH:mm', { locale: ru })}
+                      {ticket.sla_reaction_violated
+                        ? <span style={{ marginLeft: 6, color: '#e74c3c', fontWeight: 600 }}>— нарушен</span>
+                        : !isPast(parseISO(ticket.sla_reaction_deadline))
+                          ? <SlaCountdown deadline={ticket.sla_reaction_deadline} />
+                          : null}
+                    </span>
+                  </li>
+                )}
+                {ticket.sla_resolution_deadline && (
+                  <li>
+                    <span className="info-list-label">SLA решения</span>
+                    <span className={`info-list-value${ticket.sla_resolution_violated ? ' sla-overdue' : ''}`}>
+                      {format(parseISO(ticket.sla_resolution_deadline), 'dd.MM.yyyy HH:mm', { locale: ru })}
+                      {ticket.sla_resolution_violated
+                        ? <span style={{ marginLeft: 6, color: '#e74c3c', fontWeight: 600 }}>— нарушен</span>
+                        : !isPast(parseISO(ticket.sla_resolution_deadline))
+                          ? <SlaCountdown deadline={ticket.sla_resolution_deadline} />
+                          : null}
                     </span>
                   </li>
                 )}
@@ -739,8 +785,18 @@ export default function TicketDetailPage() {
                       <button
                         className="btn btn-primary btn-sm"
                         onClick={() => createInvoiceFromActMutation.mutate()}
-                        disabled={createInvoiceFromActMutation.isPending || !(workAct.items && workAct.items.length > 0)}
-                        title={!(workAct.items && workAct.items.length > 0) ? 'Добавьте позиции в акт перед созданием счёта' : 'Создать счёт на основе позиций акта'}
+                        disabled={
+                          createInvoiceFromActMutation.isPending ||
+                          !(workAct.items && workAct.items.length > 0) ||
+                          isUnderWarranty
+                        }
+                        title={
+                          isUnderWarranty
+                            ? 'Оборудование на гарантии — выставление счёта недоступно'
+                            : !(workAct.items && workAct.items.length > 0)
+                              ? 'Добавьте позиции в акт перед созданием счёта'
+                              : 'Создать счёт на основе позиций акта'
+                        }
                       >
                         {createInvoiceFromActMutation.isPending ? 'Создание...' : '📄 Создать счёт из акта'}
                       </button>

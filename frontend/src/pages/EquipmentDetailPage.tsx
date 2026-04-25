@@ -9,8 +9,10 @@ import { useEquipmentItem, useEquipmentModels, useUpdateEquipment } from '../hoo
 import { useEquipmentTickets } from '../hooks/useTickets'
 import { useClients } from '../hooks/useClients'
 import { useAuth } from '../context/AuthContext'
+import { useMaintenanceSchedule, useCreateMaintenanceSchedule, useUpdateMaintenanceSchedule } from '../hooks/useMaintenanceSchedule'
 import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
+import type { MaintenanceFrequency } from '../api/types'
 
 const EQUIPMENT_STATUS_LABELS: Record<string, string> = {
   active: 'Активно',
@@ -65,9 +67,17 @@ export default function EquipmentDetailPage() {
 
   const [showEdit, setShowEdit] = useState(false)
   const [formError, setFormError] = useState('')
+  const [showMaintForm, setShowMaintForm] = useState(false)
+  const [maintFreq, setMaintFreq] = useState<MaintenanceFrequency>('monthly')
+  const [maintFirstDate, setMaintFirstDate] = useState('')
+  const [maintNextDate, setMaintNextDate] = useState('')
+  const [maintError, setMaintError] = useState('')
 
   const { data: eq, isLoading, isError } = useEquipmentItem(equipmentId)
   const { data: tickets } = useEquipmentTickets(equipmentId)
+  const { data: schedule } = useMaintenanceSchedule(equipmentId)
+  const createSchedule = useCreateMaintenanceSchedule(equipmentId)
+  const updateSchedule = useUpdateMaintenanceSchedule(equipmentId)
   const { data: modelsData } = useEquipmentModels()
   const { data: clientsData } = useClients({ size: 200 })
   const updateMutation = useUpdateEquipment(equipmentId)
@@ -305,6 +315,143 @@ export default function EquipmentDetailPage() {
           </table>
         </div>
       </div>
+
+      {/* Maintenance Schedule */}
+      <div style={{ maxWidth: 900, marginTop: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600 }}>График планового ТО</h2>
+          {hasRole('admin', 'svc_mgr') && !schedule && (
+            <button className="btn btn-primary btn-sm" onClick={() => setShowMaintForm(true)}>
+              Создать график
+            </button>
+          )}
+        </div>
+
+        {schedule ? (
+          <div className="card" style={{ maxWidth: 500 }}>
+            <ul className="info-list">
+              <li>
+                <span className="info-list-label">Периодичность</span>
+                <span className="info-list-value">
+                  {{ monthly: 'Ежемесячно', quarterly: 'Ежеквартально', semiannual: 'Раз в полгода', annual: 'Ежегодно' }[schedule.frequency] ?? schedule.frequency}
+                </span>
+              </li>
+              <li>
+                <span className="info-list-label">Первая дата</span>
+                <span className="info-list-value">{schedule.first_date}</span>
+              </li>
+              <li>
+                <span className="info-list-label">Следующее ТО</span>
+                <span className="info-list-value" style={{ fontWeight: 600 }}>{schedule.next_date}</span>
+              </li>
+              <li>
+                <span className="info-list-label">Статус</span>
+                <span className="info-list-value">
+                  <span className={`badge ${schedule.is_active ? 'badge-success' : 'badge-secondary'}`}>
+                    {schedule.is_active ? 'Активен' : 'Приостановлен'}
+                  </span>
+                </span>
+              </li>
+            </ul>
+            {hasRole('admin', 'svc_mgr') && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setMaintFreq(schedule.frequency)
+                    setMaintNextDate(schedule.next_date)
+                    setShowMaintForm(true)
+                  }}
+                >
+                  Изменить
+                </button>
+                <button
+                  className={`btn btn-sm ${schedule.is_active ? 'btn-warning' : 'btn-success'}`}
+                  onClick={() => updateSchedule.mutate({ is_active: !schedule.is_active })}
+                >
+                  {schedule.is_active ? 'Приостановить' : 'Возобновить'}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+            График ТО не настроен
+          </div>
+        )}
+      </div>
+
+      {/* Maintenance modal */}
+      {showMaintForm && (
+        <div className="modal-overlay" onClick={() => setShowMaintForm(false)}>
+          <div className="modal" style={{ maxWidth: 440, width: '100%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{schedule ? 'Изменить график ТО' : 'Создать график ТО'}</h2>
+              <button className="btn-icon" onClick={() => setShowMaintForm(false)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ display: 'grid', gap: 14 }}>
+              {maintError && <div className="alert alert-error">{maintError}</div>}
+              <div className="form-group">
+                <label className="form-label">Периодичность *</label>
+                <select className="form-select" value={maintFreq} onChange={e => setMaintFreq(e.target.value as MaintenanceFrequency)}>
+                  <option value="monthly">Ежемесячно</option>
+                  <option value="quarterly">Ежеквартально</option>
+                  <option value="semiannual">Раз в полгода</option>
+                  <option value="annual">Ежегодно</option>
+                </select>
+              </div>
+              {!schedule && (
+                <div className="form-group">
+                  <label className="form-label">Дата первого ТО *</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={maintFirstDate}
+                    onChange={e => setMaintFirstDate(e.target.value)}
+                  />
+                </div>
+              )}
+              {schedule && (
+                <div className="form-group">
+                  <label className="form-label">Следующее ТО</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={maintNextDate}
+                    onChange={e => setMaintNextDate(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowMaintForm(false)}>Отмена</button>
+              <button
+                className="btn btn-primary"
+                disabled={createSchedule.isPending || updateSchedule.isPending}
+                onClick={() => {
+                  setMaintError('')
+                  if (schedule) {
+                    const upd: { frequency?: MaintenanceFrequency; next_date?: string } = { frequency: maintFreq }
+                    if (maintNextDate) upd.next_date = maintNextDate
+                    updateSchedule.mutate(upd, {
+                      onSuccess: () => setShowMaintForm(false),
+                      onError: () => setMaintError('Ошибка сохранения'),
+                    })
+                  } else {
+                    if (!maintFirstDate) { setMaintError('Укажите дату первого ТО'); return }
+                    createSchedule.mutate({ frequency: maintFreq, first_date: maintFirstDate }, {
+                      onSuccess: () => setShowMaintForm(false),
+                      onError: () => setMaintError('Ошибка создания графика'),
+                    })
+                  }
+                }}
+              >
+                {schedule ? 'Сохранить' : 'Создать'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit modal */}
       {showEdit && (

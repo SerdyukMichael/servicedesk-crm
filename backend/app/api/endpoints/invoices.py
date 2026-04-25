@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.models import Invoice, InvoiceItem, User, Ticket, WorkAct, WorkActItem
 from app.api.deps import get_current_user, require_roles, get_client_scope
 from app.schemas import InvoiceCreate, InvoiceUpdate, InvoiceResponse, PaginatedResponse
+from app.services.audit import log_action
 
 router = APIRouter()
 
@@ -98,6 +99,9 @@ def create_invoice(
     db.flush()
     db.refresh(invoice)
     _recalculate(invoice)
+    log_action(db, user_id=current_user.id, action="CREATE", entity_type="invoice", entity_id=invoice.id,
+               new={"number": invoice.number, "client_id": invoice.client_id, "ticket_id": invoice.ticket_id,
+                    "total_amount": str(invoice.total_amount)})
     db.commit()
     db.refresh(invoice)
     return invoice
@@ -130,7 +134,7 @@ def update_invoice(
     invoice_id: int,
     data: InvoiceUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*_WRITE_ROLES)),
 ):
     inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not inv:
@@ -155,6 +159,8 @@ def update_invoice(
         db.refresh(inv)
         _recalculate(inv)
 
+    log_action(db, user_id=current_user.id, action="UPDATE", entity_type="invoice", entity_id=inv.id,
+               new={"number": inv.number, "status": inv.status})
     db.commit()
     db.refresh(inv)
     return inv
@@ -164,7 +170,7 @@ def update_invoice(
 def delete_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_ADMIN)),
+    current_user: User = Depends(require_roles(*_ADMIN)),
 ):
     inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not inv:
@@ -172,6 +178,8 @@ def delete_invoice(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "NOT_FOUND", "message": "Счёт не найден"},
         )
+    log_action(db, user_id=current_user.id, action="DELETE", entity_type="invoice", entity_id=inv.id,
+               old={"number": inv.number, "total_amount": str(inv.total_amount)})
     db.delete(inv)
     db.commit()
 
@@ -180,7 +188,7 @@ def delete_invoice(
 def send_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*_WRITE_ROLES)),
 ):
     inv = _get_or_404(db, invoice_id)
     if inv.status != "draft":
@@ -189,6 +197,8 @@ def send_invoice(
             detail={"error": "BR_VIOLATION", "message": "Только черновик можно отправить"},
         )
     inv.status = "sent"
+    log_action(db, user_id=current_user.id, action="STATUS_CHANGE", entity_type="invoice", entity_id=inv.id,
+               old={"status": "draft"}, new={"status": "sent"})
     db.commit()
     db.refresh(inv)
     return inv
@@ -198,7 +208,7 @@ def send_invoice(
 def pay_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(*_WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*_WRITE_ROLES)),
 ):
     inv = _get_or_404(db, invoice_id)
     if inv.status not in ("sent", "overdue"):
@@ -206,8 +216,11 @@ def pay_invoice(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": "BR_VIOLATION", "message": "Оплатить можно только отправленный счёт"},
         )
+    prev_status = inv.status
     inv.status = "paid"
     inv.paid_at = datetime.utcnow()
+    log_action(db, user_id=current_user.id, action="STATUS_CHANGE", entity_type="invoice", entity_id=inv.id,
+               old={"status": prev_status}, new={"status": "paid"})
     db.commit()
     db.refresh(inv)
     return inv
@@ -271,6 +284,9 @@ def create_invoice_from_act(
     db.flush()
     db.refresh(invoice)
     _recalculate(invoice)
+    log_action(db, user_id=current_user.id, action="CREATE", entity_type="invoice", entity_id=invoice.id,
+               new={"number": invoice.number, "ticket_id": ticket_id, "source": "work_act",
+                    "total_amount": str(invoice.total_amount)})
     db.commit()
     db.refresh(invoice)
     return invoice

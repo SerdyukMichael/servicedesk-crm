@@ -13,6 +13,11 @@ const NAV_ITEMS = [
   { to: '/notifications', icon: '🔔', label: 'Уведомления', badge: true },
 ]
 
+const RESTRICTED_NAV = [
+  { to: '/reports', icon: '📊', label: 'Отчёты', roles: ['director', 'svc_mgr', 'admin'] },
+  { to: '/audit-log', icon: '🔍', label: 'Аудит-лог', roles: ['admin', 'director'] },
+]
+
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Администратор',
   engineer: 'Инженер',
@@ -83,6 +88,19 @@ export default function Layout() {
               <span className="sidebar-nav-icon">👥</span>
               Пользователи
             </NavLink>
+          )}
+
+          {RESTRICTED_NAV.map(item =>
+            hasRole(...(item.roles as [string])) ? (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => 'sidebar-nav-item' + (isActive ? ' active' : '')}
+              >
+                <span className="sidebar-nav-icon">{item.icon}</span>
+                {item.label}
+              </NavLink>
+            ) : null
           )}
 
           {hasRole('admin') && (
