@@ -237,7 +237,7 @@ export const getClientTickets = (clientId: number): Promise<Ticket[]> =>
 // ===== Work Templates =====
 
 export const getWorkTemplates = (): Promise<WorkTemplate[]> =>
-  api.get<WorkTemplate[]>('/work-templates').then(r => r.data)
+  api.get<PaginatedResponse<WorkTemplate>>('/work-templates', { params: { size: 200 } }).then(r => r.data.items)
 
 export const getWorkTemplate = (id: number): Promise<WorkTemplate> =>
   api.get<WorkTemplate>(`/work-templates/${id}`).then(r => r.data)
