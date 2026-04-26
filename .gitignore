@@ -58,3 +58,4 @@ scripts/voice_requirements.txt
 # Root-level playwright / e2e test artefacts
 tests/
 *-snap.md
+docker-compose.override.yml
