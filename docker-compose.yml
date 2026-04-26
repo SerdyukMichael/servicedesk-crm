@@ -58,12 +58,17 @@ services:
     restart: unless-stopped
     command: celery -A app.celery_app worker --loglevel=info --concurrency=4
     env_file: ./backend/.env
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.celery_app", "inspect", "ping", "--timeout=5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # volumes с исходным кодом НЕ монтируются в продакшене
 
   celery_beat:
     build: ./backend
@@ -71,6 +76,12 @@ services:
     restart: unless-stopped
     command: celery -A app.celery_app beat --loglevel=info
     env_file: ./backend/.env
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.celery_app", "inspect", "ping", "--timeout=5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     depends_on:
       mysql:
         condition: service_healthy
