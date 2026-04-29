@@ -43,8 +43,26 @@ jobs:
           path: frontend/dist/
           retention-days: 1
 
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend Docker image
+        run: |
+          docker build -t servicedesk-crm-backend:latest ./backend
+      - name: Save and compress backend image
+        run: |
+          docker save servicedesk-crm-backend:latest | gzip > /tmp/backend.tar.gz
+          ls -lh /tmp/backend.tar.gz
+      - name: Upload backend image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-image
+          path: /tmp/backend.tar.gz
+          retention-days: 1
+
   deploy:
-    needs: [test, build-frontend]
+    needs: [test, build-frontend, build-backend]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +71,11 @@ jobs:
         with:
           name: frontend-dist
           path: frontend/dist/
+      - name: Download backend image
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-image
+          path: /tmp/
       - name: Copy frontend to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -62,6 +85,15 @@ jobs:
           source: "frontend/dist/"
           target: "/var/www/servicedesk/"
           strip_components: 2
+      - name: Copy backend image to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "/tmp/backend.tar.gz"
+          target: "/tmp/"
+          strip_components: 0
       - name: Update frontend in container
         uses: appleboy/ssh-action@v1
         with:
@@ -70,7 +102,6 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           command_timeout: 3m
           script: |
-            # Копируем свежий dist внутрь работающего nginx-контейнера и перезагружаем
             docker cp /var/www/servicedesk/. servicedesk_web:/usr/share/nginx/html/
             docker exec servicedesk_web nginx -s reload
             echo "Frontend updated"
@@ -82,20 +113,30 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           command_timeout: 10m
           script: |
-            git config --global --add safe.directory /opt/servicedesk-crm
+            # Загружаем готовый образ (никакого docker build на сервере!)
+            gzip -dc /tmp/backend.tar.gz | docker load
+            rm -f /tmp/backend.tar.gz
+
             cd /opt/servicedesk-crm
+            git config --global --add safe.directory /opt/servicedesk-crm
             git fetch origin main
             git reset --hard origin/main
+
+            # Поднимаем все сервисы (на случай если что-то упало после ребута)
             docker compose up -d
+
+            # Перезапускаем только backend с новым образом
             docker compose stop backend
             docker compose rm -f backend
-            docker compose build backend
             docker compose up -d --no-deps backend
-            # Ждём healthy бэкенда (до 60 сек)
-            for i in $(seq 1 12); do
+
+            # Ждём healthy бэкенда (до 90 сек)
+            for i in $(seq 1 18); do
               STATUS=$(docker inspect --format='{{.State.Health.Status}}' servicedesk_api 2>/dev/null || echo "starting")
-              echo "Health: $STATUS ($i/12)"
+              echo "Health: $STATUS ($i/18)"
               [ "$STATUS" = "healthy" ] && break
               sleep 5
             done
+
             docker compose exec -T backend alembic upgrade head
+            echo "Deploy complete"
