@@ -86,6 +86,7 @@ jobs:
             cd /opt/servicedesk-crm
             git fetch origin main
             git reset --hard origin/main
+            docker compose up -d
             docker compose stop backend
             docker compose rm -f backend
             docker compose build backend
