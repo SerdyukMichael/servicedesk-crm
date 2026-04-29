@@ -14,21 +14,27 @@ from app.api.endpoints import (
     settings,
     audit_log,
     reports,
+    warehouses,
+    stock_receipts,
+    parts_transfers,
 )
 
 api_router = APIRouter()
 
-api_router.include_router(auth.router,           prefix="/auth",           tags=["Авторизация"])
-api_router.include_router(users.router,          prefix="/users",          tags=["Пользователи"])
-api_router.include_router(clients.router,        prefix="/clients",        tags=["Клиенты"])
-api_router.include_router(equipment.router,      prefix="/equipment",      tags=["Оборудование"])
-api_router.include_router(tickets.router,        prefix="/tickets",        tags=["Заявки"])
-api_router.include_router(work_templates.router, prefix="/work-templates", tags=["Шаблоны работ"])
-api_router.include_router(parts.router,          prefix="/parts",          tags=["Склад"])
-api_router.include_router(vendors.router,        prefix="/vendors",        tags=["Вендоры"])
-api_router.include_router(invoices.router,       prefix="/invoices",       tags=["Счета"])
-api_router.include_router(notifications.router,   prefix="/notifications",   tags=["Уведомления"])
-api_router.include_router(service_catalog.router, prefix="/service-catalog", tags=["Прайс-лист услуг"])
-api_router.include_router(settings.router,        prefix="/settings",        tags=["Настройки"])
-api_router.include_router(audit_log.router,       prefix="/audit-log",       tags=["Аудит-лог"])
-api_router.include_router(reports.router,         prefix="/reports",         tags=["Отчёты"])
+api_router.include_router(auth.router,             prefix="/auth",             tags=["Авторизация"])
+api_router.include_router(users.router,            prefix="/users",            tags=["Пользователи"])
+api_router.include_router(clients.router,          prefix="/clients",          tags=["Клиенты"])
+api_router.include_router(equipment.router,        prefix="/equipment",        tags=["Оборудование"])
+api_router.include_router(tickets.router,          prefix="/tickets",          tags=["Заявки"])
+api_router.include_router(work_templates.router,   prefix="/work-templates",   tags=["Шаблоны работ"])
+api_router.include_router(parts.router,            prefix="/parts",            tags=["Склад"])
+api_router.include_router(warehouses.router,       prefix="/warehouses",       tags=["Склад — Склады"])
+api_router.include_router(stock_receipts.router,   prefix="/stock-receipts",   tags=["Склад — Приходы"])
+api_router.include_router(parts_transfers.router,  prefix="/parts-transfers",  tags=["Склад — Передачи"])
+api_router.include_router(vendors.router,          prefix="/vendors",          tags=["Вендоры"])
+api_router.include_router(invoices.router,         prefix="/invoices",         tags=["Счета"])
+api_router.include_router(notifications.router,    prefix="/notifications",    tags=["Уведомления"])
+api_router.include_router(service_catalog.router,  prefix="/service-catalog",  tags=["Прайс-лист услуг"])
+api_router.include_router(settings.router,         prefix="/settings",         tags=["Настройки"])
+api_router.include_router(audit_log.router,        prefix="/audit-log",        tags=["Аудит-лог"])
+api_router.include_router(reports.router,          prefix="/reports",          tags=["Отчёты"])

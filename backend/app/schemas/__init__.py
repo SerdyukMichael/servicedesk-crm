@@ -322,6 +322,20 @@ class EquipmentResponse(BaseModel):
         return self
 
 
+# ── Equipment Lookup ─────────────────────────────────────────────────────────
+
+class EquipmentLookupResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    equipment_id: int
+    serial_number: str
+    model_name: str
+    client_id: int
+    client_name: str
+    is_under_warranty: bool
+    warranty_until: Optional[date]
+
+
 # ── Work Templates ────────────────────────────────────────────────────────────
 
 class WorkTemplateStepCreate(BaseModel):
@@ -479,6 +493,7 @@ class WorkActItemCreate(BaseModel):
     item_type: str  # "service" | "part"
     service_id: Optional[int] = None
     part_id: Optional[int] = None
+    warehouse_id: Optional[int] = None  # склад-источник (только для part)
     name: str
     quantity: Decimal = Decimal("1")
     unit: str = "шт"
@@ -494,6 +509,7 @@ class WorkActItemResponse(BaseModel):
     item_type: str
     service_id: Optional[int]
     part_id: Optional[int]
+    warehouse_id: Optional[int]
     name: str
     quantity: Decimal
     unit: str
@@ -956,3 +972,161 @@ class MaintenanceScheduleResponse(BaseModel):
     created_by: Optional[int]
     created_at: datetime
     updated_at: datetime
+
+
+# ── Warehouse ─────────────────────────────────────────────────────────────────
+
+class WarehouseCreate(BaseModel):
+    name: str
+    type: str = "company"
+    client_id: Optional[int] = None
+    is_active: bool = True
+
+
+class WarehouseUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    client_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class WarehouseResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    type: str
+    client_id: Optional[int]
+    is_active: bool
+
+
+class WarehouseStockResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    warehouse_id: int
+    warehouse_name: str = ""
+    warehouse_type: str = ""
+    part_id: int
+    part_sku: str = ""
+    part_name: str = ""
+    part_unit: str = ""
+    part_category: Optional[str] = None
+    part_min_quantity: int = 0
+    quantity: int
+    unit_price_snapshot: Optional[Decimal]
+
+    @model_validator(mode="after")
+    def _fill_from_relations(self) -> "WarehouseStockResponse":
+        from app.models import WarehouseStock  # noqa: F401 — type-only use
+        obj = self
+        # filled from ORM relationships via model_validate
+        return obj
+
+
+# ── Stock Receipt ─────────────────────────────────────────────────────────────
+
+class StockReceiptItemCreate(BaseModel):
+    part_id: int
+    quantity: int = Field(..., ge=1)
+    unit_price: Decimal = Decimal("0")
+
+
+class StockReceiptItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    part_id: int
+    part_name: str = ""
+    part_sku: str = ""
+    quantity: int
+    unit_price: Decimal
+
+
+class StockReceiptCreate(BaseModel):
+    warehouse_id: int
+    receipt_date: date
+    vendor_id: Optional[int] = None
+    supplier_doc_number: Optional[str] = None
+    notes: Optional[str] = None
+    items: List[StockReceiptItemCreate] = []
+
+
+class StockReceiptUpdate(BaseModel):
+    warehouse_id: Optional[int] = None
+    receipt_date: Optional[date] = None
+    vendor_id: Optional[int] = None
+    supplier_doc_number: Optional[str] = None
+    notes: Optional[str] = None
+    items: Optional[List[StockReceiptItemCreate]] = None
+
+
+class StockReceiptResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    receipt_number: str
+    warehouse_id: int
+    warehouse_name: str = ""
+    receipt_date: date
+    vendor_id: Optional[int]
+    supplier_doc_number: Optional[str]
+    notes: Optional[str]
+    status: str
+    created_by: int
+    created_at: datetime
+    items: List[StockReceiptItemResponse] = []
+
+
+# ── Parts Transfer ────────────────────────────────────────────────────────────
+
+class PartsTransferItemCreate(BaseModel):
+    part_id: int
+    quantity: int = Field(..., ge=1)
+
+
+class PartsTransferItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    part_id: int
+    part_name: str = ""
+    part_sku: str = ""
+    quantity: int
+    unit_price_snapshot: Optional[Decimal]
+    available_qty: int = 0
+
+
+class PartsTransferCreate(BaseModel):
+    from_warehouse_id: int
+    to_warehouse_id: int
+    transfer_date: date
+    notes: Optional[str] = None
+    items: List[PartsTransferItemCreate] = []
+
+
+class PartsTransferUpdate(BaseModel):
+    from_warehouse_id: Optional[int] = None
+    to_warehouse_id: Optional[int] = None
+    transfer_date: Optional[date] = None
+    notes: Optional[str] = None
+    items: Optional[List[PartsTransferItemCreate]] = None
+
+
+class PartsTransferResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    transfer_number: str
+    from_warehouse_id: int
+    from_warehouse_name: str = ""
+    to_warehouse_id: int
+    to_warehouse_name: str = ""
+    transfer_date: date
+    notes: Optional[str]
+    status: str
+    created_by: int
+    posted_by: Optional[int]
+    posted_at: Optional[datetime]
+    created_at: datetime
+    items: List[PartsTransferItemResponse] = []

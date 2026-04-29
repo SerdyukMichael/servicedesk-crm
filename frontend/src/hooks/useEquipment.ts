@@ -65,6 +65,16 @@ export function useClientEquipment(clientId: number) {
   })
 }
 
+export function useEquipmentLookup(serial: string) {
+  return useQuery({
+    queryKey: ['equipment-lookup', serial],
+    queryFn: () => api.lookupEquipment(serial),
+    enabled: serial.trim().length >= 3,
+    retry: false,
+    staleTime: 30_000,
+  })
+}
+
 export function useCreateEquipment() {
   const qc = useQueryClient()
   return useMutation({
