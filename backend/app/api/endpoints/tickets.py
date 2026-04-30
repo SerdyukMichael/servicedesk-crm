@@ -15,7 +15,11 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models import Ticket, TicketComment, TicketFile, WorkAct, WorkActItem, User, Equipment, EquipmentModel, TicketStatusHistory, Invoice, InvoiceItem
+from app.models import (
+    Ticket, TicketComment, TicketFile, WorkAct, WorkActItem, User,
+    Equipment, EquipmentModel, TicketStatusHistory, Invoice, InvoiceItem,
+    Warehouse, WarehouseStock, SparePart,
+)
 
 # MIME-типы, запрещённые к загрузке (хранимый XSS через SVG/HTML/JS)
 _BLOCKED_MIME_TYPES = frozenset({
@@ -597,6 +601,67 @@ def download_attachment_direct(
     )
 
 
+# ─── Work Act stock helpers ───────────────────────────────────────────────────
+
+def _deduct_act_stock(db: Session, items: list) -> None:
+    """Списать WarehouseStock по позициям акта (только item_type=part с warehouse_id)."""
+    for item in items:
+        if item.item_type != "part" or not item.part_id or not item.warehouse_id:
+            continue
+        qty = int(item.quantity)
+        stock = (
+            db.query(WarehouseStock)
+            .filter(
+                WarehouseStock.warehouse_id == item.warehouse_id,
+                WarehouseStock.part_id == item.part_id,
+            )
+            .with_for_update()
+            .first()
+        )
+        available = stock.quantity if stock else 0
+        if available < qty:
+            wh = db.query(Warehouse).filter(Warehouse.id == item.warehouse_id).first()
+            wh_name = wh.name if wh else f"id={item.warehouse_id}"
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "error": "INSUFFICIENT_STOCK",
+                    "message": (
+                        f"На складе «{wh_name}» доступно {available} шт. «{item.name}», "
+                        f"запрошено {qty}"
+                    ),
+                },
+            )
+        stock.quantity -= qty
+        # синхронизируем SparePart.quantity для основного склада компании
+        wh = db.query(Warehouse).filter(Warehouse.id == item.warehouse_id).first()
+        if wh and wh.type == "company":
+            part = db.query(SparePart).filter(SparePart.id == item.part_id).first()
+            if part:
+                part.quantity = max(0, part.quantity - qty)
+
+
+def _restore_act_stock(db: Session, part_stock: list) -> None:
+    """Вернуть остатки WarehouseStock по списку (warehouse_id, part_id, qty)."""
+    for warehouse_id, part_id, qty in part_stock:
+        stock = (
+            db.query(WarehouseStock)
+            .filter(
+                WarehouseStock.warehouse_id == warehouse_id,
+                WarehouseStock.part_id == part_id,
+            )
+            .first()
+        )
+        if stock:
+            stock.quantity += qty
+        # синхронизируем SparePart.quantity для основного склада
+        wh = db.query(Warehouse).filter(Warehouse.id == warehouse_id).first()
+        if wh and wh.type == "company":
+            part = db.query(SparePart).filter(SparePart.id == part_id).first()
+            if part:
+                part.quantity += qty
+
+
 # ─── Work Acts ────────────────────────────────────────────────────────────────
 
 @router.post("/{ticket_id}/work-act", response_model=WorkActResponse, status_code=status.HTTP_201_CREATED)
@@ -623,6 +688,7 @@ def create_work_act(
     db.add(act)
     db.flush()
 
+    created_items = []
     for i, item_data in enumerate(data.items):
         total = (item_data.quantity * item_data.unit_price).quantize(Decimal("0.01"))
         act_item = WorkActItem(
@@ -630,6 +696,7 @@ def create_work_act(
             item_type=item_data.item_type,
             service_id=item_data.service_id,
             part_id=item_data.part_id,
+            warehouse_id=item_data.warehouse_id if item_data.item_type == "part" else None,
             name=item_data.name,
             quantity=item_data.quantity,
             unit=item_data.unit,
@@ -638,6 +705,10 @@ def create_work_act(
             sort_order=item_data.sort_order if item_data.sort_order else i,
         )
         db.add(act_item)
+        created_items.append(act_item)
+
+    # Списание запасов по WarehouseStock
+    _deduct_act_stock(db, created_items)
 
     log_action(db, user_id=current_user.id, action="CREATE", entity_type="work_act", entity_id=act.id,
                new={"ticket_id": ticket_id})
@@ -673,19 +744,31 @@ def _calc_act_total(items: list) -> Decimal:
     return sum((i.total for i in items), Decimal("0"))
 
 
+def _is_bank_warehouse(db: Session, warehouse_id: Optional[int]) -> bool:
+    """True если склад типа bank."""
+    if not warehouse_id:
+        return False
+    wh = db.query(Warehouse).filter(Warehouse.id == warehouse_id).first()
+    return wh is not None and wh.type == "bank"
+
+
 def _sync_invoice_from_act(invoice: Invoice, act_items: list, db: Session) -> None:
     """Заменить позиции счёта позициями акта и пересчитать итоги."""
     db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice.id).delete()
     db.flush()
     subtotal = Decimal("0")
     for i, act_item in enumerate(act_items):
-        total = act_item.total
+        # BR-P-010: склад банка → цена и сумма = 0
+        unit_price = act_item.unit_price
+        if act_item.item_type == "part" and _is_bank_warehouse(db, act_item.warehouse_id):
+            unit_price = Decimal("0")
+        total = (act_item.quantity * unit_price).quantize(Decimal("0.01"))
         db.add(InvoiceItem(
             invoice_id=invoice.id,
             description=act_item.name,
             quantity=act_item.quantity,
             unit=act_item.unit,
-            unit_price=act_item.unit_price,
+            unit_price=unit_price,
             total=total,
             sort_order=i,
             item_type=act_item.item_type,
@@ -757,6 +840,13 @@ def update_work_act(
 
     new_act_items: list = []   # заполняется ниже при изменении позиций
     if data.items is not None:
+        # Сохраняем старые позиции-запчасти для обратного списания
+        old_part_stock = [
+            (it.warehouse_id, it.part_id, int(it.quantity))
+            for it in act.items
+            if it.item_type == "part" and it.part_id and it.warehouse_id
+        ]
+
         db.query(WorkActItem).filter(WorkActItem.work_act_id == act.id).delete()
         for i, item_data in enumerate(data.items):
             total = (item_data.quantity * item_data.unit_price).quantize(Decimal("0.01"))
@@ -765,6 +855,7 @@ def update_work_act(
                 item_type=item_data.item_type,
                 service_id=item_data.service_id,
                 part_id=item_data.part_id,
+                warehouse_id=item_data.warehouse_id if item_data.item_type == "part" else None,
                 name=item_data.name,
                 quantity=item_data.quantity,
                 unit=item_data.unit,
@@ -775,6 +866,10 @@ def update_work_act(
             db.add(item)
             new_act_items.append(item)
         db.flush()
+
+        # Возврат старых остатков, затем новое списание
+        _restore_act_stock(db, old_part_stock)
+        _deduct_act_stock(db, new_act_items)
 
     # Синхронизация счётов (только если изменились позиции)
     if data.items is not None:

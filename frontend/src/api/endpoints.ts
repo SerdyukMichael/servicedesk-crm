@@ -31,6 +31,12 @@ import type {
   TicketReport,
   MaintenanceSchedule,
   MaintenanceFrequency,
+  Warehouse,
+  WarehouseStock,
+  StockReceipt,
+  StockReceiptCreate,
+  PartsTransfer,
+  PartsTransferCreate,
 } from './types'
 
 // ===== Auth =====
@@ -145,6 +151,19 @@ export const activateEquipmentModel = (id: number): Promise<EquipmentModel> =>
 
 export const getClientEquipment = (clientId: number): Promise<Equipment[]> =>
   api.get<Equipment[]>(`/clients/${clientId}/equipment`).then(r => r.data)
+
+export interface EquipmentLookupResult {
+  equipment_id: number
+  serial_number: string
+  model_name: string
+  client_id: number
+  client_name: string
+  is_under_warranty: boolean
+  warranty_until: string | null
+}
+
+export const lookupEquipment = (serial: string): Promise<EquipmentLookupResult> =>
+  api.get<EquipmentLookupResult>('/equipment/lookup', { params: { serial } }).then(r => r.data)
 
 // ===== Tickets =====
 
@@ -440,3 +459,39 @@ export const updateMaintenanceSchedule = (
   data: { frequency?: MaintenanceFrequency; first_date?: string; next_date?: string; is_active?: boolean }
 ): Promise<MaintenanceSchedule> =>
   api.put<MaintenanceSchedule>(`/equipment/${equipmentId}/maintenance-schedule`, data).then(r => r.data)
+
+// ===== Warehouses =====
+
+export const getWarehouses = (params?: { type?: string; active_only?: boolean }): Promise<Warehouse[]> =>
+  api.get<Warehouse[]>('/warehouses', { params }).then(r => r.data)
+
+export const getWarehouseStock = (params?: Record<string, unknown>): Promise<PaginatedResponse<WarehouseStock>> =>
+  api.get<PaginatedResponse<WarehouseStock>>('/warehouses/stock/list', { params }).then(r => r.data)
+
+// ===== Stock Receipts =====
+
+export const getStockReceipts = (params?: Record<string, unknown>): Promise<PaginatedResponse<StockReceipt>> =>
+  api.get<PaginatedResponse<StockReceipt>>('/stock-receipts', { params }).then(r => r.data)
+
+export const createStockReceipt = (data: StockReceiptCreate): Promise<StockReceipt> =>
+  api.post<StockReceipt>('/stock-receipts', data).then(r => r.data)
+
+export const postStockReceipt = (id: number): Promise<StockReceipt> =>
+  api.post<StockReceipt>(`/stock-receipts/${id}/post`).then(r => r.data)
+
+export const cancelStockReceipt = (id: number): Promise<StockReceipt> =>
+  api.post<StockReceipt>(`/stock-receipts/${id}/cancel`).then(r => r.data)
+
+// ===== Parts Transfers =====
+
+export const getPartsTransfers = (params?: Record<string, unknown>): Promise<PaginatedResponse<PartsTransfer>> =>
+  api.get<PaginatedResponse<PartsTransfer>>('/parts-transfers', { params }).then(r => r.data)
+
+export const createPartsTransfer = (data: PartsTransferCreate): Promise<PartsTransfer> =>
+  api.post<PartsTransfer>('/parts-transfers', data).then(r => r.data)
+
+export const postPartsTransfer = (id: number): Promise<PartsTransfer> =>
+  api.post<PartsTransfer>(`/parts-transfers/${id}/post`).then(r => r.data)
+
+export const cancelPartsTransfer = (id: number): Promise<PartsTransfer> =>
+  api.post<PartsTransfer>(`/parts-transfers/${id}/cancel`).then(r => r.data)

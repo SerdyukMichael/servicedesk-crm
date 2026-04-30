@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models import Invoice, InvoiceItem, User, Ticket, WorkAct, WorkActItem
+from app.models import Invoice, InvoiceItem, User, Ticket, WorkAct, WorkActItem, Warehouse
 from app.api.deps import get_current_user, require_roles, get_client_scope
 from app.schemas import InvoiceCreate, InvoiceUpdate, InvoiceResponse, PaginatedResponse
 from app.services.audit import log_action
@@ -267,13 +267,21 @@ def create_invoice_from_act(
         .all()
     )
     for i, act_item in enumerate(act_items):
+        # BR-P-010: склад банка → цена и сумма = 0
+        unit_price = act_item.unit_price
+        total = act_item.total
+        if act_item.item_type == "part" and act_item.warehouse_id:
+            wh = db.query(Warehouse).filter(Warehouse.id == act_item.warehouse_id).first()
+            if wh and wh.type == "bank":
+                unit_price = Decimal("0")
+                total = Decimal("0")
         inv_item = InvoiceItem(
             invoice_id=invoice.id,
             description=act_item.name,
             quantity=act_item.quantity,
             unit=act_item.unit,
-            unit_price=act_item.unit_price,
-            total=act_item.total,
+            unit_price=unit_price,
+            total=total,
             sort_order=i,
             item_type=act_item.item_type,
             service_id=act_item.service_id,

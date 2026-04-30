@@ -12,7 +12,7 @@ from app.schemas import (
     EquipmentCreate, EquipmentUpdate, EquipmentResponse,
     EquipmentModelCreate, EquipmentModelUpdate, EquipmentModelResponse,
     MaintenanceScheduleCreate, MaintenanceScheduleUpdate, MaintenanceScheduleResponse,
-    PaginatedResponse,
+    PaginatedResponse, EquipmentLookupResponse,
 )
 
 router = APIRouter()
@@ -186,6 +186,42 @@ def create_equipment(
     db.refresh(eq)
     db.refresh(eq, ["client", "model"])
     return eq
+
+
+@router.get("/lookup", response_model=EquipmentLookupResponse)
+def lookup_equipment_by_serial(
+    serial: str = Query(..., min_length=3, description="Серийный номер оборудования (минимум 3 символа)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
+):
+    eq = (
+        db.query(Equipment)
+        .options(joinedload(Equipment.client), joinedload(Equipment.model))
+        .filter(Equipment.serial_number == serial, Equipment.is_deleted.is_(False))
+        .first()
+    )
+    if not eq:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NOT_FOUND", "message": f"Equipment with serial number '{serial}' not found"},
+        )
+    if client_scope is not None and eq.client_id != client_scope:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "FORBIDDEN", "message": "Equipment does not belong to your organization"},
+        )
+    today = date.today()
+    is_warranty = eq.warranty_until is not None and eq.warranty_until >= today
+    return EquipmentLookupResponse(
+        equipment_id=eq.id,
+        serial_number=eq.serial_number,
+        model_name=eq.model.name,
+        client_id=eq.client_id,
+        client_name=eq.client.name,
+        is_under_warranty=is_warranty,
+        warranty_until=eq.warranty_until,
+    )
 
 
 @router.get("/{equipment_id}", response_model=EquipmentResponse)

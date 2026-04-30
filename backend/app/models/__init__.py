@@ -348,11 +348,13 @@ class WorkActItem(Base):
     unit:        Mapped[str]           = mapped_column(String(16), nullable=False, default="шт")
     unit_price:  Mapped[Decimal]       = mapped_column(DECIMAL(12, 2), nullable=False, default=0)
     total:       Mapped[Decimal]       = mapped_column(DECIMAL(14, 2), nullable=False, default=0)
-    sort_order:  Mapped[int]           = mapped_column(Integer, default=0, nullable=False)
+    sort_order:   Mapped[int]           = mapped_column(Integer, default=0, nullable=False)
+    warehouse_id: Mapped[Optional[int]] = mapped_column(ForeignKey("warehouses.id", ondelete="SET NULL"), nullable=True)
 
-    work_act: Mapped["WorkAct"]                  = relationship("WorkAct", back_populates="items")
-    service:  Mapped[Optional["ServiceCatalog"]] = relationship("ServiceCatalog", back_populates="work_act_items")
-    part:     Mapped[Optional["SparePart"]]      = relationship("SparePart")
+    work_act:  Mapped["WorkAct"]                  = relationship("WorkAct", back_populates="items")
+    service:   Mapped[Optional["ServiceCatalog"]] = relationship("ServiceCatalog", back_populates="work_act_items")
+    part:      Mapped[Optional["SparePart"]]      = relationship("SparePart")
+    warehouse: Mapped[Optional["Warehouse"]]      = relationship("Warehouse")
 
 
 # ── Vendors ───────────────────────────────────────────────────────────────────
@@ -547,6 +549,119 @@ class ExchangeRate(Base):
     setter: Mapped["User"] = relationship("User", foreign_keys=[set_by])
 
 
+# ── Warehouse ─────────────────────────────────────────────────────────────────
+class Warehouse(Base):
+    __tablename__ = "warehouses"
+
+    id:        Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name:      Mapped[str]           = mapped_column(String(255), nullable=False)
+    type:      Mapped[str]           = mapped_column(
+        Enum("company", "bank", name="warehouse_type_enum"),
+        default="company", nullable=False,
+    )
+    client_id: Mapped[Optional[int]] = mapped_column(ForeignKey("clients.id", ondelete="SET NULL"), nullable=True)
+    is_active: Mapped[bool]          = mapped_column(Boolean, default=True, nullable=False)
+
+    client: Mapped[Optional["Client"]]       = relationship("Client")
+    stocks: Mapped[List["WarehouseStock"]]   = relationship("WarehouseStock", back_populates="warehouse", cascade="all, delete-orphan")
+
+
+# ── Warehouse Stock ────────────────────────────────────────────────────────────
+class WarehouseStock(Base):
+    __tablename__ = "warehouse_stock"
+
+    id:                  Mapped[int]             = mapped_column(Integer, primary_key=True, autoincrement=True)
+    warehouse_id:        Mapped[int]             = mapped_column(ForeignKey("warehouses.id", ondelete="CASCADE"), nullable=False)
+    part_id:             Mapped[int]             = mapped_column(ForeignKey("spare_parts.id", ondelete="CASCADE"), nullable=False)
+    quantity:            Mapped[int]             = mapped_column(Integer, default=0, nullable=False)
+    unit_price_snapshot: Mapped[Optional[Decimal]] = mapped_column(DECIMAL(12, 2), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("warehouse_id", "part_id", name="uq_warehouse_part"),
+    )
+
+    warehouse: Mapped["Warehouse"]  = relationship("Warehouse", back_populates="stocks")
+    part:      Mapped["SparePart"]  = relationship("SparePart")
+
+
+# ── Stock Receipt ──────────────────────────────────────────────────────────────
+class StockReceipt(Base):
+    __tablename__ = "stock_receipts"
+
+    id:                  Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
+    receipt_number:      Mapped[str]           = mapped_column(String(20), unique=True, nullable=False, index=True)
+    warehouse_id:        Mapped[int]           = mapped_column(ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False)
+    receipt_date:        Mapped[date]          = mapped_column(Date, nullable=False)
+    vendor_id:           Mapped[Optional[int]] = mapped_column(ForeignKey("vendors.id", ondelete="SET NULL"), nullable=True)
+    supplier_doc_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    notes:               Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status:              Mapped[str]           = mapped_column(
+        Enum("draft", "posted", "cancelled", name="stock_receipt_status_enum"),
+        default="draft", nullable=False,
+    )
+    created_by: Mapped[int]      = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+
+    warehouse: Mapped["Warehouse"]              = relationship("Warehouse")
+    vendor:    Mapped[Optional["Vendor"]]       = relationship("Vendor")
+    creator:   Mapped["User"]                   = relationship("User", foreign_keys=[created_by])
+    items:     Mapped[List["StockReceiptItem"]] = relationship("StockReceiptItem", back_populates="receipt", cascade="all, delete-orphan")
+
+
+# ── Stock Receipt Item ─────────────────────────────────────────────────────────
+class StockReceiptItem(Base):
+    __tablename__ = "stock_receipt_items"
+
+    id:         Mapped[int]     = mapped_column(Integer, primary_key=True, autoincrement=True)
+    receipt_id: Mapped[int]     = mapped_column(ForeignKey("stock_receipts.id", ondelete="CASCADE"), nullable=False)
+    part_id:    Mapped[int]     = mapped_column(ForeignKey("spare_parts.id", ondelete="RESTRICT"), nullable=False)
+    quantity:   Mapped[int]     = mapped_column(Integer, nullable=False)
+    unit_price: Mapped[Decimal] = mapped_column(DECIMAL(12, 2), nullable=False, default=0)
+
+    receipt: Mapped["StockReceipt"] = relationship("StockReceipt", back_populates="items")
+    part:    Mapped["SparePart"]    = relationship("SparePart")
+
+
+# ── Parts Transfer ─────────────────────────────────────────────────────────────
+class PartsTransfer(Base):
+    __tablename__ = "parts_transfers"
+
+    id:                Mapped[int]            = mapped_column(Integer, primary_key=True, autoincrement=True)
+    transfer_number:   Mapped[str]            = mapped_column(String(20), unique=True, nullable=False, index=True)
+    from_warehouse_id: Mapped[int]            = mapped_column(ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False)
+    to_warehouse_id:   Mapped[int]            = mapped_column(ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False)
+    transfer_date:     Mapped[date]           = mapped_column(Date, nullable=False)
+    notes:             Mapped[Optional[str]]  = mapped_column(Text, nullable=True)
+    status:            Mapped[str]            = mapped_column(
+        Enum("draft", "posted", "cancelled", name="parts_transfer_status_enum"),
+        default="draft", nullable=False,
+    )
+    created_by: Mapped[int]            = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    posted_by:  Mapped[Optional[int]]  = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    posted_at:  Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime]       = mapped_column(DateTime, default=func.now(), nullable=False)
+
+    from_warehouse: Mapped["Warehouse"]             = relationship("Warehouse", foreign_keys=[from_warehouse_id])
+    to_warehouse:   Mapped["Warehouse"]             = relationship("Warehouse", foreign_keys=[to_warehouse_id])
+    creator:        Mapped["User"]                  = relationship("User", foreign_keys=[created_by])
+    poster:         Mapped[Optional["User"]]        = relationship("User", foreign_keys=[posted_by])
+    items:          Mapped[List["PartsTransferItem"]] = relationship("PartsTransferItem", back_populates="transfer", cascade="all, delete-orphan")
+
+
+# ── Parts Transfer Item ────────────────────────────────────────────────────────
+class PartsTransferItem(Base):
+    __tablename__ = "parts_transfer_items"
+
+    id:                  Mapped[int]             = mapped_column(Integer, primary_key=True, autoincrement=True)
+    transfer_id:         Mapped[int]             = mapped_column(ForeignKey("parts_transfers.id", ondelete="CASCADE"), nullable=False)
+    part_id:             Mapped[int]             = mapped_column(ForeignKey("spare_parts.id", ondelete="RESTRICT"), nullable=False)
+    quantity:            Mapped[int]             = mapped_column(Integer, nullable=False)
+    unit_price_snapshot: Mapped[Optional[Decimal]] = mapped_column(DECIMAL(12, 2), nullable=True)
+
+    transfer: Mapped["PartsTransfer"] = relationship("PartsTransfer", back_populates="items")
+    part:     Mapped["SparePart"]     = relationship("SparePart")
+
+
 # ── Maintenance Schedule ───────────────────────────────────────────────────────
 class MaintenanceSchedule(Base):
     __tablename__ = "maintenance_schedules"
@@ -584,10 +699,10 @@ __all__ = [
     "TicketFile",
     "WorkAct",
     "ServiceCatalog",
-    "ProductCatalog",
     "WorkActItem",
     "Vendor",
     "SparePart",
+    "PriceHistory",
     "Invoice",
     "InvoiceItem",
     "NotificationSetting",
@@ -596,4 +711,10 @@ __all__ = [
     "SystemSetting",
     "ExchangeRate",
     "MaintenanceSchedule",
+    "Warehouse",
+    "WarehouseStock",
+    "StockReceipt",
+    "StockReceiptItem",
+    "PartsTransfer",
+    "PartsTransferItem",
 ]

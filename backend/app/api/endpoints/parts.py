@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models import SparePart, PriceHistory, User
+from app.models import SparePart, PriceHistory, User, WarehouseStock, Warehouse
 from app.api.deps import get_current_user, require_roles, get_client_scope
 from app.schemas import (
     SparePartCreate, SparePartUpdate, SparePartResponse,
@@ -155,6 +155,14 @@ def adjust_stock(
             },
         )
     part.quantity = new_qty
+    company_stock = (
+        db.query(WarehouseStock)
+        .join(Warehouse, WarehouseStock.warehouse_id == Warehouse.id)
+        .filter(WarehouseStock.part_id == part_id, Warehouse.type == "company")
+        .first()
+    )
+    if company_stock:
+        company_stock.quantity = new_qty
     db.commit()
     db.refresh(part)
     return part

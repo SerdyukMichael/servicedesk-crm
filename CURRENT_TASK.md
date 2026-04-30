@@ -1,50 +1,57 @@
 # CURRENT TASK
 
-**Последнее обновление:** 2026-04-24
+**Последнее обновление:** 2026-04-27
 
 ## Последняя команда пользователя
 
-> коррекция. после этапа 1 делаем мобильное приложение.
-> приступаем к реализации Этап 1.
-> все как обычно - по документам, БА, СА, тесты, реализация, накат на тест. Я смотрю.
+> продолжай (реализация Модуля 5 «Склад запчастей», Features 1–4)
 
 ## Статус
 
-IN PROGRESS — БА-фаза Этапа 1
+DONE (pending review) — Модуль 5 «Склад запчастей» реализован полностью
 
-## Скорректированный план этапов
+## Что реализовано
 
-| Этап | Фокус |
-|------|-------|
-| **Этап 1** (текущий) | Закрытие хвостов + операционная зрелость |
-| **Этап 2** | Мобильное приложение (React Native) |
-| **Этап 3** | Учёт персонала и склад |
-| **Этап 4** | CRM-функции и аналитика |
+| Фича | Описание | Статус |
+|---|---|---|
+| 1 | Приходный ордер (StockReceipt) | ✅ Backend + тесты + Frontend |
+| 2 | Мультисклад: Warehouse + WarehouseStock, фильтр | ✅ Backend + тесты + Frontend |
+| 3 | Передача на склад банка (PartsTransfer) | ✅ Backend + тесты + Frontend |
+| 4 | Акт выполненных работ v1.4: warehouse_id, BR-P-010 | ✅ Backend (склад в позициях акта, списание, цена 0 в счёте) |
 
-## Этап 1 — задачи
+## Артефакты
 
-| # | UC | Задача | Объём |
-|---|-----|--------|-------|
-| 1.1 | UC-403 | Кнопка «Создать счёт по акту» в UI карточки заявки/акта | S |
-| 1.2 | UC-905 | SLA полноценно: поля, Celery-beat, UI с countdown и цветом | L |
-| 1.3 | UC-806 | Аудит-лог: страница с фильтрами, экспорт CSV | M |
-| 1.4 | UC-910 | Отчёт по заявкам: фильтры, метрики, экспорт XLSX | M |
-| 1.5 | UC-908 | График ТО: модель, Celery авто-создание заявок, UI | M |
+| Артефакт | Результат |
+|---|---|
+| `backend/alembic/versions/013_module5_warehouse.py` | Миграция: 6 новых таблиц + warehouse_id в work_act_items |
+| `backend/app/models/__init__.py` | 6 новых ORM-моделей + поле warehouse в WorkActItem |
+| `backend/app/schemas/__init__.py` | Схемы Warehouse, WarehouseStock, StockReceipt, PartsTransfer + warehouse_id в WorkActItem |
+| `backend/app/api/endpoints/warehouses.py` | CRUD складов + GET /warehouses/stock/list |
+| `backend/app/api/endpoints/stock_receipts.py` | Полный жизненный цикл приходного ордера |
+| `backend/app/api/endpoints/parts_transfers.py` | Полный жизненный цикл передачи запчастей |
+| `backend/app/api/endpoints/tickets.py` | Feature 4: `_deduct_act_stock`, `_restore_act_stock`, BR-P-010 в `_sync_invoice_from_act` |
+| `backend/app/api/endpoints/invoices.py` | Feature 4: BR-P-010 в create_invoice_from_act |
+| `backend/app/api/router.py` | Зарегистрированы 3 новых роутера |
+| `backend/tests/test_warehouse.py` | 25 тестов (Warehouses, Stock, Receipts, Transfers) |
+| `frontend/src/api/types.ts` | Типы: Warehouse, WarehouseStock, StockReceipt, PartsTransfer и их производные |
+| `frontend/src/api/endpoints.ts` | API-функции для складов, приходов, передач |
+| `frontend/src/pages/PartsPage.tsx` | 4 вкладки: Запчасти / Остатки / Приходы / Передачи |
 
-## Процесс
+## Тесты
 
-БА (документы) → СА (API/модели) → Тесты → Реализация → Накат на тест → Пользователь смотрит
+499 passed, 0 failed (включая 25 новых тестов Модуля 5)
 
-## Прогресс
+## Ветка
 
-- [ ] БА-фаза
-- [ ] СА-фаза
-- [ ] Тесты
-- [ ] Реализация
-- [ ] Накат на тест
+`feature/module5-warehouse` — ожидает проверки на стенде → merge в main → деплой
 
-## История
+## Предыдущая задача (UC-901 v1.4 — серийный номер)
 
-- v1.4.0 (2026-04-21): курсы валют, история справа, created_at
-- v1.3.0 (2026-04-20): удаление repair_history, UI/UX улучшения
-- v1.2.0: системная валюта, НДС 22%, страница счёта, блокировка акта
+Реализована ранее. Ожидает коммита и деплоя вместе с Модулем 5.
+
+## Следующие шаги
+
+1. Проверить на локальном стенде: /parts → 4 вкладки
+2. Создать приходный ордер → провести → проверить остатки
+3. Создать передачу → провести → проверить остатки по складам
+4. Дать ОК → коммит + merge + деплой

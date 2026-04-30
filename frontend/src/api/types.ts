@@ -447,3 +447,107 @@ export interface ExchangeRateCreate {
   rate: string
   set_at?: string | null
 }
+
+// ===== Warehouse / Stock / Transfer =====
+
+export interface Warehouse {
+  id: number
+  name: string
+  type: 'company' | 'bank'
+  client_id?: number
+  is_active: boolean
+}
+
+export interface WarehouseStock {
+  id: number
+  warehouse_id: number
+  warehouse_name: string
+  warehouse_type: string
+  part_id: number
+  part_sku: string
+  part_name: string
+  part_unit: string
+  part_category?: string
+  part_min_quantity: number
+  quantity: number
+  unit_price_snapshot?: string
+}
+
+export interface StockReceiptItem {
+  id: number
+  part_id: number
+  part_name: string
+  part_sku: string
+  quantity: number
+  unit_price: string
+}
+
+export interface StockReceiptItemCreate {
+  part_id: number
+  quantity: number
+  unit_price: string
+}
+
+export interface StockReceiptCreate {
+  warehouse_id: number
+  receipt_date: string
+  vendor_id?: number
+  supplier_doc_number?: string
+  notes?: string
+  items: StockReceiptItemCreate[]
+}
+
+export interface StockReceipt {
+  id: number
+  receipt_number: string
+  warehouse_id: number
+  warehouse_name: string
+  receipt_date: string
+  status: 'draft' | 'posted' | 'cancelled'
+  items: StockReceiptItem[]
+  created_by: number
+  created_at: string
+  vendor_id?: number
+  supplier_doc_number?: string
+  notes?: string
+}
+
+export interface PartsTransferItem {
+  id: number
+  part_id: number
+  part_name: string
+  part_sku: string
+  quantity: number
+  unit_price_snapshot?: string
+  available_qty: number
+}
+
+export interface PartsTransferItemCreate {
+  part_id: number
+  quantity: number
+}
+
+export interface PartsTransferCreate {
+  from_warehouse_id: number
+  to_warehouse_id: number
+  transfer_date: string
+  notes?: string
+  items: PartsTransferItemCreate[]
+}
+
+export interface PartsTransfer {
+  id: number
+  transfer_number: string
+  from_warehouse_id: number
+  from_warehouse_name: string
+  to_warehouse_id: number
+  to_warehouse_name: string
+  transfer_date: string
+  status: 'draft' | 'posted' | 'cancelled'
+  items: PartsTransferItem[]
+  created_by: number
+  posted_by?: number
+  posted_at?: string
+  created_at: string
+  notes?: string
+}
