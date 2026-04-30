@@ -845,11 +845,25 @@ export default function TicketDetailPage() {
               {attachments && attachments.length > 0 ? (
                 <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {attachments.map(att => {
-                    const tok = localStorage.getItem('token')
-                    const href = tok ? `${att.file_url}?token=${encodeURIComponent(tok)}` : att.file_url
+                    const handleOpen = async (e: React.MouseEvent) => {
+                      e.preventDefault()
+                      const tok = localStorage.getItem('token')
+                      try {
+                        const res = await fetch(att.file_url, {
+                          headers: tok ? { Authorization: `Bearer ${tok}` } : {}
+                        })
+                        if (!res.ok) throw new Error('fetch failed')
+                        const blob = await res.blob()
+                        const url = URL.createObjectURL(blob)
+                        window.open(url, '_blank')
+                        setTimeout(() => URL.revokeObjectURL(url), 60_000)
+                      } catch {
+                        alert('Не удалось открыть файл')
+                      }
+                    }
                     return (
                       <li key={att.id} style={{ fontSize: 13 }}>
-                        <a href={href} target="_blank" rel="noopener noreferrer">
+                        <a href={att.file_url} onClick={handleOpen} style={{ cursor: 'pointer' }}>
                           📎 {att.filename}
                         </a>
                       </li>

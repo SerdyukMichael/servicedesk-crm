@@ -9,13 +9,12 @@ from urllib.parse import quote
 
 import magic as _magic
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, UploadFile, File, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, File, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import decode_token
 from app.models import (
     Ticket, TicketComment, TicketFile, WorkAct, WorkActItem, User,
     Equipment, EquipmentModel, TicketStatusHistory, Invoice, InvoiceItem,
@@ -68,42 +67,6 @@ def _validate_and_detect_mime(data: bytes) -> str:
 
 from app.api.deps import get_current_user, require_roles, _get_user_roles, get_client_scope
 from app.core.email import send_email
-
-
-def _auth_download(request: Request, token_param: Optional[str], db: Session) -> User:
-    """Аутентификация для скачивания файлов: Authorization header или ?token= query param."""
-    auth_header = request.headers.get("Authorization", "")
-    raw_token = None
-    if auth_header.startswith("Bearer "):
-        raw_token = auth_header[7:]
-    elif token_param:
-        raw_token = token_param
-    if not raw_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "UNAUTHORIZED", "message": "Не авторизован"},
-        )
-    try:
-        payload = decode_token(raw_token)
-        user_id = payload.get("sub")
-        if user_id is None:
-            raise ValueError
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "UNAUTHORIZED", "message": "Не авторизован"},
-        )
-    user = db.query(User).filter(
-        User.id == int(user_id),
-        User.is_active.is_(True),
-        User.is_deleted.is_(False),
-    ).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "UNAUTHORIZED", "message": "Не авторизован"},
-        )
-    return user
 
 
 from app.services.sla import compute_sla_deadlines
@@ -523,7 +486,7 @@ async def upload_attachment(
 ):
     _require_ticket(db, ticket_id, client_scope)
     max_bytes = settings.max_file_size_mb * 1024 * 1024
-    data = await file.read()
+    data = await file.read(max_bytes + 1)   # читаем не более max+1 байт — защита от DoS
     if len(data) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -592,11 +555,9 @@ def list_attachments(
 def download_attachment(
     ticket_id: int,
     file_id: int,
-    request: Request,
-    token: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
-    _auth_download(request, token, db)
     f = db.query(TicketFile).filter(TicketFile.id == file_id, TicketFile.ticket_id == ticket_id).first()
     if not f:
         raise HTTPException(
@@ -617,13 +578,11 @@ def download_attachment(
 def download_attachment_direct(
     ticket_id: int,
     file_id: int,
-    request: Request,
-    token: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+    client_scope: Optional[int] = Depends(get_client_scope),
 ):
-    """Download attachment. Accepts token via Authorization header or ?token= query param."""
-    current_user = _auth_download(request, token, db)
-    client_scope = current_user.client_id if "client_user" in _get_user_roles(current_user) else None
+    """Download attachment. Requires authentication via Authorization header."""
     _require_ticket(db, ticket_id, client_scope)
     f = db.query(TicketFile).filter(TicketFile.id == file_id, TicketFile.ticket_id == ticket_id).first()
     if not f:
