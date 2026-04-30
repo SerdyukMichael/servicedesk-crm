@@ -444,9 +444,9 @@ def grant_portal_access(
         db.add(portal_user)
         db.flush()
     else:
-        # Запрет выдавать доступ пользователю с внутренними ролями сотрудника
+        # Запрет выдавать доступ активному сотруднику системы (удалённые — ОК)
         internal_roles = [r for r in _get_user_roles(portal_user) if r != "client_user"]
-        if internal_roles:
+        if internal_roles and not portal_user.is_deleted:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={

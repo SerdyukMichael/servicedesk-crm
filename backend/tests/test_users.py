@@ -84,7 +84,7 @@ class TestCreateUser:
 
     def test_duplicate_email_returns_409(self, client, db):
         headers = _admin_token(db)
-        payload = {"email": "dup@test.com", "full_name": "A", "password": "p12345", "roles": ["engineer"]}
+        payload = {"email": "dup@test.com", "full_name": "A", "password": "p12345678", "roles": ["engineer"]}
         client.post("/api/v1/users", headers=headers, json=payload)
         res = client.post("/api/v1/users", headers=headers, json=payload)
         assert res.status_code == 409
@@ -105,8 +105,9 @@ class TestCreateUser:
     def test_created_user_has_correct_role(self, client, db):
         headers = _admin_token(db)
         res = client.post("/api/v1/users", headers=headers, json={
-            "email": "wh@test.com", "full_name": "WH", "password": "p12345", "roles": ["warehouse"],
+            "email": "wh@test.com", "full_name": "WH", "password": "p12345678", "roles": ["warehouse"],
         })
+        assert res.status_code == 201
         assert "warehouse" in res.json()["roles"]
 
 

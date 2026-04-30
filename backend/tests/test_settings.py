@@ -13,19 +13,23 @@ def seed_currency(db, code="RUB", name="Российский рубль"):
 class TestGetCurrency:
     def test_returns_defaults(self, client, db):
         seed_currency(db)
-        r = client.get("/api/v1/settings/currency")
+        admin = make_admin(db)
+        headers = auth_headers(admin.id, ["admin"])
+        r = client.get("/api/v1/settings/currency", headers=headers)
         assert r.status_code == 200
         data = r.json()
         assert data["currency_code"] == "RUB"
         assert data["currency_name"] == "Российский рубль"
 
-    def test_unauthenticated_allowed(self, client, db):
+    def test_unauthenticated_blocked(self, client, db):
         seed_currency(db)
         r = client.get("/api/v1/settings/currency")
-        assert r.status_code == 200
+        assert r.status_code == 401
 
     def test_missing_setting_returns_404(self, client, db):
-        r = client.get("/api/v1/settings/currency")
+        admin = make_admin(db)
+        headers = auth_headers(admin.id, ["admin"])
+        r = client.get("/api/v1/settings/currency", headers=headers)
         assert r.status_code == 404
 
 

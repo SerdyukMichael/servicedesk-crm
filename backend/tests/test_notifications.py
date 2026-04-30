@@ -99,7 +99,7 @@ class TestNotificationSettings:
 
     def test_reset_settings(self, client, db):
         u, hdrs = _admin(db)
-        res = client.post("/api/v1/notifications/settings/reset", headers=hdrs)
+        res = client.post("/api/v1/notifications/settings/reset?confirm=true", headers=hdrs)
         assert res.status_code in (200, 204)
 
     def test_unauthenticated_blocked(self, client, db):
