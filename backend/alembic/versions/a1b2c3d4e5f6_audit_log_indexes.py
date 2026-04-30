@@ -16,14 +16,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_index('ix_audit_log_created_at', 'audit_log', ['created_at'])
-    op.create_index('ix_audit_log_user_id', 'audit_log', ['user_id'])
-    op.create_index('ix_audit_log_entity_type', 'audit_log', ['entity_type'])
-    op.create_index('ix_audit_log_action', 'audit_log', ['action'])
+    op.create_index('ix_audit_log_created_at', 'audit_log', ['created_at'], if_not_exists=True)
+    op.create_index('ix_audit_log_user_id', 'audit_log', ['user_id'], if_not_exists=True)
+    op.create_index('ix_audit_log_entity_type', 'audit_log', ['entity_type'], if_not_exists=True)
+    op.create_index('ix_audit_log_action', 'audit_log', ['action'], if_not_exists=True)
 
 
 def downgrade() -> None:
-    op.drop_index('ix_audit_log_action', table_name='audit_log')
-    op.drop_index('ix_audit_log_entity_type', table_name='audit_log')
-    op.drop_index('ix_audit_log_user_id', table_name='audit_log')
-    op.drop_index('ix_audit_log_created_at', table_name='audit_log')
+    op.drop_index('ix_audit_log_action', table_name='audit_log', if_exists=True)
+    op.drop_index('ix_audit_log_entity_type', table_name='audit_log', if_exists=True)
+    op.drop_index('ix_audit_log_user_id', table_name='audit_log', if_exists=True)
+    op.drop_index('ix_audit_log_created_at', table_name='audit_log', if_exists=True)

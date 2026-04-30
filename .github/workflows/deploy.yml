@@ -113,6 +113,8 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           command_timeout: 10m
           script: |
+            set -e
+
             # Загружаем готовый образ (никакого docker build на сервере!)
             gzip -dc /tmp/backend.tar.gz | docker load
             rm -f /tmp/backend.tar.gz
