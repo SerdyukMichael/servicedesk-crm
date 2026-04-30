@@ -184,10 +184,29 @@ alembic downgrade -1
 ## CI/CD
 
 `.github/workflows/deploy.yml`:
-1. **test** — pytest на Ubuntu (не блокирующий)
-2. **deploy** — SSH → pull main → `docker compose up -d --build` → `alembic upgrade head`
+
+1. **test** — pytest на Ubuntu (не блокирующий, `|| true`)
+2. **build-frontend / build-backend** — сборка артефактов
+3. **deploy** — SSH → загрузка образа → `alembic upgrade head`
+4. **smoke tests** — проверка прода после деплоя (см. ниже)
 
 Secrets: `SERVER_HOST`, `SERVER_USER`, `SERVER_SSH_KEY`
+
+### Smoke-тесты после деплоя
+
+Полный pytest **нельзя запускать на проде** — `conftest.py` делает `DROP ALL` на базе данных.
+
+Вместо этого в `deploy.yml` есть шаг **Smoke tests**, который выполняется на раннере GitHub Actions и проверяет прод снаружи через HTTP:
+
+| Проверка | Ожидаемый результат | Что это гарантирует |
+| --- | --- | --- |
+| `GET /health` | 200 OK | Сервис поднят, БД доступна |
+| `POST /auth/login` (неверный пароль) | 401 | Auth-стек работает, нет 500 |
+| `GET /docs` | 404 | Swagger скрыт на проде |
+
+Smoke-тесты **блокируют деплой**: если хотя бы один не прошёл — шаг завершается с ошибкой.
+
+Чтобы добавить новую smoke-проверку — дописать в секцию `Smoke tests` в `deploy.yml`.
 
 ---
 

@@ -142,3 +142,24 @@ jobs:
 
             docker compose exec -T backend alembic upgrade head
             echo "Deploy complete"
+      - name: Smoke tests
+        run: |
+          BASE=https://${{ secrets.SERVER_HOST }}
+          echo "--- Smoke tests: $BASE ---"
+
+          # 1. Health
+          curl -sf $BASE/health || (echo "FAIL: /health" && exit 1)
+          echo "OK: /health"
+
+          # 2. Auth отвечает 401 на неверные данные (не 500)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST $BASE/api/v1/auth/login \
+            -H "Content-Type: application/json" -d '{"email":"smoke@test","password":"wrong"}')
+          [ "$STATUS" = "401" ] || (echo "FAIL: /auth/login returned $STATUS" && exit 1)
+          echo "OK: /auth/login"
+
+          # 3. Swagger скрыт на проде
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" $BASE/docs)
+          [ "$STATUS" = "404" ] || (echo "FAIL: /docs exposed ($STATUS)" && exit 1)
+          echo "OK: /docs hidden"
+
+          echo "--- All smoke tests passed ---"
