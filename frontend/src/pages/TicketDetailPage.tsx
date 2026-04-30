@@ -844,13 +844,17 @@ export default function TicketDetailPage() {
               )}
               {attachments && attachments.length > 0 ? (
                 <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {attachments.map(att => (
-                    <li key={att.id} style={{ fontSize: 13 }}>
-                      <a href={att.file_url} target="_blank" rel="noopener noreferrer">
-                        📎 {att.filename}
-                      </a>
-                    </li>
-                  ))}
+                  {attachments.map(att => {
+                    const tok = localStorage.getItem('token')
+                    const href = tok ? `${att.file_url}?token=${encodeURIComponent(tok)}` : att.file_url
+                    return (
+                      <li key={att.id} style={{ fontSize: 13 }}>
+                        <a href={href} target="_blank" rel="noopener noreferrer">
+                          📎 {att.filename}
+                        </a>
+                      </li>
+                    )
+                  })}
                 </ul>
               ) : (
                 <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
