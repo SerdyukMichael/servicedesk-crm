@@ -27,7 +27,7 @@ def _get_setting(db: Session, key: str) -> str:
 
 
 @router.get("/currency", response_model=CurrencySettingResponse, summary="Получить системную валюту")
-def get_currency(db: Session = Depends(get_db)):
+def get_currency(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     return CurrencySettingResponse(
         currency_code=_get_setting(db, _CURRENCY_CODE_KEY),
         currency_name=_get_setting(db, _CURRENCY_NAME_KEY),

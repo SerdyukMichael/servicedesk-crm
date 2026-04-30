@@ -8,8 +8,8 @@ import app.models  # noqa: F401 — ensure all models are registered with SQLAlc
 app = FastAPI(
     title=settings.app_name,
     version="2.0.0",
-    docs_url="/docs" if settings.debug else None,
-    redoc_url="/redoc" if settings.debug else None,
+    docs_url="/docs" if settings.enable_docs else None,
+    redoc_url="/redoc" if settings.enable_docs else None,
     redirect_slashes=False,
 )
 

@@ -5,6 +5,7 @@ from typing import Optional, List
 class Settings(BaseSettings):
     app_name: str = "ServiceDesk CRM"
     debug: bool = False
+    enable_docs: bool = False  # Swagger/ReDoc — только при явном ENABLE_DOCS=true
     database_url: str
     secret_key: str
     algorithm: str = "HS256"
