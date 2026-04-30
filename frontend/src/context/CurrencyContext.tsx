@@ -21,7 +21,9 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     getCurrency().then(setCurrency).catch(() => {})
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    if (localStorage.getItem('token')) load()
+  }, [])
 
   return (
     <CurrencyContext.Provider value={{ currency, reload: load }}>
