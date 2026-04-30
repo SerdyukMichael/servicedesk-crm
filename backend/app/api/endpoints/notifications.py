@@ -171,9 +171,15 @@ def update_setting(
 
 @router.post("/settings/reset", status_code=status.HTTP_204_NO_CONTENT)
 def reset_settings(
+    confirm: bool = Query(False, description="Передайте confirm=true для подтверждения сброса"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if not confirm:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "CONFIRM_REQUIRED", "message": "Передайте ?confirm=true для подтверждения сброса настроек"},
+        )
     db.query(NotificationSetting).filter(
         NotificationSetting.user_id == current_user.id
     ).delete()
