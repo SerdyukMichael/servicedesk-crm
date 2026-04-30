@@ -32,22 +32,22 @@ class ErrorResponse(BaseModel):
 
 class UserCreate(BaseModel):
     email: EmailStr
-    full_name: str
-    password: str
+    full_name: str = Field(..., max_length=128)
+    password: str = Field(..., min_length=8, max_length=128)
     roles: List[str] = ["engineer"]
-    phone: Optional[str] = None
-    telegram_chat_id: Optional[str] = None
+    phone: Optional[str] = Field(None, max_length=32)
+    telegram_chat_id: Optional[str] = Field(None, max_length=64)
     is_active: bool = True
 
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
-    full_name: Optional[str] = None
+    full_name: Optional[str] = Field(None, max_length=128)
     roles: Optional[List[str]] = None
-    phone: Optional[str] = None
-    telegram_chat_id: Optional[str] = None
+    phone: Optional[str] = Field(None, max_length=32)
+    telegram_chat_id: Optional[str] = Field(None, max_length=64)
     is_active: Optional[bool] = None
-    password: Optional[str] = None
+    password: Optional[str] = Field(None, min_length=8, max_length=128)
 
 
 class UserResponse(BaseModel):
@@ -389,8 +389,8 @@ class WorkTemplateResponse(BaseModel):
 class TicketCreate(BaseModel):
     client_id: int
     equipment_id: Optional[int] = None
-    title: str
-    description: Optional[str] = None
+    title: str = Field(..., max_length=500)
+    description: Optional[str] = Field(None, max_length=20000)
     type: str = Field("repair", pattern="^(repair|maintenance|diagnostics|installation)$")
     priority: str = Field("medium", pattern="^(low|medium|high|critical)$")
     work_template_id: Optional[int] = None
@@ -399,8 +399,8 @@ class TicketCreate(BaseModel):
 class TicketUpdate(BaseModel):
     client_id: Optional[int] = None
     equipment_id: Optional[int] = None
-    title: Optional[str] = None
-    description: Optional[str] = None
+    title: Optional[str] = Field(None, max_length=500)
+    description: Optional[str] = Field(None, max_length=20000)
     type: Optional[str] = None
     priority: Optional[str] = None
     work_template_id: Optional[int] = None
@@ -412,7 +412,7 @@ class TicketAssign(BaseModel):
 
 class TicketStatusChange(BaseModel):
     status: str
-    comment: Optional[str] = None
+    comment: Optional[str] = Field(None, max_length=5000)
 
 
 class TicketResponse(BaseModel):
@@ -463,7 +463,7 @@ class TicketStatusHistoryResponse(BaseModel):
 # ── Comments ──────────────────────────────────────────────────────────────────
 
 class CommentCreate(BaseModel):
-    text: str = Field(..., min_length=1)
+    text: str = Field(..., min_length=1, max_length=10000)
     is_internal: bool = False
 
 
