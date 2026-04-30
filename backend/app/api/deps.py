@@ -3,12 +3,23 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
+import redis as _redis_lib
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import decode_token
 from app.models import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+_redis_client: Optional[_redis_lib.Redis] = None
+
+
+def _get_redis() -> _redis_lib.Redis:
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = _redis_lib.from_url(settings.redis_url, decode_responses=True)
+    return _redis_client
 
 
 def get_current_user(
@@ -25,6 +36,16 @@ def get_current_user(
         user_id = payload.get("sub")
         if user_id is None:
             raise credentials_exception
+        # проверяем блоклист отозванных токенов
+        jti = payload.get("jti")
+        if jti:
+            try:
+                if _get_redis().get(f"revoked_jti:{jti}"):
+                    raise credentials_exception
+            except _redis_lib.RedisError:
+                pass  # Redis недоступен — не блокируем, продолжаем
+    except HTTPException:
+        raise
     except Exception:
         raise credentials_exception
 

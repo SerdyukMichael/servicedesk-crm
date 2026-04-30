@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.security import hash_password
 from app.models import AuditLog, Client, ClientContact, Equipment, Ticket, User
-from app.api.deps import get_current_user, require_roles, get_client_scope
+from app.api.deps import get_current_user, require_roles, get_client_scope, _get_user_roles
 from app.services.audit import log_action
 from app.schemas import (
     ClientContactCreate,
@@ -439,11 +439,22 @@ def grant_portal_access(
             client_id=client_id,
             is_active=True,
             is_deleted=False,
+            must_change_password=True,
         )
         db.add(portal_user)
         db.flush()
     else:
-        # Активируем / обновляем существующую
+        # Запрет выдавать доступ пользователю с внутренними ролями сотрудника
+        internal_roles = [r for r in _get_user_roles(portal_user) if r != "client_user"]
+        if internal_roles:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "EMAIL_CONFLICT",
+                    "message": "Email уже используется сотрудником системы. Используйте другой email для портального доступа",
+                },
+            )
+        # Активируем / обновляем существующую клиентскую учётную запись
         portal_user.is_active = True
         portal_user.is_deleted = False
         portal_user.client_id = client_id
